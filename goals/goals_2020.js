@@ -9,9 +9,9 @@ exports.goals = [
         actions: [
             {
                 name: "Move",
-                method: "moveToElement",
+                method: "moveToComponent",
                 parameters:{
-                    element: "lighthouse",
+                    component: "lighthouse",
                     speed: 1 // m/s
                 }
             },

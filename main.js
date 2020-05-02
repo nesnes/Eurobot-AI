@@ -1,27 +1,18 @@
-
+const app = {};
 
 async function main(){
-    //Read the map
-    map = require("./maps/map_2020").map;
-    //console.log(map)
+    //Create web interface + communication
+    let Server = require('./server');
+    app.server = new Server(app);
+    app.server.init();
 
-    //Read the goals
-    goals = require("./goals/goals_2020").goals;
-    //console.log(goals)
+    //Create logger
+    let Logger = require('./logger');
+    app.logger = new Logger(app);
 
-    //Create robot
-    const Robot = require('./robots/robot_2020');
-    let robot = new Robot();
-
-    //Resolve the goals
-    for(const goal of goals){
-        console.log("Running", goal.name)
-        //Send to robot
-        for(const action of goal.actions){
-            let success = robot.run(action)
-            console.log(success?"Done":"Failed")
-        }
-    }
+    //Create AI
+    let Intelligence = require('./intelligence');
+    app.intelligence = new Intelligence(app);
 }
 
 main();

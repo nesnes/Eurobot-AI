@@ -1,0 +1,24 @@
+{
+  "name": "eurobot-ai",
+  "version": "1.0.0",
+  "description": "AI dedicated to control robots at the Eurobot contest https://www.eurobot.org/",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nesnes/Eurobot-AI.git"
+  },
+  "author": "alexnesnes",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nesnes/Eurobot-AI/issues"
+  },
+  "homepage": "https://github.com/nesnes/Eurobot-AI#readme",
+  "dependencies": {
+    "express": "^4.17.1",
+    "mosca": "^2.8.3",
+    "ws": "^7.2.5"
+  }
+}
