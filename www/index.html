@@ -1,104 +1,113 @@
 <html>
     <head>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
-        <script src="https://unpkg.com/vue"></script>
+        <!--<script src="js/lib/mqttws31.min.js" type="text/javascript"></script>-->
+        <script src="js/lib/browserMqtt.js" type="text/javascript"></script>
+        <script src="js/lib/vue.min.js"></script>
+        <link rel="stylesheet" href="css/bootstrap.min.css">
+        <script src="js/lib/jquery-3.4.1.slim.min.js"></script>
+        <script src="js/lib/bootstrap.bundle.min.js"></script>
     </head>
     <body>
+        <div id="app" class="container-fluid h-100">
+            <div class="row h-100">
+                <!-- Side Panel -->
+                <div class="col-md-5 h-100 d-flex flex-column">
+                    <!--Map-->
+                    <div class="row justify-content-center">
+                        <svg class="w-100"  viewBox="-100 -100 3200 2200" unit="mm">
+                            <template v-if="map.background != ''">
+                                <image v-bind:href="map.background" x="0" y="0" height="2000" width="3000" /> 
+                            </template>
+                            <template v-for="item in map.components">
+                                <template v-if="item.shape.type == 'rectangle'">
+                                    <g>
+                                        <title>{{item.name}} - {{item.type}} - {{item.team}}</title>
+                                        <rect v-bind:x="item.shape.x" v-bind:y="item.shape.y" v-bind:width="item.shape.width" v-bind:height="item.shape.height" v-bind:style="{ fill: item.shape.color }" style="stroke-width:1;stroke:rgb(0,0,0);opacity: 0.9;" />
+                                    </g>
+                                </template>
+                                <template v-if="item.shape.type == 'circle'">
+                                    <g>
+                                        <title>{{item.name}} - {{item.type}} - {{item.team}}</title>
+                                        <circle  v-bind:cx="item.shape.x" v-bind:cy="item.shape.y" v-bind:r="item.shape.radius" v-bind:style="{ fill: item.shape.color }" style="stroke-width:1;stroke:rgb(0,0,0);opacity: 0.9;" />
+                                    </g>
+                                </template>
+                            </template>
+                            <!--Robot-->
+                            <template>
+                                <g v-bind:transform="'translate('+robot.x+' '+robot.y+') rotate('+robot.angle+')'">
+                                    <title>{{robot.name}} x:{{robot.x}}  y:{{robot.y}} angle:{{robot.angle}}</title>
+                                    <circle  v-bind:cx="0" v-bind:cy="0" v-bind:r="robot.radius" v-bind:style="{ fill: robot.color!=''?robot.color:'white' }" style="stroke-width:1;stroke:rgb(0,0,0);opacity: 0.9;" />
+                                    <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="robot.radius" v-bind:y2="0" style="stroke-width:5;stroke:rgb(0,0,0);opacity: 0.9;" />
+                                </g>
+                            </template>
+                        </svg>
+                    </div>
 
-        <h1>Hello world -</h1>
-        <button onclick="sendStart()">Start AI</button>
+                    <!--Control-->
+                    <div class="row justify-content-center">
+                        <button class="btn btn-primary mx-1" v-on:click="runInit()" v-bind:disabled="communication.client.connected === false">Init</button>
+                        <button class="btn btn-success mx-1" v-on:click="runMatch()" v-bind:disabled="communication.client.connected === false">Run Match</button>
+                        <span v-if="communication.client.connected === false" class="text-danger mx-2 font-weight-bold">Not connected</span>
+                    </div>
 
-        <div id="app">
-            {{ message }}
-            <svg width="500" height="400" viewBox="-100 -100 3200 2200" unit="mm">
-                <template v-if="map.background != ''">
-                    <image v-bind:href="map.background" x="0" y="0" height="2000" width="3000" /> 
-                </template>
-                <template v-for="item in map.components">
-                    <template v-if="item.shape.type == 'rectangle'">
-                        <g>
-                            <title>{{item.name}} - {{item.type}} - {{item.team}}</title>
-                            <rect v-bind:x="item.shape.x" v-bind:y="item.shape.y" v-bind:width="item.shape.width" v-bind:height="item.shape.height" v-bind:style="{ fill: item.shape.color }" style="stroke-width:1;stroke:rgb(0,0,0);opacity: 0.9;" />
-                        </g>
-                    </template>
-                    <template v-if="item.shape.type == 'circle'">
-                        <g>
-                            <title>{{item.name}} - {{item.type}} - {{item.team}}</title>
-                            <circle  v-bind:cx="item.shape.x" v-bind:cy="item.shape.y" v-bind:r="item.shape.radius" v-bind:title="item.shape.name" v-bind:style="{ fill: item.shape.color }" style="stroke-width:1;stroke:rgb(0,0,0);opacity: 0.9;" />
-                        </g>
-                    </template>
-                </template>
-            </svg>
+                    <!--Console-->
+                    <div id="logConsole" class="row justify-content-center mt-2 flex-grow-1 overflow-auto">
+                        <div class="col w-100 bg-dark p-2 m-0" style="font-family: monospace;line-height: 1;">
+                            <span v-for="log in logs" class="d-block text-white text-break">
+                                {{log}}
+                            </span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Main Panel -->
+                <div class="col-md-3 h-100 border-left" >
+                    <!--Robot-->
+                    <div class="row p-2" style="font-size: 12px;">
+                        <div class="card m-1" style="min-width: 18em;box-shadow: 0px 0px 10px 2px #ececec;">
+                            <div class="card-header font-weight-bold p-1 pl-2 d-flex align-items-center justify-content-between">
+                                <span class="w-100">{{robot.name}} x:{{robot.x}} y:{{robot.y}} angle:{{robot.angle}}</span>
+                            </div>
+                            <ul class="list-group list-group-flush">
+                                <li v-for="(variable, name, index) in robot.variables" class="list-group-item p-1 pl-2 d-flex align-items-center justify-content-between">
+                                    {{name}}
+                                    <span>
+                                        {{variable.value}}
+                                        <span v-if="variable.max!=undefined">/{{variable.max}}</span>
+                                    </span>
+                                    
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <!--Goals-->
+                    <div class="row p-2" style="font-size: 12px;">
+                        <div class="card m-1" v-for="(goal, index) in goals.list" style="min-width: 18em;box-shadow: 0px 0px 10px 2px #ececec;">
+                            <div class="card-header font-weight-bold p-1 pl-2 d-flex align-items-center justify-content-between" 
+                            v-bind:class="{ 'bg-success': goal.status == 'done', 'bg-primary': goal.status == 'running', 'bg-danger': goal.status == 'failed' }">
+                                <span class="w-100">Goal {{index}} - {{goal.name}}</span>
+                                <button class="btn btn-success py-1 px-2 " style="font-size:12px" v-on:click="runGoal(goal)">Run</button>
+                            </div>
+                            <ul class="list-group list-group-flush">
+                                <li v-for="action in goal.actions" class="list-group-item p-1 pl-2 d-flex align-items-center justify-content-between"
+                                v-bind:class="{ 'bg-success': action.status == 'done', 'bg-primary': action.status == 'running', 'bg-danger': action.status == 'failed' }">
+                                    {{action.name}}
+                                    <template v-if="action.parameters!=undefined && action.parameters.component!=undefined">({{action.parameters.component}})</template>
+                                    <button class="btn btn-info py-1 px-2 " style="font-size:12px" v-on:click="runAction(action)">Run</button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+
+                </div>
+            </div>
+            
         </div>
 
-        <script>
-            var map = {
-                width: 0,
-                height: 0,
-                background: "",
-                components: []
-            };
-
-            // connect the client
-            var client = new Paho.MQTT.Client(location.hostname, 8081, "webClient-"+(new Date().getTime()));
-            client.connect({onSuccess:onConnect});
-
-            // called when the client connects
-            function onConnect() {
-                // Once a connection has been made, make a subscription and send a message.
-                console.log("onConnect");
-                client.subscribe("/logs");
-                client.subscribe("/map");
-                /*message = new Paho.MQTT.Message("WebClient connected");
-                message.destinationName = "/logs";
-                client.send(message);*/
-            }
-
-            // called when the client loses its connection
-            client.onConnectionLost = function onConnectionLost(responseObject) {
-                if (responseObject.errorCode !== 0) {
-                    console.log("onConnectionLost:"+responseObject.errorMessage);
-                }
-            }
-
-            // called when a message arrives
-            client.onMessageArrived = function onMessageArrived(message) {
-                if(message.destinationName == "/map"){
-                    var newMap = JSON.parse(message.payloadString)
-                    Object.assign(map, newMap);
-                    console.log(map)
-                }
-                else
-                    console.log("onMessageArrived:"+message.payloadString);
-            }
-
-            function sendStart(){
-                var payload = {action: "run"};
-                var message = new Paho.MQTT.Message(JSON.stringify(payload));
-                message.destinationName = "/control";
-                client.send(message);
-            }
-
-            Vue.component("tableMap", {
-                props: { components: Array },
-                template: "#tableMap-template",
-            });
-
-            /*new Vue({
-                el: "#vueJSRenderer",
-                data: {
-                components: map.components
-                },
-                methods: { }
-            });*/
-            var app = new Vue({
-                el: '#app',
-                data: {
-                    message: 'Hello Vue!',
-                    map: map
-                }
-            })
-        </script>
+        <script src="js/main.js"></script>
     </body>
 
 </html>

@@ -49,10 +49,19 @@ module.exports = class Server {
         }
         if(msg === null) return;
 
-        //Select action
-        if(packet.topic == "/control"){
-            if("action" in msg && msg.action == "run"){
-                if("intelligence" in this.app) this.app.intelligence.start();
+        //Select command
+        if(packet.topic == "/control" && "command" in msg){
+            if(msg.command == "init"){
+                this.app.intelligence.init();
+            }
+            if(msg.command == "runMatch"){
+                this.app.intelligence.runMatch();
+            }
+            if(msg.command == "runGoal"){
+                this.app.intelligence.runGoal(msg.goal);
+            }
+            if(msg.command == "runAction"){
+                this.app.intelligence.runAction(msg.action);
             }
         }
         

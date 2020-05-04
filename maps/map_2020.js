@@ -1,4 +1,5 @@
 'use strict';
+delete require.cache[require.resolve('./map')]; //Delete require() cache
 const Map = require('./map');
 
 module.exports = class Map2020 extends Map{
