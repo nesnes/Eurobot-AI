@@ -1,5 +1,13 @@
 const app = {};
 
+app.reloadAI = async function(){
+    if(app.intelligence) await app.intelligence.close();
+    delete require.cache[require.resolve('./intelligence')]; //Delete require() cache
+    let Intelligence = require('./intelligence');
+    app.intelligence = new Intelligence(app);
+    await app.intelligence.init();
+}
+
 async function main(){
     //Create web interface + communication
     let Server = require('./server');
@@ -11,8 +19,7 @@ async function main(){
     app.logger = new Logger(app);
 
     //Create AI
-    let Intelligence = require('./intelligence');
-    app.intelligence = new Intelligence(app);
+    app.reloadAI();
 }
 
 main();

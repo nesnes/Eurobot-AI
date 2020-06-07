@@ -51,17 +51,28 @@ module.exports = class Server {
 
         //Select command
         if(packet.topic == "/control" && "command" in msg){
-            if(msg.command == "init"){
-                this.app.intelligence.init();
+            if(msg.command == "reloadAI"){
+                this.app.intelligence.stopMatch();
+                this.app.reloadAI();
+            }
+            if(msg.command == "stopMatch"){
+                this.app.intelligence.stopMatch();
             }
             if(msg.command == "runMatch"){
                 this.app.intelligence.runMatch();
             }
             if(msg.command == "runGoal"){
+                this.app.intelligence.stopMatchTimer();
                 this.app.intelligence.runGoal(msg.goal);
             }
             if(msg.command == "runAction"){
+                this.app.intelligence.stopMatchTimer();
                 this.app.intelligence.runAction(msg.action);
+            }
+            //console.log(msg)
+            if(msg.command == "runModuleFunction"){
+                //console.log("func ", msg.moduleName, msg.funcName)
+                this.app.robot.modules[msg.moduleName][msg.funcName](msg.params);
             }
         }
         

@@ -8,19 +8,55 @@ module.exports = class Goals2020 extends Goals{
 
         this.list = [
 
+            
+
+            // Deposit Start
+            {
+                name: "Deposit Starting Area",
+                condition: ()=>{
+                    if(this.app.robot.variables["buoyStorageFrontA"].value == 0
+                    && this.app.robot.variables["buoyStorageFrontB"].value == 0
+                    && this.app.robot.variables["buoyStorageSideA"].value == 0
+                    && this.app.robot.variables["buoyStorageSideB"].value == 0)
+                        return false;
+                    return true;
+                },                
+                executionCount: 10,
+                actions: [
+                    {
+                        name: "Move",
+                        method: "moveToComponent",
+                        parameters:{
+                            component: "startingArea",
+                            speed: 0.5 // m/s
+                        }
+                    },
+                    {
+                        name: "Deposit buoys",
+                        method: "depositBuoys"
+                    }
+                ]
+            },
+
             // Start buoys
             {
                 name: "Grab Start buoys",
-                conditions: [
-                    { variable: "buoyStorageFront", value:0 }
-                ],
+                condition: ()=>{
+                    let storageFrontA = this.app.robot.variables["buoyStorageFrontA"];
+                    let storageFrontB = this.app.robot.variables["buoyStorageFrontB"];
+                    if(storageFrontA.value == storageFrontA.max
+                    || storageFrontB.value == storageFrontB.max)
+                        return false;
+                    return true;
+                }, 
+                executionCount: 1,
                 actions: [
                     {
                         name: "Move",
                         method: "moveToComponent",
                         parameters:{
                             component: "buoyStartingNorth",
-                            speed: 1 // m/s
+                            speed: 0.5 // m/s
                         }
                     },
                     {
@@ -33,14 +69,15 @@ module.exports = class Goals2020 extends Goals{
             // Lighthouse
             {
                 name: "Enable Lighthouse",
-                conditions: [],
+                condition: ()=>{return true},
+                executionCount: 1,
                 actions: [
                     {
                         name: "Move",
                         method: "moveToComponent",
                         parameters:{
                             component: "lighthouse",
-                            speed: 1 // m/s
+                            speed: 0.5 // m/s
                         }
                     },
                     {
@@ -53,16 +90,20 @@ module.exports = class Goals2020 extends Goals{
             // Buoys Top
             {
                 name: "Grab Buoys Top",
-                conditions: [
-                    { variable: "buoyStorageA", value:0 }
-                ],
+                condition: ()=>{
+                    let storageSideA = this.app.robot.variables["buoyStorageSideA"];
+                    if(storageSideA.value != 0)
+                        return false;
+                    return true;
+                },
+                executionCount: 1,
                 actions: [
                     {
                         name: "Move",
                         method: "moveToComponent",
                         parameters:{
                             component: "buoyTop",
-                            speed: 1 // m/s
+                            speed: 0.5 // m/s
                         }
                     },
                     {
@@ -75,16 +116,20 @@ module.exports = class Goals2020 extends Goals{
             // Buoys Bottom
             {
                 name: "Grab Buoys Bottom",
-                conditions: [
-                    { variable: "buoyStorageB", value:0 }
-                ],
+                condition: ()=>{
+                    let storageSideB = this.app.robot.variables["buoyStorageSideB"];
+                    if(storageSideB.value != 0)
+                        return false;
+                    return true;
+                },
+                executionCount: 1,
                 actions: [
                     {
                         name: "Move",
                         method: "moveToComponent",
                         parameters:{
                             component: "buoyMiddleBottom",
-                            speed: 1 // m/s
+                            speed: 0.5 // m/s
                         }
                     },
                     {
@@ -97,22 +142,134 @@ module.exports = class Goals2020 extends Goals{
             // Shared Reaf
             {
                 name: "Grab Shared Reaf",
-                conditions: [
-                    { variable: "buoyStorageFront", value:0 }
-                ],
+                condition: ()=>{
+                    let storageFrontA = this.app.robot.variables["buoyStorageFrontA"];
+                    let storageFrontB = this.app.robot.variables["buoyStorageFrontB"];
+                    if(storageFrontA.value == storageFrontA.max
+                    || storageFrontB.value == storageFrontB.max)
+                        return false;
+                    return true;
+                },
+                executionCount: 1,
                 actions: [
                     {
                         name: "Move",
                         method: "moveToComponent",
                         parameters:{
                             component: "sharedReaf",
-                            speed: 1 // m/s
+                            speed: 0.5 // m/s
                         }
                     },
                     {
                         name: "Grab reaf",
                         method: "grabReaf"
                     }
+                ]
+            },
+            
+            // Deposit Bottom
+            {
+                name: "Deposit Bottom Port",
+                condition: ()=>{
+                    if(this.app.robot.variables["buoyStorageFrontA"].value == 0
+                    && this.app.robot.variables["buoyStorageFrontB"].value == 0
+                    && this.app.robot.variables["buoyStorageSideA"].value == 0
+                    && this.app.robot.variables["buoyStorageSideB"].value == 0)
+                        return false;
+                    return true;
+                },
+                executionCount: 10,
+                actions: [
+                    {
+                        name: "Move",
+                        method: "moveToComponent",
+                        parameters:{
+                            component: "bottomPort",
+                            speed: 0.5 // m/s
+                        }
+                    },
+                    {
+                        name: "Deposit buoys",
+                        method: "depositBuoys"
+                    }
+                ]
+            },
+            
+            // Windsock Side
+            {
+                name: "Windsock Side",
+                condition: ()=>{return true},
+                executionCount: 1,
+                actions: [
+                    {
+                        name: "Move",
+                        method: "moveToComponent",
+                        parameters:{
+                            component: "windsockSide",
+                            speed: 0.5 // m/s
+                        }
+                    },
+                    {
+                        name: "Deploy Arm",
+                        method: "setArmPosition",
+                        parameters:{ }
+                    },
+                    {
+                        name: "Move Sideway",
+                        method: "moveSidway", //Robot's Side
+                        team: "blue",
+                        parameters:{ side: "left", distance: 100, speed: 0.2, angle: 60 }
+                    },
+                    {
+                        name: "Move Sideway",
+                        method: "moveSidway", //Robot's Side
+                        team: "yellow",
+                        parameters:{ side: "right", distance: 100, speed: 0.2, angle: 60 }
+                    },
+                    {
+                        name: "Retract Arm",
+                        method: "setArmPosition",
+                        parameters:{ }
+                    },
+                ]
+            },
+            
+            // Windsock Middle
+            {
+                name: "Windsock Middle",
+                condition: ()=>{return true},
+                executionCount: 1,
+                actions: [
+                    {
+                        name: "Move",
+                        method: "moveToComponent",
+                        parameters:{
+                            component: "windsockMiddle",
+                            speed: 0.5 // m/s
+                        }
+                    },
+                    {
+                        name: "Deploy Arm",
+                        method: "setArmPosition",
+                        parameters:{ }
+                    },
+                    {
+                        name: "Move Sideway",
+                        method: "moveSidway", //Robot's Side
+                        team: "blue",
+                        parameters:{ side: "left", distance: 100, speed: 0.2, angle: 60 }
+                    },
+                    {
+                        name: "Move Sideway",
+                        method: "moveSidway", //Robot's Side
+                        team: "yellow",
+                        parameters:{ side: "right", distance: 100, speed: 0.2, angle: 60 }
+                    },
+                    {
+                        name: "Retract Arm",
+                        method: "setArmPosition",
+                        parameters:{ }
+                    },
                 ]
             },
 

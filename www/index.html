@@ -4,6 +4,7 @@
         <script src="js/lib/browserMqtt.js" type="text/javascript"></script>
         <script src="js/lib/vue.min.js"></script>
         <link rel="stylesheet" href="css/bootstrap.min.css">
+        <link rel="stylesheet" href="css/style.css">
         <script src="js/lib/jquery-3.4.1.slim.min.js"></script>
         <script src="js/lib/bootstrap.bundle.min.js"></script>
     </head>
@@ -18,6 +19,17 @@
                             <template v-if="map.background != ''">
                                 <image v-bind:href="map.background" x="0" y="0" height="2000" width="3000" /> 
                             </template>
+
+                            <!--Grid pathfinding-->
+                            <template v-if="grid.grid != null">
+                                <g>
+                                    <template v-for="node in grid.grid">
+                                        <rect v-bind:x="node[0]*grid.resolution" v-bind:y="node[1]*grid.resolution" v-bind:width="grid.resolution" v-bind:height="grid.resolution" v-bind:style="{ fill: node[2]?'white':'red' }" style="stroke-width:0;stroke:rgb(0,0,0);opacity: 0.1;" />
+                                    </template>
+                                </g>
+                            </template>
+
+                            <!--Map components-->
                             <template v-for="item in map.components">
                                 <template v-if="item.shape.type == 'rectangle'">
                                     <g>
@@ -32,12 +44,76 @@
                                     </g>
                                 </template>
                             </template>
+                            
+
+                            <!--Map access points-->
+                            <template v-for="item in map.components">
+                                <template v-if="'access' in item">
+                                    <g v-if="item.shape.type == 'rectangle'">
+                                        <line v-bind:x1="item.access.x" v-bind:y1="item.access.y" v-bind:x2="item.shape.x+item.shape.width/2" v-bind:y2="item.shape.y+item.shape.height/2" style="stroke-width:4;stroke:green;opacity: 0.9;" />
+                                    </g>
+                                    <g v-if="item.shape.type == 'circle'">
+                                        <line v-bind:x1="item.access.x" v-bind:y1="item.access.y" v-bind:x2="item.shape.x" v-bind:y2="item.shape.y" style="stroke-width:4;stroke:green;opacity: 0.9;" />
+                                    </g>
+                                    <g v-bind:transform="'translate('+item.access.x+' '+item.access.y+') rotate('+item.access.angle+')'">
+                                        <title>{{item.name}} - {{item.type}} - {{item.team}}</title>
+                                        <circle  v-bind:cx="0" v-bind:cy="0" r="25" style="fill: white;stroke-width:4;stroke:rgb(0,0,0);opacity: 0.9;" />
+                                        <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="50" v-bind:y2="0" style="stroke-width:10;stroke:purple;opacity: 0.9;" />
+                                    </g>
+                                </template>
+                            </template>
+
+                            <!--Path-->
+                            <template v-if="path.path != null">
+                                <g>
+                                    <template v-for="node in path.path">
+                                        <rect v-bind:x="node[0]*path.resolution" v-bind:y="node[1]*path.resolution" v-bind:width="path.resolution" v-bind:height="path.resolution" style="fill:green;stroke-width:1;stroke:rgb(0,0,0);opacity: 0.8;" />
+                                    </template>
+                                </g>
+                            </template>
+                            <template v-if="path.smoothPath != null">
+                                <g>
+                                    <template v-for="node in path.smoothPath">
+                                        <rect v-bind:x="node[0]*path.resolution" v-bind:y="node[1]*path.resolution" v-bind:width="path.resolution" v-bind:height="path.resolution" style="fill:blue;stroke-width:1;stroke:rgb(0,0,0);opacity: 0.9;" />
+                                    </template>
+                                </g>
+                            </template>
+
+                            <!--Movement-->
+                            <template>
+                                <g v-bind:transform="'translate('+robot.x+' '+robot.y+') rotate('+(robot.movementAngle-robot.slowdownAngle/2)+')'">
+                                    <path v-bind:d="'M 0 0 L '+robot.slowdownDistance+' 0 A '+robot.slowdownDistance+' '+robot.slowdownDistance+', 0, 0, 1, '+(robot.slowdownDistance*Math.cos(robot.slowdownAngle*(Math.PI/180)))+' '+(robot.slowdownDistance*Math.sin(robot.slowdownAngle*(Math.PI/180)))+' Z'" style="fill:rgb(0,127,0);stroke-width:10;stroke:rgb(0,127,0);opacity: 0.2;"/>
+                                </g>
+                                <g v-bind:transform="'translate('+robot.x+' '+robot.y+') rotate('+(robot.movementAngle-robot.collisionAngle/2)+')'">
+                                    <path v-bind:d="'M 0 0 L '+robot.collisionDistance+' 0 A '+robot.collisionDistance+' '+robot.collisionDistance+', 0, 0, 1, '+(robot.collisionDistance*Math.cos(robot.collisionAngle*(Math.PI/180)))+' '+(robot.collisionDistance*Math.sin(robot.collisionAngle*(Math.PI/180)))+' Z'" style="fill:rgb(127,0,0);stroke-width:10;stroke:rgb(127,0,0);opacity: 0.2;"/>
+                                </g>
+                            </template>
+
                             <!--Robot-->
                             <template>
                                 <g v-bind:transform="'translate('+robot.x+' '+robot.y+') rotate('+robot.angle+')'">
                                     <title>{{robot.name}} x:{{robot.x}}  y:{{robot.y}} angle:{{robot.angle}}</title>
-                                    <circle  v-bind:cx="0" v-bind:cy="0" v-bind:r="robot.radius" v-bind:style="{ fill: robot.color!=''?robot.color:'white' }" style="stroke-width:1;stroke:rgb(0,0,0);opacity: 0.9;" />
-                                    <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="robot.radius" v-bind:y2="0" style="stroke-width:5;stroke:rgb(0,0,0);opacity: 0.9;" />
+                                    <circle  v-bind:cx="0" v-bind:cy="0" v-bind:r="robot.radius" style="fill:none;stroke-width:10;stroke:white;opacity: 0.9;" />
+                                    <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="robot.radius" v-bind:y2="0" style="stroke-width:15;stroke:white;opacity: 0.9;" />
+                                </g>
+                            </template>
+
+                            <!--Lidar-->
+                            <template v-if="lidar.measures != null">
+                                <g v-bind:transform="'translate('+lidarLocalisation.x+' '+lidarLocalisation.y+') rotate('+lidarLocalisation.angle+')'">
+                                    <template v-for="measure in lidar.measures">
+                                        <g v-bind:transform="'rotate('+measure.a+')'">
+                                            <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="measure.d" v-bind:y2="0" style="stroke:grey;stroke-width:2;opacity: 0.8;" />
+                                        </g>
+                                    </template>
+                                </g>
+                            </template>
+
+                            <!--Lidar Localisation-->
+                            <template>
+                                <g v-bind:transform="'translate('+lidarLocalisation.x+' '+lidarLocalisation.y+') rotate('+lidarLocalisation.angle+')'">
+                                    <title> x:{{lidarLocalisation.x}}  y:{{lidarLocalisation.y}} angle:{{lidarLocalisation.angle}}</title>
+                                    <circle  v-bind:cx="0" v-bind:cy="0" r="50" style="fill:none;stroke-width:50;stroke:red;opacity: 0.9;" />
                                 </g>
                             </template>
                         </svg>
@@ -45,9 +121,11 @@
 
                     <!--Control-->
                     <div class="row justify-content-center">
-                        <button class="btn btn-primary mx-1" v-on:click="runInit()" v-bind:disabled="communication.client.connected === false">Init</button>
+                        <button class="btn btn-primary mx-1" v-on:click="reloadAI()" v-bind:disabled="communication.client.connected === false">Reload AI</button>
                         <button class="btn btn-success mx-1" v-on:click="runMatch()" v-bind:disabled="communication.client.connected === false">Run Match</button>
+                        <button class="btn btn-danger mx-1" v-on:click="stopMatch()" v-bind:disabled="communication.client.connected === false">Stop Match</button>
                         <span v-if="communication.client.connected === false" class="text-danger mx-2 font-weight-bold">Not connected</span>
+                        <span v-if="intelligence.currentTime>0" class="text-primary mx-2 font-weight-bold">{{intelligence.currentTime}}s</span>
                     </div>
 
                     <!--Console-->
@@ -62,12 +140,20 @@
                 </div>
 
                 <!-- Main Panel -->
-                <div class="col-md-3 h-100 border-left" >
-                    <!--Robot-->
+                <div class="col-md-7 h-100 border-left">
                     <div class="row p-2" style="font-size: 12px;">
-                        <div class="card m-1" style="min-width: 18em;box-shadow: 0px 0px 10px 2px #ececec;">
+                        <!--Robot-->
+                        <div class="card m-1" style="min-width: 18em;box-shadow: 0px 0px 10px 2px #ececec; background-color:#d1d8e0;">
                             <div class="card-header font-weight-bold p-1 pl-2 d-flex align-items-center justify-content-between">
-                                <span class="w-100">{{robot.name}} x:{{robot.x}} y:{{robot.y}} angle:{{robot.angle}}</span>
+                                <span class="w-100">
+                                    {{robot.name}} score:{{robot.score}}
+                                    <br/>x:{{robot.x}}
+                                    <br/>y:{{robot.y}}
+                                    <br/>angle:{{robot.angle}}
+                                    <br/>speed:{{robot.speed}}
+                                    <br/>angleSpeed:{{robot.angleSpeed}}
+                                    <br/>slowdown:{{robot.slowdown}}
+                                </span>
                             </div>
                             <ul class="list-group list-group-flush">
                                 <li v-for="(variable, name, index) in robot.variables" class="list-group-item p-1 pl-2 d-flex align-items-center justify-content-between">
@@ -80,9 +166,8 @@
                                 </li>
                             </ul>
                         </div>
-                    </div>
-                    <!--Goals-->
-                    <div class="row p-2" style="font-size: 12px;">
+
+                        <!--Goals-->
                         <div class="card m-1" v-for="(goal, index) in goals.list" style="min-width: 18em;box-shadow: 0px 0px 10px 2px #ececec;">
                             <div class="card-header font-weight-bold p-1 pl-2 d-flex align-items-center justify-content-between" 
                             v-bind:class="{ 'bg-success': goal.status == 'done', 'bg-primary': goal.status == 'running', 'bg-danger': goal.status == 'failed' }">
@@ -93,14 +178,41 @@
                                 <li v-for="action in goal.actions" class="list-group-item p-1 pl-2 d-flex align-items-center justify-content-between"
                                 v-bind:class="{ 'bg-success': action.status == 'done', 'bg-primary': action.status == 'running', 'bg-danger': action.status == 'failed' }">
                                     {{action.name}}
+                                    <template v-if="action.team!=undefined">[{{action.team}}]</template>
                                     <template v-if="action.parameters!=undefined && action.parameters.component!=undefined">({{action.parameters.component}})</template>
-                                    <button class="btn btn-info py-1 px-2 " style="font-size:12px" v-on:click="runAction(action)">Run</button>
+                                    <button class="btn btn-info px-2 " style="font-size:12px;padding-top:1px;padding-bottom:1px;" v-on:click="runAction(action)">Run</button>
                                 </li>
                             </ul>
                         </div>
                     </div>
-                </div>
-                <div class="col-md-4">
+
+                    <!--Modules-->
+                    <div class="row p-2" style="font-size: 12px;">
+                        <div class="card m-1" v-for="(module, moduleName, index) in modules.modules" style="min-width: 18em;box-shadow: 0px 0px 10px 2px #ececec;">
+                            <div class="card-header font-weight-bold p-1 pl-2 d-flex align-items-center justify-content-between" style="background-color: #34495e;">
+                                <span class="w-100" style="color:#ecf0f1">Module {{index}} - {{moduleName}}</span>
+                            </div>
+                            <ul class="list-group list-group-flush" style="color:#ecf0f1">
+                                <li v-for="(func, funcName, index) in module.functions" style="background-color: #487eb0; " class="list-group-item p-1 pl-2">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <span>{{funcName}}</span>
+                                        <button class="btn btn-info py-1 px-2 " style="font-size:12px" v-on:click="runModuleFunction(moduleName,funcName, func)">Run</button>
+                                    </div>
+                                    <div v-for="(param, paramName, index) in func">
+                                        <span v-if="!param.legend">{{paramName}}</span>
+                                        <span v-if="param.legend">{{param.legend}}</span>
+                                        <template v-if="param.type=='range'">
+                                            <span>:{{param.value}}</span>
+                                            <input class="slider" v-bind:type="param.type" v-bind:min="param.min" v-bind:max="param.max" v-model:value="param.value" v-bind:step="param.step">
+                                        </template>
+                                        <template v-if="param.type=='number'">
+                                            <input class="form-control" v-bind:type="param.type" v-bind:min="param.min" v-bind:max="param.max" v-model:value="param.value">
+                                        </template>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
 
                 </div>
             </div>

@@ -18,7 +18,10 @@
   "homepage": "https://github.com/nesnes/Eurobot-AI#readme",
   "dependencies": {
     "express": "^4.17.1",
+    "ml-levenberg-marquardt": "^2.1.1",
     "mosca": "^2.8.3",
+    "pathfinding": "^0.4.18",
+    "serialport": "^8.0.8",
     "ws": "^7.2.5"
   }
 }
