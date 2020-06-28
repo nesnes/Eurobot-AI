@@ -52,10 +52,10 @@ module.exports = class LidarLocalisation {
 
         let robotX = this.app.robot.x;
         let robotY = this.app.robot.y;
-        let angle = this.app.robot.angle;
+        let robotAngle = this.app.robot.angle;
 
         //Grab lidar measures
-        let polarMeasures = [...this.app.robot.modules.lidar.measures];
+        let polarMeasures = [...this.app.robot.modules.lidar.rawMeasures];
         let data = {x: [], y: []};
         for(let measure of polarMeasures){
             let rayAngle = measure.a /*+ angle*/;
@@ -75,13 +75,13 @@ module.exports = class LidarLocalisation {
         // Optionally, restrict parameters to minimum & maximum values
         let minValues = [
          /*x*/0,
-         /*y*/0//,
-         /*angle*///-180
+         /*y*/0/*,
+         -45*/
         ];
         let maxValues = [
             /*x*/this.app.map.width,
-            /*y*/this.app.map.height//,
-            /*angle*///180
+            /*y*/this.app.map.height/*,
+            45*/
         ];
         
         //Set research options
@@ -92,7 +92,7 @@ module.exports = class LidarLocalisation {
             maxValues: maxValues,
             gradientDifference: 10e-2,
             maxIterations: 250,
-            errorTolerance: 10e-3
+            errorTolerance: 10e-2
         };
 
         //Get beacons
@@ -112,8 +112,12 @@ module.exports = class LidarLocalisation {
                 //if(data.x.filter(x=>x==t).length>1) return null;
                 let proposedX = a;
                 let proposedY = b;
+                let proposedAngle = 0;//c;
                 let rayToX = t + proposedX;
                 let rayToY = data.y[index] + proposedY;
+                /*let rotatedRay = utils.rotateLine(proposedX, proposedY, rayToX, rayToY, proposedAngle-robotAngle);
+                rayToX = rotatedRay.x;
+                rayToY = rotatedRay.y;*/
                 let rayAngle = utils.getLineAngle(proposedX,proposedY,rayToX,rayToY);
 
                 let minDist = 9999999999;
@@ -122,14 +126,19 @@ module.exports = class LidarLocalisation {
                     let distance = 99999999;
                     let beaconAngle = utils.getLineAngle(proposedX,proposedY,beacon.shape.x,beacon.shape.y);
                     let angleDiff = rayAngle-beaconAngle;
+                    //Get max angle size from robot to beacon edge
+                    let dx = beacon.shape.x-proposedX;
+                    let dy = beacon.shape.y-proposedY;
+                    let distRobotToBeaconCenter = Math.max(0, Math.sqrt(dx*dx + dy*dy));
+                    let halfBeaconAngle = Math.atan(beacon.shape.radius/distRobotToBeaconCenter)*180/Math.PI;// atan(opposite/adjacent)
                     angleDiff += (angleDiff>180) ? -360 : (angleDiff<-180) ? 360 : 0;
-                    if(Math.abs(angleDiff)>2.5) distance = outOfAngle;
+                    if(Math.abs(angleDiff)>halfBeaconAngle) distance = outOfAngle;
                     else{
                         //Compute distance (score) to beacon
                         //let dx = beacon.shape.x-rayToX;
                         //let dy = beacon.shape.y-rayToY;
                         //distance = Math.max(0, Math.sqrt(dx*dx + dy*dy)-beacon.shape.radius);
-                        distance = Math.abs(beacon.shape.x-rayToX)+Math.abs(beacon.shape.y-rayToY);
+                        distance = Math.abs(beacon.shape.x-rayToX)+Math.abs(beacon.shape.y-rayToY);//-beacon.shape.radius;
                         if(distance>outOfAngle) distance = outOfAngle;
                     }
 
@@ -143,8 +152,11 @@ module.exports = class LidarLocalisation {
         console.log(fittedParams);
         this.x = fittedParams.parameterValues[0];
         this.y = fittedParams.parameterValues[1];
-        this.angle = fittedParams.parameterValues[2];
+        this.angle = 0/*fittedParams.parameterValues[2];*/
         this.send();
+        //Update robot pose for debug
+        this.app.robot._updatePosition(this.x, this.y, this.angle);
+        this.app.robot.send()
     }
 
     async close(){

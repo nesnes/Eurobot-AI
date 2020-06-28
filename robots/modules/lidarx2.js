@@ -13,6 +13,7 @@ module.exports = class LidarX2 {
         this.packet = null;
         this.borderMargin = 100;
         this.maxDistance = 600;
+        this.rawMeasures = [];
         this.measures = [];
         this.angleOffset = 180;
         this.lastSendTime = 0;
@@ -53,12 +54,13 @@ module.exports = class LidarX2 {
         let robotX = this.app.robot.x;
         let robotY = this.app.robot.y;
         let angle = this.app.robot.angle;
-        for(let i=0;i<this.measures.length;i++){
+        this.measures = [];
+        for(let i=0;i<this.rawMeasures.length;i++){
             let remove = false;
-            if(this.measures[i].d>this.maxDistance) remove = true;
+            if(this.rawMeasures[i].d>this.maxDistance) remove = true;
             if(!remove){
-                let rayAngle = this.measures[i].a + angle;
-                let x = this.measures[i].d;
+                let rayAngle = this.rawMeasures[i].a + angle;
+                let x = this.rawMeasures[i].d;
                 let y = 0;
                 /*if(rayAngle>360) rayAngle-=360;
                 if(rayAngle<-360) rayAngle+=360;*/
@@ -73,9 +75,10 @@ module.exports = class LidarX2 {
                 && this.borderMargin<=y2&&y2<=this.app.map.height-this.borderMargin))
                     remove = true;
             }
-            if(remove){
-                this.measures.splice(i,1);
-                i--;
+            if(!remove){
+                this.measures.push(this.rawMeasures[i])
+                //this.measures.splice(i,1);
+                //i--;
             }
         }
     }
@@ -92,22 +95,22 @@ module.exports = class LidarX2 {
             startAngle=Math.ceil(startAngle)
             endAngle=Math.floor(endAngle)
         }
-        for(let i=0;i<this.measures.length;i++){
-            let angle = this.measures[i].a;
+        for(let i=0;i<this.rawMeasures.length;i++){
+            let angle = this.rawMeasures[i].a;
             let inRange = false;
             if(endAngle > startAngle)
                 inRange = startAngle <= angle && angle <= endAngle
             else
                 inRange = (startAngle <= angle && angle <= 360) || (0 <= angle && angle <= endAngle)
             if(inRange){
-                this.measures.splice(i,1);
+                this.rawMeasures.splice(i,1);
                 i--;
             }
         }
         //Insert new measures
-        this.measures.push(...currentPacket.measures);
+        this.rawMeasures.push(...currentPacket.measures);
         await this.removeMeasuresOutOfRange();
-        //console.log(this.measures.length);
+        //console.log(this.rawMeasures.length);
         this.send();
     }
 

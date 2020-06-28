@@ -93,8 +93,8 @@
                             <template>
                                 <g v-bind:transform="'translate('+robot.x+' '+robot.y+') rotate('+robot.angle+')'">
                                     <title>{{robot.name}} x:{{robot.x}}  y:{{robot.y}} angle:{{robot.angle}}</title>
-                                    <circle  v-bind:cx="0" v-bind:cy="0" v-bind:r="robot.radius" style="fill:none;stroke-width:10;stroke:white;opacity: 0.9;" />
-                                    <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="robot.radius" v-bind:y2="0" style="stroke-width:15;stroke:white;opacity: 0.9;" />
+                                    <circle  v-bind:cx="0" v-bind:cy="0" v-bind:r="robot.radius" style="fill:none;stroke-width:10;stroke:rgb(224, 224, 224);opacity: 0.9;" />
+                                    <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="robot.radius" v-bind:y2="0" style="stroke-width:15;stroke:rgb(224, 224, 224);;opacity: 0.9;" />
                                 </g>
                             </template>
 

@@ -30,12 +30,17 @@ exports.getLineAngle = function(x1,y1,x2,y2){
     return degs;
 }
 
-exports.rotateLine = function(x1,y1,x2,y2, angle){
+exports.setLineAngle = function(x1,y1,x2,y2, angle){
     let rads = angle*Math.PI/180;
     let dx = x1-x2;
     let dy = y1-y2;
     let length = Math.sqrt(dx*dx + dy*dy);
-    let rotX = x1 + length-Math.cos(rads);
-    let rotY = y1 + length-Math.sin(rads);
+    let rotX = x1 + length*Math.cos(rads);
+    let rotY = y1 + length*Math.sin(rads);
     return {x:rotX, y:rotY};
+}
+
+exports.rotateLine = function(x1,y1,x2,y2, angle){
+    let currentAngle = module.exports.getLineAngle(x1,y1,x2,y2);
+    return module.exports.setLineAngle(x1,y1,x2,y2, currentAngle+angle)
 }
