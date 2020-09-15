@@ -122,7 +122,7 @@ module.exports = class Base {
     }
 
     async moveManual(params){
-        let msg = "manual set "+params.moveAngle+" "+(parseFloat(""+params.moveSpeed)*10)+" "+params.angleSpeed;
+        let msg = "manual set "+Math.floor(params.moveAngle)+" "+Math.floor(parseFloat(""+params.moveSpeed)*10)+" "+Math.floor(params.angleSpeed);
         if(this.app.robot.modules.robotLink)
             return await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
     }

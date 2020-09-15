@@ -9,10 +9,11 @@ module.exports = class Map2020 extends Map{
         this.width = 3000
         this.height = 2000
         this.background =  ""//"/images/fond2020.png"
+        this.teams = ["blue","yellow"]
         this.components = [
 
             //Beacons
-            {
+            /*{
                 name: "Beacon Top Left",
                 type: "beacon",
                 team: "",
@@ -39,7 +40,7 @@ module.exports = class Map2020 extends Map{
                 team: "",
                 isSolid: true,
                 shape: { type: "circle", x:1630, y:1250, radius: 28, color: "purple" }
-            },
+            },*/
 
             //Borders
             {

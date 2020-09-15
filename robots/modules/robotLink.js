@@ -15,11 +15,11 @@ module.exports = class Robotlink {
     }
     
     async init(){
-        this.serial = new SerialPort('COM3', { baudRate: this.baudrate, autoOpen: false });
+        this.serial = new SerialPort('COM9', { baudRate: this.baudrate, autoOpen: false });
         //Connection loop
         let tries = 0;
         while(tries++<5){
-            this.serial.open((e)=>{});
+            this.serial.open((e)=>{console.log('link OK')});
             await utils.sleep(500);
             if(this.serial.isOpen) break;
         }
@@ -53,7 +53,7 @@ module.exports = class Robotlink {
     async sendMessage(address, message, timeout=1){
         //Send
         let msgOut = "s "+address+" "+message+"\r\n";
-        console.log(msgOut)
+        //console.log(msgOut)
         this.serial.write(msgOut);
         //Wait for answer
         let sleep = 0.02;
@@ -80,7 +80,7 @@ module.exports = class Robotlink {
         if(c=='\n' || c=='\r'){
             if(this.buffer.length){
                 this.inputMessages.push(this.buffer)
-                console.log(this.buffer)
+                //console.log(this.buffer)
                 this.buffer = "";
             }
         }

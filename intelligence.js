@@ -7,7 +7,8 @@ module.exports = class Intelligence {
         this.startTime = 0;
         this.currentTime = 0;
         this.matchDuration = 100*1000; // 100 second
-        this.stopExecution = false;
+        this.hasBeenRun = false;
+        this.stopExecution = true;
     }
 
     async init(){
@@ -33,12 +34,14 @@ module.exports = class Intelligence {
         this.app.logger.log("Robot loaded");
 
         this.send();
-        this.updateInterval = setInterval(()=>this.updateMatchTime(),100);
+        this.updateInterval = setInterval(()=>this.updateMatchTime(),150);
     }
 
     send(){
         let payload = {
             currentTime: this.currentTime/1000,
+            running: !this.stopExecution,
+            hasBeenRun: this.hasBeenRun
         }
         this.app.mqttServer.publish({
             topic: '/intelligence',
@@ -56,30 +59,34 @@ module.exports = class Intelligence {
         this.stopExecution = true;
         this.stopMatchTimer();
     }
-
+    
     startMatchTimer(){
         this.startTime = new Date().getTime();
         this.currentTime = 0;
         this.send();
     }
-
+    
     stopMatchTimer(){
-        this.startTime = 0;
-        this.currentTime = 0;
+        //this.startTime = 0;
+        //this.currentTime = 0;
+        if(this.updateInterval) clearInterval(this.updateInterval);
+        this.updateInterval = null;
         this.send();
     }
-
+    
     isMatchFinished(){
         return this.stopExecution || (this.startTime!=0 && this.currentTime >= this.matchDuration);
     }
-
+    
     updateMatchTime(){
         if(this.startTime!=0 && this.currentTime < this.matchDuration)
-            this.currentTime=new Date().getTime() - this.startTime;
+        this.currentTime=new Date().getTime() - this.startTime;
         this.send();
     }
-
+    
     async runMatch(){
+        this.hasBeenRun = true;
+        this.stopExecution = false;
         this.startMatchTimer()
         while(!this.stopExecution && this.currentTime < this.matchDuration){
             await utils.sleep(10);//Required to avoid loop burst when no goal can be acheived
@@ -108,7 +115,7 @@ module.exports = class Intelligence {
         if(success) goal.executionCount--;
         this.app.goals.send(); //Notify UI
         
-        await utils.sleep(1000);
+        //await utils.sleep(1000);
         return success;
     }
 

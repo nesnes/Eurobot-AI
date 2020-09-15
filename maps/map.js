@@ -9,6 +9,7 @@ module.exports = class Map {
         this.height = 0
         this.background = ""
         this.components = []
+        this.teams = []
 
         this.pathResolution = 50;//mm
     }

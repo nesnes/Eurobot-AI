@@ -7,12 +7,16 @@ const Robotlink = require('./modules/robotLink');
 delete require.cache[require.resolve('./modules/base')]; //Delete require() cache
 const Base = require('./modules/base');
 
+delete require.cache[require.resolve('./modules/controlPanel')]; //Delete require() cache
+const ControlPanel = require('./modules/controlPanel');
 
 module.exports = class Robot {
     constructor(app) {
         this.app = app;
         this.name = "";
-        this.team = "blue"
+        this.team = "";
+        if(this.app.map && this.app.map.teams && this.app.map.teams[0])
+            this.team = this.app.map.teams[0];
         this.startPosition = {
             blue:{x:0,y:0,angle:0},
             yellow:{x:0,y:0,angle:0}
@@ -22,7 +26,7 @@ module.exports = class Robot {
         this.angle = 0; // deg
         this.score = 0;
         this.variables = {};
-        this.color = "";
+        //this.color = "";
         this.radius = 0; // mm
         this.modules = {
             robotLink: null,
@@ -30,8 +34,10 @@ module.exports = class Robot {
             base: null
         };
         
-        //this.modules.robotLink = new Robotlink(app)
-        //this.modules.base = new Base(app)
+        let robotConnected = true;
+        if(robotConnected) this.modules.robotLink = new Robotlink(app);
+        this.modules.base = new Base(app)
+        this.modules.controlPanel = new ControlPanel(app)
 
         //Internal
         this.speed = 0; // m/s
@@ -59,19 +65,23 @@ module.exports = class Robot {
                 this.modules.robotLink = null;
             })
         }
-        if(this.modules.base){
+        if(this.modules.base && this.modules.robotLink){
             await this.modules.base.init().catch((e)=>{
                 this.modules.base = null;
             })
-        }
+        } else this.modules.base = null;
+        if(this.modules.controlPanel && this.modules.robotLink){
+            await this.modules.controlPanel.init().catch((e)=>{
+                this.modules.controlPanel = null;
+            })
+        } else this.modules.controlPanel = null;
         if(this.modules.lidarLocalisation){
             await this.modules.lidarLocalisation.init().catch((e)=>{
                 this.modules.lidarLocalisation = null;
             })
         }
-        this.x = this.startPosition[this.team].x;
-        this.y = this.startPosition[this.team].y;
-        this.angle = this.startPosition[this.team].angle;
+        if(!this.modules.robotLink) this.app.logger.log("/!\\ ROBOT NOT CONNECTED");
+        this.initPosition();
         this.send();
         this.sendModules();
     }
@@ -79,6 +89,14 @@ module.exports = class Robot {
     async close(){
         if(this.modules.lidar) await this.modules.lidar.close();
         if(this.modules.robotLink) await this.modules.robotLink.close();
+    }
+
+    initPosition(){
+        if(this.startPosition[this.team]){
+            this.x = this.startPosition[this.team].x;
+            this.y = this.startPosition[this.team].y;
+            this.angle = this.startPosition[this.team].angle;
+        }
     }
 
     send(){
@@ -89,7 +107,7 @@ module.exports = class Robot {
             angle: this.angle,
             score: this.score,
             variables: this.variables,
-            color: this.color,
+            team: this.team,
             radius: this.radius,
             speed: this.speed,
             angleSpeed: this.angleSpeed,
@@ -133,6 +151,63 @@ module.exports = class Robot {
             this.app.logger.log("  -> No method found: "+ action.method);
             return false;
         }
+    }
+
+    async setScore(parameters){
+        if(typeof parameters === 'object' && parameters && "score" in parameters) this.score = parameters.score; //object as input
+        if(typeof parameters === 'number' ) this.score = parameters; //number as input
+        if(this.modules.controlPanel){
+            await this.modules.controlPanel.setScore({score:this.score});
+        }
+        return true;
+    }
+    async addScore(parameters){ 
+        let score = this.score;
+        if(typeof parameters === 'object' && parameters && "score" in parameters) score += parameters.score; //object as input
+        if(typeof parameters === 'number' ) score += parameters; //number as input
+        return await this.setScore({score:score})
+    };
+    
+    async waitForStart(parameters){
+        this.setScore(0)
+        let matchStopped = false;
+        if(this.modules.controlPanel){
+            let state = "waiting" // waiting / ready / go
+           
+            //Wait for the starter to be positioned and pulled
+            let changed = false;
+            do {
+                let status = await this.modules.controlPanel.getColorStart();
+                if(status){
+                    if(state=="waiting" && !status.start){
+                        state = "ready";
+                        changed = true;
+                    }
+                    if(state == "ready" && status.start){
+                        state = "go"
+                        changed = true;
+                    }
+                    let color = parseInt(""+status.color);
+                    if(this.app.map && this.app.map.teams && this.team != this.app.map.teams[color]){
+                        this.team = this.app.map.teams[color];
+                        this.initPosition();
+                        changed = true;
+                    }
+                    if(changed){
+                        this.send();
+                        changed = false;
+                    }
+                }
+                await utils.sleep(250);
+                matchStopped = this.app.intelligence.stopExecution;
+                if(!matchStopped){
+                    this.app.intelligence.startMatchTimer();//Restarts Match timer
+                }
+            } while(state!="go" && !matchStopped);
+        }
+        if(!matchStopped) this.app.logger.log("GO");
+        this.send();
+        return true
     }
 
     async moveToComponent(parameters){

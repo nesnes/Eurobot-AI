@@ -27,11 +27,11 @@ var robot = {
 var lidar = {
     measures: null
 }
-var lidarLocalisation = {
+/*var lidarLocalisation = {
     x: 0,
     y: 0,
     angle: 0
-}
+}*/
 var intelligence = {
     currentTime: 0
 }
@@ -39,6 +39,8 @@ var modules = {
     modules:{}
 }
 var initialized = false;
+
+var joystick = null;
 
 //MQTT.js
 communication.client = mqtt.connect("ws://"+location.hostname+":"+8081)
@@ -51,7 +53,7 @@ communication.client.subscribe("/intelligence");
 communication.client.subscribe("/robot");
 communication.client.subscribe("/robot/modules");
 communication.client.subscribe("/lidar");
-communication.client.subscribe("/lidar/localisation");
+//communication.client.subscribe("/lidar/localisation");
 
 communication.client.on("connect", function (){
     if(!initialized){
@@ -98,10 +100,10 @@ communication.client.on("message", function (topic, payload) {
         var newLidar = JSON.parse(""+payload)
         Object.assign(lidar, newLidar);
     }
-    else if(topic == "/lidar/localisation"){
+    /*else if(topic == "/lidar/localisation"){
         var newLidarLocalisation = JSON.parse(""+payload)
         Object.assign(lidarLocalisation, newLidarLocalisation);
-    }
+    }*/
 })
 
 //Vue.js
@@ -116,15 +118,49 @@ var app = new Vue({
         intelligence: intelligence,
         robot: robot,
         lidar: lidar,
-        lidarLocalisation: lidarLocalisation,
+        //lidarLocalisation: lidarLocalisation,
         modules: modules,
         communication: communication
     },
     updated: function(){
         //scroll down log console
         $("#logConsole").scrollTop($("#logConsole")[0].scrollHeight);
+        if(!joystick){
+            joystick = new JoyStick('joyDiv');
+            setInterval(updateJoystick, 300);
+        }
     }
 })
+
+//Joystick
+let joystickMoving = false;
+function updateJoystick(){
+    let x = joystick.GetX();
+    let y = joystick.GetY();
+    if(x==0 && y==0){
+        if(joystickMoving) {
+            let payload = {command: "runModuleFunction", moduleName: "base", funcName: "disableManual", params: {}};
+            communication.client.publish("/control", JSON.stringify(payload));
+            joystickMoving = false;
+            console.log("sent break", payload);
+        }
+    }
+    else{
+        if(!joystickMoving){
+            let payload = {command: "runModuleFunction", moduleName: "base", funcName: "enableManual", params: {}};
+            communication.client.publish("/control", JSON.stringify(payload));
+        } else {
+            let payload = {command: "runModuleFunction", moduleName: "base", funcName: "moveManual", params: {
+                "moveAngle": Math.atan2(y, x)*(180/Math.PI)-90,
+                "moveSpeed": Math.sqrt(x*x+y*y)/200,
+                "angleSpeed":0
+            }};
+            communication.client.publish("/control", JSON.stringify(payload))
+            console.log("sent manual", payload.params);
+        }
+        joystickMoving = true;
+    }
+}
 
 //Buttons
 function reloadAI(){

@@ -9,7 +9,18 @@ module.exports = class Goals2020 extends Goals{
         this.list = [
 
             
-
+            // Wait for start
+            {
+                name: "Wait for start",
+                condition: ()=>{return true;}, 
+                executionCount: 1,
+                actions: [
+                    {
+                        name: "Wait for start",
+                        method: "waitForStart"
+                    }
+                ]
+            },
             // Deposit Start
             {
                 name: "Deposit Starting Area",
@@ -231,6 +242,11 @@ module.exports = class Goals2020 extends Goals{
                         method: "setArmPosition",
                         parameters:{ }
                     },
+                    {
+                        name: "Update score",
+                        method: "validateWindsock",
+                        parameters:{ }
+                    }
                 ]
             },
             
@@ -270,6 +286,11 @@ module.exports = class Goals2020 extends Goals{
                         method: "setArmPosition",
                         parameters:{ }
                     },
+                    {
+                        name: "Update score",
+                        method: "validateWindsock",
+                        parameters:{ }
+                    }
                 ]
             },
 
