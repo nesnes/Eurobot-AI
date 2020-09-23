@@ -222,7 +222,7 @@ module.exports = class Goals2020 extends Goals{
                     },
                     {
                         name: "Deploy Arm",
-                        method: "setArmPosition",
+                        method: "setArmWindsock",
                         parameters:{ }
                     },
                     {
@@ -239,8 +239,8 @@ module.exports = class Goals2020 extends Goals{
                     },
                     {
                         name: "Retract Arm",
-                        method: "setArmPosition",
-                        parameters:{ }
+                        method: "setArmDefault",
+                        parameters:{}
                     },
                     {
                         name: "Update score",
@@ -266,7 +266,7 @@ module.exports = class Goals2020 extends Goals{
                     },
                     {
                         name: "Deploy Arm",
-                        method: "setArmPosition",
+                        method: "setArmWindsock",
                         parameters:{ }
                     },
                     {
@@ -283,7 +283,7 @@ module.exports = class Goals2020 extends Goals{
                     },
                     {
                         name: "Retract Arm",
-                        method: "setArmPosition",
+                        method: "setArmDefault",
                         parameters:{ }
                     },
                     {

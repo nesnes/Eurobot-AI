@@ -6,6 +6,8 @@ module.exports = class Base {
     constructor(app) {
         this.app = app;
         this.address = 7;
+        this.xySupported = null;
+        this.pathSupported = null;
     }
     
     async init(){
@@ -22,14 +24,13 @@ module.exports = class Base {
                     y:{ legend:"y (m)", type:"number", min:0, max:2000, value:1000 },
                     angle:{ legend:"angle (°)", type:"number", min:-180, max:180, value:0 }
                 },
-                getPosition: {},
+                getStatus: {},
                 moveXY:{
                     x:{ legend:"x (m)", type:"number", min:0, max:3000, value:1500 },
                     y:{ legend:"y (m)", type:"number", min:0, max:2000, value:1000 },
                     angle:{ legend:"angle (°)", type:"number", min:-180, max:180, value:0 },
                     speed:{ legend:"speed (m/s)", type:"range", min: 0, max: 1.5, value:0.5, step:0.1 }
                 },
-                getMoveStatus: {},
                 getSpeed: {},
                 break: {},
                 touchBorder:{
@@ -58,18 +59,26 @@ module.exports = class Base {
     }
 
     async setPosition(params){
-        let msg = "pos set "+params.x+" "+params.y+" "+params.angle;
+        let msg = "pos set "+Math.round(params.x)+" "+Math.round(params.y)+" "+Math.round(params.angle);
         if(this.app.robot.modules.robotLink)
             return await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
     }
 
-    async getPosition(){
-        if(this.app.robot.modules.robotLink)
-            return await this.app.robot.modules.robotLink.sendMessage(this.address, "pos getXY");
+    async getStatus(){
+        if(this.app.robot.modules.robotLink){
+            let response = await this.app.robot.modules.robotLink.sendMessage(this.address, "status get");
+            if(!response) return false;
+            let posArray = response.split(" ");
+            if(posArray.length == 5 && ["run","end"].includes(posArray[0])){
+                return {status: posArray[0], x: parseInt(posArray[1]), y: parseInt(posArray[2]), angle: parseInt(posArray[3]), speed: parseInt(posArray[4])/10}
+            }
+            console.log(response);
+            return response;
+        }
     }
 
     async moveXY(params){
-        let msg = "move XY "+params.x+" "+params.y+" "+params.angle+" "+(parseFloat(""+params.speed)*10);
+        let msg = "move XY "+Math.round(params.x)+" "+Math.round(params.y)+" "+Math.round(params.angle)+" "+Math.round(parseFloat(""+params.speed)*10);
         if(this.app.robot.modules.robotLink)
             return await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
     }
@@ -90,25 +99,31 @@ module.exports = class Base {
     }
 
     async touchBorder(params){
-        let msg = "move RM "+params.distance+" "+(parseFloat(""+params.speed)*10);
+        let msg = "move RM "+Math.round(params.distance)+" "+Math.round(parseFloat(""+params.speed)*10);
         if(this.app.robot.modules.robotLink)
             return await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
     }
 
     async supportXY(){
+        let result = false;
+        if(this.xySupported !== null) return this.xySupported;
         if(this.app.robot.modules.robotLink){
             var support = await this.app.robot.modules.robotLink.sendMessage(this.address, "support XY");
-            if(support.includes("1")) return true;
+            if(support.includes("1")) result = true;
+            this.xySupported = result;
         }
-        return false;
+        return result;
     }
 
     async supportPath(){
+        let result = false;
+        if(this.pathSupported !== null) return this.pathSupported;
         if(this.app.robot.modules.robotLink){
             var support = await this.app.robot.modules.robotLink.sendMessage(this.address, "support Path");
-            if(support.includes("1")) return true;
+            if(support.includes("1")) result = true;
+            this.pathSupported = result;
         }
-        return false;
+        return result;
     }
 
     async enableManual(){

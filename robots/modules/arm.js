@@ -33,35 +33,50 @@ module.exports = class Arm {
 
     async enablePump(){
         this.app.logger.log("enabling pump");
+        let result = true;
         if(this.app.robot.modules.robotLink)
-            return await this.app.robot.modules.robotLink.sendMessage(this.address, "pump on");
+            result = await this.app.robot.modules.robotLink.sendMessage(this.address, "pump on");
+        await utils.sleep(200);
+        return result;
     }
 
     async disablePump(){
         this.app.logger.log("disabling pump");
+        let result = true;
         if(this.app.robot.modules.robotLink)
-            return await this.app.robot.modules.robotLink.sendMessage(this.address, "pump off");
+            result = await this.app.robot.modules.robotLink.sendMessage(this.address, "pump off");
+        await utils.sleep(200);
+        return result;
     }
 
     async setPose(params){
         this.app.logger.log("set pose");
         let msg = "Z "+params.a1+" "+params.a2+" "+params.a3+" "+params.a4+" "+params.a5+" "+params.duration;
+        let result = true;
         if(this.app.robot.modules.robotLink)
-            return await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
+            result = await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
+        await utils.sleep(params.duration);
+        return result;
     }
 
     async setLeft(params){
         this.app.logger.log("set left");
         let msg = "setLeft "+params.angle;
+        let result = true;
         if(this.app.robot.modules.robotLink)
-            return await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
+            result =  await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
+        await utils.sleep(200);
+        return result;
     }
 
     async setRight(params){
         this.app.logger.log("set right");
         let msg = "setRight "+params.angle;
+        let result = true;
         if(this.app.robot.modules.robotLink)
-            return await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
+            result =  await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
+        await utils.sleep(200);
+        return result;
     }
 
     async close(){

@@ -51,6 +51,7 @@ module.exports = class Robotlink {
     }
 
     async sendMessage(address, message, timeout=1){
+        //this.inputMessages.length = 0;
         //Send
         let msgOut = "s "+address+" "+message+"\r\n";
         //console.log(msgOut)
@@ -59,7 +60,7 @@ module.exports = class Robotlink {
         let sleep = 0.02;
         while(timeout>0){
             timeout-=sleep;
-            await utils.sleep(sleep);
+            await utils.sleep(sleep*1000);
             //Check input msgs
             for(let i=0;i<this.inputMessages.length;i++){
                 let msg = this.inputMessages[i];
@@ -67,6 +68,7 @@ module.exports = class Robotlink {
                 if(msg.startsWith(prefix)){
                     this.inputMessages.splice(i,1);
                     let result = msg.substring(prefix.length);
+                    //console.log("timeout", timeout)
                     if(result.includes("ERROR")) return false;
                     else return result;
                 }

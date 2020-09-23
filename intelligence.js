@@ -100,6 +100,7 @@ module.exports = class Intelligence {
             }
         }
         this.app.logger.log("End of match, score:"+this.app.robot.score);
+        this.app.robot.endMatch();
     }
 
     async runGoal(goal){

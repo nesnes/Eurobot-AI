@@ -51,6 +51,22 @@ module.exports = class Robot2020 extends Robot{
         //custom close here
     }
 
+    async initMatch(){
+        await super.initMatch();
+        if(this.modules.arm) await this.modules.arm.disablePump();
+        if(this.modules.arm) await this.setArmDefault();
+        if(this.modules.arm) await this.modules.arm.setRight({angle:115});
+        if(this.modules.arm) await this.modules.arm.setLeft({angle:125});
+    }
+
+    async endMatch(){
+        await super.endMatch();
+        if(this.modules.arm) await this.modules.arm.disablePump();
+        if(this.modules.arm) await this.setArmDefault();
+        if(this.modules.arm) await this.modules.arm.setLeft({angle:60});
+        if(this.modules.arm) await this.modules.arm.setRight({angle:60});
+    }
+
     async activateLighthouse(parameters){
         this.app.logger.log("  -> Activating ligthouse");
         this.addScore(10);
@@ -100,8 +116,18 @@ module.exports = class Robot2020 extends Robot{
         return true
     }
 
+    async setArmDefault(parameters){
+        if(this.modules.arm) await this.modules.arm.setPose({ a1:170, a2:90, a3:50, a4:140, a5:25, duration:200 })
+        return true;
+    }
+
+    async setArmWindsock(parameters){
+        if(this.modules.arm) await this.modules.arm.setPose({ a1:150, a2:90, a3:140, a4:140, a5:175, duration:200 })
+        return true;
+    }
+
     async setArmPosition(parameters){
-        await utils.sleep(500);
+        if(this.modules.arm) await this.modules.arm.setPose(parameters)
         return true;
     }
 
