@@ -20,7 +20,7 @@ module.exports = class Base {
                 enableMove: {},
                 disableMove: {},
                 setPosition:{
-                    x:{ legend:"x (m)", type:"number", min:0, max:3000, value:1500 },
+                    x:{ legend:"x (m)", type:"number", min:0, max:3000, value:1000 },
                     y:{ legend:"y (m)", type:"number", min:0, max:2000, value:1000 },
                     angle:{ legend:"angle (°)", type:"number", min:-180, max:180, value:0 }
                 },

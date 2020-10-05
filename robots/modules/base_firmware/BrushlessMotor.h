@@ -21,7 +21,7 @@ public:
   
   void begin();
 
-  void setSpeed(double speed); //m/s
+  void setSpeed(double speed, double syncFactor=1); //speed: m/s, syncFactor: 0..1 slows speed variation to keep sync with other motors
   double getSpeed(); //m/s
   float getPower(); //m/s
   void spin();
@@ -50,11 +50,12 @@ public:
   float m_wheelPerimeter = 100; //mm
   double m_currSpeed = 0;
   double m_requestedSpeed = 0;
-
-  int m_powerCount = 0;
+  double m_syncFactor = 1;
+  
+  float m_powerCount = 0;
   double m_oldSpeed = 0;
 
-  int m_stepsDone = 0;
+  double m_stepsDone = 0;
 };
 
 #endif // BrushlessMotor_h

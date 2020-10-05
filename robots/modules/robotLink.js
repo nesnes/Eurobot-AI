@@ -15,7 +15,8 @@ module.exports = class Robotlink {
     }
     
     async init(){
-        this.serial = new SerialPort('COM9', { baudRate: this.baudrate, autoOpen: false });
+        //this.serial = new SerialPort('COM9', { baudRate: this.baudrate, autoOpen: false });
+        this.serial = new SerialPort('/dev/cu.usbserial-001K395U', { baudRate: this.baudrate, autoOpen: false });
         //Connection loop
         let tries = 0;
         while(tries++<5){

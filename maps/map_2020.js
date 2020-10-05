@@ -137,14 +137,16 @@ module.exports = class Map2020 extends Map{
                 type: "endingAreaNorth",
                 team: "blue",
                 isSolid: false,
-                shape: { type: "rectangle", x:0, y:210, width: 290,  height: 290, color: "DarkSlateGrey" }
+                shape: { type: "rectangle", x:0, y:210, width: 290,  height: 290, color: "DarkSlateGrey" },
+                access:{ x:200, y:200, angle:180 }
             },
             {
                 name: "Ending Area North",
                 type: "endingAreaNorth",
                 team: "yellow",
                 isSolid: false,
-                shape: { type: "rectangle", x:2710, y:210, width: 290,  height: 290, color: "DarkSlateGrey" }
+                shape: { type: "rectangle", x:2710, y:210, width: 290,  height: 290, color: "DarkSlateGrey" },
+                access:{ x:2800, y:200, angle:0 }
             },
             
             //Ending areas South
@@ -265,10 +267,20 @@ module.exports = class Map2020 extends Map{
 
             //Weathervane
             {
-                name: "Weathervane",
+                name: "Weathervane blue",
                 type: "weathervane",
+                team: "blue",
                 isSolid: true,
-                shape: { type: "rectangle", x:1350, y:0, width: 300,  height: 30, color: "black" }
+                shape: { type: "rectangle", x:1350, y:0, width: 300,  height: 30, color: "black" },
+                access:{ x:1000, y:500, angle:-45 }
+            },
+            {
+                name: "Weathervane yellow",
+                type: "weathervane",
+                team: "yellow",
+                isSolid: true,
+                shape: { type: "rectangle", x:1350, y:0, width: 300,  height: 30, color: "black" },
+                access:{ x:2000, y:500, angle:-135 }
             },
 
             //Reefs
@@ -309,7 +321,7 @@ module.exports = class Map2020 extends Map{
                 team: "blue",
                 isSolid: false,
                 shape: { type: "circle", x:300, y:400, radius: 36, color: "red" },
-                access:{ x:475, y:325, angle:-120 }
+                access:{ x:280, y:700, angle:112 }
             },
             {
                 name: "Buoy Starting North Yellow",
@@ -423,14 +435,14 @@ module.exports = class Map2020 extends Map{
                 shape: { type: "circle", x:1065, y:1650, radius: 36, color: "green" }
             },
 
-            //Buoys Middle Top
+            //Buoys Top
             {
                 name: "Buoy Top Blue",
                 type: "buoyTop",
                 team: "blue",
                 isSolid: false,
                 shape: { type: "circle", x:670, y:100, radius: 36, color: "red" },
-                access:{ x:450, y:200, angle:0 }
+                access:{ x:450, y:200, angle:170 }
             },
             {
                 name: "Buoy Top Yellow",
@@ -446,7 +458,8 @@ module.exports = class Map2020 extends Map{
                 type: "buoyMiddleTop",
                 team: "blue",
                 isSolid: false,
-                shape: { type: "circle", x:950, y:400, radius: 36, color: "green" }
+                shape: { type: "circle", x:950, y:400, radius: 36, color: "green" },
+                access:{ x:750, y:250, angle:-160 }
             },
             {
                 name: "Buoy Middle Top Yellow",
@@ -456,7 +469,7 @@ module.exports = class Map2020 extends Map{
                 shape: { type: "circle", x:2050, y:400, radius: 36, color: "red" }
             },
 
-            //Buoys Middle Top
+            //Buoys Middle bottom
             {
                 name: "Buoy Middle Bottom Blue",
                 type: "buoyMiddleBottom",
@@ -473,7 +486,7 @@ module.exports = class Map2020 extends Map{
                 shape: { type: "circle", x:1900, y:800, radius: 36, color: "green" }
             },
 
-            //Buoys Middle Top
+            //Buoys bottom
             {
                 name: "Buoy Bottom Blue",
                 type: "buoyBottom",

@@ -7,6 +7,9 @@ const Robotlink = require('./modules/robotLink');
 delete require.cache[require.resolve('./modules/base')]; //Delete require() cache
 const Base = require('./modules/base');
 
+delete require.cache[require.resolve('./modules/baseSimulation')]; //Delete require() cache
+const BaseSimulation = require('./modules/baseSimulation');
+
 delete require.cache[require.resolve('./modules/controlPanel')]; //Delete require() cache
 const ControlPanel = require('./modules/controlPanel');
 
@@ -35,9 +38,14 @@ module.exports = class Robot {
         };
         
         let robotConnected = true;
-        if(robotConnected) this.modules.robotLink = new Robotlink(app);
-        this.modules.base = new Base(app)
-        this.modules.controlPanel = new ControlPanel(app)
+        if(!this.app.parameters.simulate){
+            this.modules.robotLink = new Robotlink(app);
+            this.modules.base = new Base(app);
+            this.modules.controlPanel = new ControlPanel(app);
+        }
+        else{
+            this.modules.base = new BaseSimulation(app);
+        } 
 
         //Internal
         this.speed = 0; // m/s
@@ -48,8 +56,9 @@ module.exports = class Robot {
         this.slowdownAngle = 120; // angle used to check obstacles from lidar around movement direction
         this.slowdownDistance = 0; // distance of object to slow down the robot (greater than collisionDistance)
         this.slowdown = false;
-        this.disableColisions = true;
+        this.disableColisions = !!this.app.parameters.disableColisions;
         this.lastPositionUpdateTime=0;
+        this.funnyActionTimeout = null;
 
     }
     
@@ -66,12 +75,12 @@ module.exports = class Robot {
                 this.modules.robotLink = null;
             })
         }
-        if(this.modules.base && this.modules.robotLink){
+        if(this.modules.base){
             await this.modules.base.init().catch((e)=>{
                 this.modules.base = null;
             })
         } else this.modules.base = null;
-        if(this.modules.controlPanel && this.modules.robotLink){
+        if(this.modules.controlPanel){
             await this.modules.controlPanel.init().catch((e)=>{
                 this.modules.controlPanel = null;
             })
@@ -82,12 +91,14 @@ module.exports = class Robot {
             })
         }
         if(!this.modules.robotLink) this.app.logger.log("/!\\ ROBOT NOT CONNECTED");
+        if(this.app.parameters.simulate) this.app.logger.log("/!\\ RUNNING SIMULATION");
         //await this.initMatch();
         this.send();
         this.sendModules();
     }
 
     async close(){
+        if(this.funnyActionTimeout){clearTimeout(this.funnyActionTimeout); this.funnyActionTimeout=null;}
         if(this.modules.lidar) await this.modules.lidar.close();
         if(this.modules.robotLink) await this.modules.robotLink.close();
     }
@@ -183,7 +194,7 @@ module.exports = class Robot {
         this.setScore(0)
         let matchStopped = false;
         await this.initMatch();
-        if(this.modules.controlPanel){
+        if(!this.app.parameters.simulate && this.modules.controlPanel){
             let state = "waiting" // waiting / ready / go
             //Wait for the starter to be positioned and pulled
             let changed = false;
@@ -221,6 +232,13 @@ module.exports = class Robot {
         return true
     }
 
+    async startFunnyAction(parameters){
+        this.funnyActionTimeout = setTimeout(()=>{
+            if(this.modules.arm) this.modules.arm.openFlag();
+        }, 99*1000);
+        return true;
+    }
+
     async moveToComponent(parameters){
 
         let component = this.app.map.getComponent(parameters.component, this.team);
@@ -245,7 +263,12 @@ module.exports = class Robot {
     }
 
     async moveToPosition(parameters){
-        let path = this.app.map.findPath(this.x, this.y, parameters.x, parameters.y);
+        let path = [];
+        if(parameters.preventPathFinding) {
+            path.push([this.x, this.y])
+            path.push([parameters.x, parameters.y])
+        }
+        else path = this.app.map.findPath(this.x, this.y, parameters.x, parameters.y);
         if(path.length==0) return false
         if(this.modules.base && await this.modules.base.supportPath()){
             //Robot capable of running paths
@@ -287,6 +310,16 @@ module.exports = class Robot {
         });
     }
 
+    async rotateToAngle(parameters){
+        let angle = parameters.angle;
+        return await this.moveAtAngle({
+            angle: angle,
+            distance: 0,
+            endAngle: angle,
+            speed:parameters.speed
+        });
+    }
+
     async moveAtAngle(parameters){
         let angle = parameters.angle;
         let rayAngleRad = utils.normAngle(angle)*(Math.PI/180);
@@ -302,7 +335,8 @@ module.exports = class Robot {
             x:x2,
             y:y2,
             angle: ("endAngle" in parameters)?parameters.endAngle:this.angle,
-            speed:parameters.speed
+            speed:parameters.speed,
+            preventPathFinding: true
         });
     }
 
@@ -386,38 +420,9 @@ module.exports = class Robot {
         return true
     }
 
-    async _simulateMovement(x, y, angle, speed){
-        let startX = this.x;
-        let startY = this.y;
-        let startAngle = this.angle;
-        let dx = startX-x;
-        let dy = startY-y;
-        let dangle = startAngle-angle;
-        let distance = Math.sqrt(dx*dx + dy*dy);
-        let moveSpeed = this.slowdown?0.1:speed;
-        let sleep = 100;
-        let distanceDone = 0;
-        while(distanceDone<distance){
-            if(this.app.intelligence.isMatchFinished()) return false;
-            moveSpeed = this.slowdown?0.1:speed;
-            distanceDone += (sleep/1000)*moveSpeed*1000
-            let ratio = distanceDone/distance;
-            if(ratio>1) ratio = 1;
-            let x = startX-(dx*ratio);
-            let y = startY-(dy*ratio);
-            if(!this.isMovementPossible(x,y))
-                return false;
-            let angle = startAngle-(dangle*ratio);
-            this._updatePosition(x,y,angle);
-            this.send();
-            await utils.sleep(sleep);
-        }
-        this._updatePosition(x,y,angle, true);
-        this.send();
-        return true;
-    }
+    
 
-    async _simulatePath(path, x, y, angle, speed){
+    /*async _simulatePath(path, x, y, angle, speed){
         let startAngle = this.angle;
         let dangle = startAngle-angle;
         var success = true;
@@ -437,7 +442,7 @@ module.exports = class Robot {
         if(success) this._updatePosition(x,y,angle, true);
         this.send();
         return success
-    }
+    }*/
 
     async _updatePositionAndMoveStatus(){
         let moveStatus = "end";
@@ -472,7 +477,7 @@ module.exports = class Robot {
         success = success && !!await this.modules.base.moveXY({x:x, y:y, angle:angle, speed:speed})
         do{
             await utils.sleep(sleep);
-            if(this.app.intelligence.isMatchFinished()) success = false;
+            if(this.app.intelligence.hasBeenRun && this.app.intelligence.isMatchFinished()) success = false;
             moveSpeed = this.slowdown?0.1:speed;
             if(!this.isMovementPossible(x,y)) success = false;
             moveStatus = await this._updatePositionAndMoveStatus();

@@ -15,6 +15,8 @@ module.exports = class Arm {
     getDescription(){
         return {
             functions:{
+                openFlag: {},
+                closeFlag: {},
                 enablePump: {},
                 disablePump: {},
                 setPose:{
@@ -26,7 +28,8 @@ module.exports = class Arm {
                     duration:{ type:"range", min:0, max:1000, value:0, step:1 }
                 },
                 setLeft: { angle:{ legend:"angle", type:"range", min:0, max:180, value:90, step:1 } },
-                setRight:{ angle:{ legend:"angle", type:"range", min:0, max:180, value:90, step:1 } }
+                setRight:{ angle:{ legend:"angle", type:"range", min:0, max:180, value:90, step:1 } },
+                setFlag:{ angle:{ legend:"angle", type:"range", min:0, max:180, value:90, step:1 } }
             }
         }
     }
@@ -78,6 +81,18 @@ module.exports = class Arm {
         await utils.sleep(200);
         return result;
     }
+
+    async setFlag(params){
+        this.app.logger.log("set flag");
+        let msg = "setFlag "+params.angle;
+        let result = true;
+        if(this.app.robot.modules.robotLink)
+            result =  await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
+        await utils.sleep(200);
+        return result;
+    }
+    async openFlag(params){ return await this.setFlag({angle:5}); }
+    async closeFlag(params){ return await this.setFlag({angle:25}); }
 
     async close(){
         

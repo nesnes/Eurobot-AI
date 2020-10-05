@@ -133,6 +133,16 @@
                             <span v-if="intelligence.currentTime>0" class="text-primary mx-2 font-weight-bold">{{intelligence.currentTime}}s</span>
                             <span v-if="communication.client.connected === false" class="text-danger mx-2 font-weight-bold">Not connected</span>
                         </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="cb-simulation" v-model="appParams.simulate">
+                                <label class="form-check-label" for="cb-simulation">Simulate</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="cb-collisions" v-model="appParams.disableColisions">
+                                <label class="form-check-label" for="cb-collisions">Disable collisions</label>
+                            </div>
+                        </div>
                     </div>
 
                     <!--Console-->

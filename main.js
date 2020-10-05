@@ -1,10 +1,12 @@
 const app = {};
 
-app.reloadAI = async function(){
+app.reloadAI = async function(parameters={}){
+    console.log(parameters)
     if(app.intelligence) await app.intelligence.close();
     delete require.cache[require.resolve('./intelligence')]; //Delete require() cache
     let Intelligence = require('./intelligence');
     app.intelligence = new Intelligence(app);
+    app.parameters = parameters;
     await app.intelligence.init();
 }
 

@@ -53,7 +53,7 @@ module.exports = class Server {
         if(packet.topic == "/control" && "command" in msg){
             if(msg.command == "reloadAI"){
                 this.app.intelligence.stopMatch();
-                this.app.reloadAI();
+                this.app.reloadAI(msg.parameters?msg.parameters:{});
             }
             if(msg.command == "stopMatch"){
                 this.app.intelligence.stopMatch();

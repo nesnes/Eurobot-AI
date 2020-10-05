@@ -27,7 +27,8 @@ module.exports = class Robot2020 extends Robot{
             buoyStorageFrontB: { value: 0,  max: 1 },
             buoyStorageSideA: { value: 0,  max: 2 },
             buoyStorageSideB: { value: 0,  max: 2 },
-            windsocks: { value: 0,  max: 2 }
+            windsocks: { value: 0,  max: 2 },
+            endZone: { value: 0,  max: 2 }, //0 undefined, 1 north, 2 south
         }
         this.collisionDistance = this.radius+175;
         this.slowdownDistance = this.collisionDistance+100;
@@ -67,6 +68,12 @@ module.exports = class Robot2020 extends Robot{
         if(this.modules.arm) await this.modules.arm.setRight({angle:60});
     }
 
+    async setPosDebug(parameters){
+        if(this.modules.base) await this.modules.base.enableMove();
+        if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle});
+        return true;
+    }
+
     async activateLighthouse(parameters){
         this.app.logger.log("  -> Activating ligthouse");
         this.addScore(10);
@@ -83,10 +90,8 @@ module.exports = class Robot2020 extends Robot{
         return true
     }
 
-    async grabBuoysTop(parameters){
-        this.variables.buoyStorageSideA.value+=2;
-        this.app.map.removeComponent(this.app.map.getComponent("buoyTop", this.team));
-        this.app.map.removeComponent(this.app.map.getComponent("buoyMiddleTop", this.team));
+    async readWeathervane(parameters){
+        this.variables.endZone.value = 1;
         await utils.sleep(500);
         return true
     }
@@ -131,10 +136,30 @@ module.exports = class Robot2020 extends Robot{
         return true;
     }
 
+    async openSideArms(parameters){
+        if(this.modules.arm && parameters.left) await this.modules.arm.setLeft({angle:50})
+        if(this.modules.arm && parameters.right) await this.modules.arm.setRight({angle:50})
+        return true;
+    }
+
+    async closeSideArms(parameters){
+        if(this.modules.arm) await this.modules.arm.setLeft({angle:90})
+        if(this.modules.arm) await this.modules.arm.setRight({angle:90})
+        if(parameters.addBuoyStorageSideA) this.variables.buoyStorageSideA.value++;
+        if(parameters.addBuoyStorageSideB) this.variables.buoyStorageSideB.value++;
+        if(parameters.removeFromMap) parameters.removeFromMap.forEach((e)=>this.app.map.removeComponent(this.app.map.getComponent(e, this.team)))
+        return true;
+    }
+
     async validateWindsock(parameters){
         this.variables.windsocks.value+=1;
         if(this.variables.windsocks.value==1) this.addScore(5);
         if(this.variables.windsocks.value==2) this.addScore(10);
+        return true;
+    }
+
+    async validateEndZone(parameters){
+        if(this.variables.endZone.value!=0) this.addScore(5);
         return true;
     }
 

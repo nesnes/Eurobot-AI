@@ -7,10 +7,10 @@
 #endif
 #include "comunication.h"
 
-const float wheelPerimeter = 188.495559215;//mm
-const float wheelDistanceA = 120;//mm
-const float wheelDistanceB = 125;//mm
-const float wheelDistanceC = 123;//mm
+const double wheelPerimeter = 186.5;//188.495559215;//mm = pi*d = pi*60
+const double wheelDistanceA = 120;//mm
+const double wheelDistanceB = 125.4;//mm
+const double wheelDistanceC = 123;//mm
 
 BrushlessMotor motorA(0, wheelPerimeter, true);//9,10,11
 BrushlessMotor motorB(1, wheelPerimeter, true);//5,3,2
@@ -18,7 +18,7 @@ BrushlessMotor motorC(2, wheelPerimeter, true);//8,7,6
 
 const double motorA_angle = -60;//°
 const double motorB_angle = 180;//°
-const double motorC_angle =  60;//°
+const double motorC_angle = 60;//°
 
 //--FRONT-
 //-A-----C
@@ -53,16 +53,16 @@ void updatePosition(){
   double distB = motorB.getAndResetDistanceDone();
   double distC = motorC.getAndResetDistanceDone();
   
-  double xA = sin((motorA_angle+anglePos+90)*DEG_TO_RAD)*distA;
-  double xB = sin((motorB_angle+anglePos+90)*DEG_TO_RAD)*distB;
-  double xC = sin((motorC_angle+anglePos+90)*DEG_TO_RAD)*distC;
+  double xA = sin((motorA_angle+anglePos+90.0d)*DEG_TO_RAD)*distA;
+  double xB = sin((motorB_angle+anglePos+90.0d)*DEG_TO_RAD)*distB;
+  double xC = sin((motorC_angle+anglePos+90.0d)*DEG_TO_RAD)*distC;
 
-  double yA = cos((motorA_angle+anglePos+90)*DEG_TO_RAD)*distA; //motorA_angle+90 is the wheel angle
-  double yB = cos((motorB_angle+anglePos+90)*DEG_TO_RAD)*distB;
-  double yC = cos((motorC_angle+anglePos+90)*DEG_TO_RAD)*distC;
+  double yA = cos((motorA_angle+anglePos+90.0d)*DEG_TO_RAD)*distA; //motorA_angle+90 is the wheel angle
+  double yB = cos((motorB_angle+anglePos+90.0d)*DEG_TO_RAD)*distB;
+  double yC = cos((motorC_angle+anglePos+90.0d)*DEG_TO_RAD)*distC;
 
-  xPos += (xA+xB+xC);
-  yPos += (yA+yB+yC);
+  xPos += (xA+xB+xC)*0.635;
+  yPos += (yA+yB+yC)*0.635;
 
   double angleDoneA = (distA*360)/(2.0d*PI*(wheelDistanceA/1000.0d));
   double angleDoneB = (distB*360)/(2.0d*PI*(wheelDistanceB/1000.0d));
@@ -86,10 +86,10 @@ double targetMovmentAngle = 0;
 double targetSpeed_mps = 0.0;// m/s
 double targetAngleSpeed_dps = 0;// °/s
 
-double targetAngleError = 0.5; //°
-double targetPosError = 0.0005; //meters
+double targetAngleError = 1.0; //°
+double targetPosError = 0.005; //meters
 bool targetReached = true;
-int targetReachedCountTarget = 0;
+int targetReachedCountTarget = 10;
 int targetReachedCount = 0;
 
 //Y is forward, X is right side (motor C side)
@@ -106,15 +106,29 @@ void updateAsserv(){
 
   targetMovmentAngle = angleDiff(translationAngle, anglePos);
 
-  targetSpeed_mps = translationError*2;
-  if(abs(targetSpeed_mps)>speedTarget)
+  //Translation Speed
+  double slowDownDistance = 0.2;//m
+  //double speedFromError = translationError*2;//Speed from error
+  if(translationError>slowDownDistance) targetSpeed_mps = speedTarget;
+  else targetSpeed_mps = (speedTarget/slowDownDistance)*translationError;
+  if(abs(targetSpeed_mps)>speedTarget) //reduce to max speed
     targetSpeed_mps = targetSpeed_mps>0?speedTarget:-speedTarget;
+  
 
   //Rotation
+  double slowDownAngle = 15;//deg
   double rotationError = angleDiff(angleTarget,anglePos);
-  targetAngleSpeed_dps = rotationError*5;
+  //double speedFromError = rotationError*5;
+  if(rotationError>slowDownAngle) targetAngleSpeed_dps = angleSpeedTarget;
+  else targetAngleSpeed_dps = (angleSpeedTarget/slowDownAngle)*rotationError;
   if(abs(targetAngleSpeed_dps)>angleSpeedTarget)
     targetAngleSpeed_dps = targetAngleSpeed_dps>0?angleSpeedTarget:-angleSpeedTarget;
+   //targetAngleSpeed_dps = 0;
+  //Limit speed variation rate
+  //if(abs(targetAngleSpeed_dps)<0.01 && abs(speedFromError)>0) targetAngleSpeed_dps=speedFromError>0?0.01:-0.01;
+  //if(targetAngleSpeed_dps*0.8<speedFromError) speedFromError = targetAngleSpeed_dps*0.0;
+  //if(targetAngleSpeed_dps*1.2>speedFromError) speedFromError = targetAngleSpeed_dps*1.2;
+  //targetAngleSpeed_dps = speedFromError;
 
   if(translationError>targetPosError || fabs(rotationError)>targetAngleError){
     targetReached = false;
@@ -150,8 +164,8 @@ void printCharts(){
   Serial.print(speedTarget*1000);Serial.print(" ");
 
   //Motor Speed
-  Serial.print(motorA.getSpeed()*1000);Serial.print(" ");
-  Serial.print(motorA.getPower()*1000);Serial.print(" ");
+  Serial.print(motorB.getSpeed()*1000);Serial.print(" ");
+  Serial.print(0/*motorB.getPower()*1000*/);Serial.print(" ");
   //Serial.print(motorB.getSpeed()*1000);Serial.print(" ");
   //Serial.print(motorC.getSpeed()*1000);Serial.print(" ");
   Serial.print("\r\n");
@@ -162,7 +176,7 @@ bool emergencyStop = false;
 bool manualMode = false;
 void control(){
   //Update position
-  updatePosition();
+  //updatePosition();
   //Serial.print("Position\t");Serial.print(xPos);Serial.print("\t");Serial.print(yPos);Serial.print("\t");Serial.print(anglePos);Serial.print("\n");
 
   //double daTargetDistance = sqrt(pow(xpos - xTarget,2) + pow(ypos - yTarget,2)); // meters
@@ -202,12 +216,22 @@ void control(){
 
   //Serial.print(speedA*1000000.f);Serial.print("\t");Serial.print(speedB*1000000.f);Serial.print("\t");Serial.print(speedC*1000000.f);Serial.print("\n");
   //Serial.print(motorA.m_currSleep);Serial.print("\t");Serial.print(motorB.m_currSleep==0);Serial.print("\t");Serial.print(motorC.m_currSleep);Serial.print("\n");
+
+  //Compute Sync Factor -> so motors slows their Acceleration based on the max-accelerating one
+  double syncFactorA=1, syncFactorB=1, syncFactorC=1;
+  double speedDiffA = abs(speedA - motorA.getSpeed());
+  double speedDiffB = abs(speedB - motorB.getSpeed());
+  double speedDiffC = abs(speedC - motorC.getSpeed());
+  double speedDiffMax = max(speedDiffA,max(speedDiffB,speedDiffC));
+  syncFactorA = 1;//speedDiffA/speedDiffMax;
+  syncFactorB = 1;//speedDiffB/speedDiffMax;
+  syncFactorC = 1;//speedDiffC/speedDiffMax;
   
   //Drive motors
   if(!emergencyStop && movementEnabled){
-    motorA.setSpeed(speedA);
-    motorB.setSpeed(speedB);
-    motorC.setSpeed(speedC);
+    motorA.setSpeed(speedA, syncFactorA);
+    motorB.setSpeed(speedB, syncFactorB);
+    motorC.setSpeed(speedC, syncFactorC);
   }
   else{
     motorA.setSpeed(0);
@@ -216,6 +240,7 @@ void control(){
   }
 }
 
+int positionFrequency = 200; //Hz
 int controlFrequency = 60; //Hz
 
 void executeOrder(){
@@ -338,14 +363,23 @@ void executeOrder(){
 }
 
 unsigned long lastControlMillis = 0;
+unsigned long lastPositionMillis = 0;
 float sinCounter = 0;
 void loop()
 {
   //Read commands
   executeOrder();
+
+  unsigned long currMillis = millis();
+  
+  //Run position loop
+  int positionMillis = 1000/positionFrequency;
+  if(currMillis - lastPositionMillis >= positionMillis){
+    lastPositionMillis = currMillis;
+    updatePosition();
+  }
   
   //Run control loop
-  unsigned long currMillis = millis();
   int controlMillis = 1000/controlFrequency;
   if(currMillis - lastControlMillis >= controlMillis){
     lastControlMillis = currMillis;

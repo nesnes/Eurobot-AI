@@ -16,7 +16,8 @@ enum  {
 
 const int SERVO_LEFT=8;
 const int SERVO_RIGHT=7;
-Servo servoLeft, servoRight;
+const int SERVO_FLAG=9;
+Servo servoLeft, servoRight, servoFlag;
 
 const int NB_SERVO_ARM_M = 5;
 const int pinNumberServo_M[NB_SERVO_ARM_M] = {2,3,4,5,6};
@@ -38,6 +39,8 @@ void setup() {
   servoLeft.write(90);
   servoRight.attach(SERVO_RIGHT, MIN_PULSE, MAX_PULSE);
   servoRight.write(90);
+  servoFlag.attach(SERVO_FLAG, MIN_PULSE, MAX_PULSE);
+  servoFlag.write(25);
 
   // Setup Arm M
   for(int i=0; i<NB_SERVO_ARM_M; i++){
@@ -146,6 +149,13 @@ void executeOrder(){
       int angle=90;
       sscanf(comunication_InBuffer, "setRight %i", &angle);
       servoRight.write(180-angle);
+    }
+    else if(strstr(comunication_InBuffer, "setFlag")){
+      sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
+      comunication_write();//async
+      int angle=90;
+      sscanf(comunication_InBuffer, "setFlag %i", &angle);
+      servoFlag.write(angle);
     }
 
     

@@ -12,6 +12,9 @@ module.exports = class Intelligence {
     }
 
     async init(){
+
+        this.app.logger.log("Parameters: "+JSON.stringify(this.app.parameters));
+
         //Load the map
         delete require.cache[require.resolve('./maps/map_2020')]; //Delete require() cache
         const Map = require('./maps/map_2020');

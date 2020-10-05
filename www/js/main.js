@@ -1,4 +1,8 @@
 //UI objects
+var appParams = {
+    simulate: true,
+    disableColisions: true
+}
 var map = {
     width: 0,
     height: 0,
@@ -58,7 +62,7 @@ communication.client.subscribe("/lidar");
 communication.client.on("connect", function (){
     if(!initialized){
         initialized = true;
-        var payload = {command: "reloadAI"};
+        var payload = {command: "reloadAI", parameters: appParams};
         communication.client.publish("/control", JSON.stringify(payload))
     }
 });
@@ -120,7 +124,8 @@ var app = new Vue({
         lidar: lidar,
         //lidarLocalisation: lidarLocalisation,
         modules: modules,
-        communication: communication
+        communication: communication,
+        appParams: appParams
     },
     updated: function(){
         //scroll down log console
@@ -169,7 +174,7 @@ function reloadAI(){
     path.smoothPath = null;
     lidar.measures = null;
     logs.length = 0;
-    var payload = {command: "reloadAI"};
+    var payload = {command: "reloadAI", parameters: appParams};
     communication.client.publish("/control", JSON.stringify(payload))
 }
 function stopMatch(){

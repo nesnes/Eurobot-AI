@@ -76,12 +76,13 @@ double BrushlessMotor::getAndResetDistanceDone(){
   if(stepsDone==0) return 0;
   double revolutions = (1.0d/double(BRUSHLESS_STEP_PER_REVOLUTION))*stepsDone;
   double distance = (revolutions*m_wheelPerimeter)/1000.0d; //meters
-  if(m_inverted) distance *= -1;
+  if(m_inverted) distance *= -1.0d;
   return distance;
 }
 
-void BrushlessMotor::setSpeed(double speed){ // m/s
+void BrushlessMotor::setSpeed(double speed, double syncFactor){ // m/s
   m_requestedSpeed = speed;
+  m_syncFactor = syncFactor;
 }
 
 double BrushlessMotor::getSpeed(){ // m/s
@@ -94,20 +95,22 @@ float BrushlessMotor::getPower(){ // m/s
 
 void BrushlessMotor::computeSpeed(){
   //Acceleration
-  double speedStep = 0.001;
-  double absCurrSpeed = fabs(m_currSpeed);
-  //if(absCurrSpeed<0.01) speedStep = 0.00001;
-  double absRequestedSpeed = fabs(m_requestedSpeed);
-  if(m_requestedSpeed == 0 && fabs(m_currSpeed)<=speedStep){
-    m_currSpeed = m_requestedSpeed;
-    absCurrSpeed = absRequestedSpeed;
+  double speedStep = 0.001*m_syncFactor;//0.001
+  //double speedStepAccel = 0.0001;//0.001
+  //double speedStep = (!m_inverted)?speedStepAccel:speedStepBreak;//0.001
+  double absCurrSpeed = abs(m_currSpeed);
+  double absRequestedSpeed = abs(m_requestedSpeed);
+  //if(absRequestedSpeed<absCurrSpeed) speedStep = (!m_inverted)?speedStepBreak:speedStepAccel;
+  if(m_requestedSpeed == 0 && absCurrSpeed<=speedStep){
+    m_currSpeed = 0;
+    absCurrSpeed = 0;
   }
   else if(m_requestedSpeed>m_currSpeed) m_currSpeed += speedStep;
   else if (m_requestedSpeed<m_currSpeed) m_currSpeed -= speedStep;
   absCurrSpeed = fabs(m_currSpeed);
 
   //Power
-  m_powerCount++;
+  m_powerCount+=m_syncFactor;
   /*if(m_powerCount==30){
     m_powerCount=0;
     float speedDiff = abs(abs(m_oldSpeed) - absCurrSpeed)*50;
