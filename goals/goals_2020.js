@@ -26,6 +26,46 @@ module.exports = class Goals2020 extends Goals{
                 ]
             },
             
+            // Start Move
+            {
+                name: "Perform start move",
+                condition: ()=>{
+                    let buoyStorageSideA = this.app.robot.variables["buoyStorageSideA"];
+                    let buoyStorageSideB = this.app.robot.variables["buoyStorageSideB"];
+                    if(buoyStorageSideA.value>0 || buoyStorageSideB.value>0) return false;
+                    return true;
+                }, 
+                executionCount: 1,
+                actions: [
+                    {
+                        name: "Open arms",
+                        method: "openSideArms",
+                        parameters:{ left: true, right: true}
+                    },
+                    {
+                        name: "perform path",
+                        method: "moveAlongPath",
+                        team: "blue",
+                        parameters:{ path:[
+                            {x:250, y:650, angle:120, speed:0.2},
+                            {x:400, y:400, angle:120, speed:0.2},
+                            {x:670, y:250, angle:180, speed:0.2},
+                            {x:1000, y:300, angle:225, speed:0.2},
+                            {x:950, y:700, angle:-45, speed:0.2},
+                        ]}
+                    },
+                    {
+                        name: "Close arms",
+                        method: "closeSideArms",
+                        parameters: { 
+                            addBuoyStorageSideA: 2,
+                            addBuoyStorageSideB: 2,
+                            removeFromMap:["buoyStartingNorth","buoyStartingFairwayNorth", "buoyTop", "buoyMiddleTop"]
+                        }
+                    },
+                ]
+            },
+            
             // Start buoys
             {
                 name: "Grab Start buoys",

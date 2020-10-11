@@ -27,6 +27,22 @@ const double motorC_angle = 60;//°
 //----B---
 //--BACK--
 
+typedef struct {
+  float x=0;
+  float y=0;
+  float angle=0;
+  PathSegment(float _x, float _y, float _angle){
+    this->x = _x;
+    this->y = _y;
+    this->angle = _angle;
+  }
+} PathSegment;
+
+PathSegment targetPath[50];
+int targetPathIndex = 0;
+int targetPathSize = 0;
+bool runTargetPath = false;
+
 void setup()
 {
   //Serial.begin(115200);
@@ -140,6 +156,8 @@ void updateAsserv(){
     targetReachedCount++;
     targetAngleSpeed_dps=0;
     targetSpeed_mps=0;
+    runTargetPath=false;
+    targetPathSize=0;
   }
 }
 
@@ -171,6 +189,30 @@ void printCharts(){
   Serial.print("\r\n");
 }
 
+float nextPathTranslationError = 0.05;//meters
+float nextPathRotationError = 45;//degrees -> not much important
+void updatePath(){
+  if(!runTargetPath) return;
+  //Set current target
+  xTarget = targetPath[targetPathIndex].x;
+  yTarget = targetPath[targetPathIndex].y;
+  angleTarget = targetPath[targetPathIndex].angle;
+
+  //Compute error to switch to next target
+  double translationError = sqrt(pow(xPos - xTarget,2) + pow(yPos - yTarget,2)); // meters
+  double rotationError = angleDiff(angleTarget,anglePos);
+  if(targetPathIndex<targetPathSize-1
+    && translationError < nextPathTranslationError
+    && rotationError < nextPathRotationError){
+      targetPathIndex++;
+  } 
+  
+  //Set new target
+  xTarget = targetPath[targetPathIndex].x;
+  yTarget = targetPath[targetPathIndex].y;
+  angleTarget = targetPath[targetPathIndex].angle;
+}
+
 bool movementEnabled = false;
 bool emergencyStop = false;
 bool manualMode = false;
@@ -182,13 +224,15 @@ void control(){
   //double daTargetDistance = sqrt(pow(xpos - xTarget,2) + pow(ypos - yTarget,2)); // meters
   //double daTargetAngle = angleDiff(angleTarget,angle);
 
+  //Update target from path
+  if(runTargetPath) updatePath();
+  
   /* Compute speeds with asserv:
    *  targetMovmentAngle
    *  targetSpeed_mps
    *  targetAngleSpeed_dps
    */
-  if(!manualMode)
-    updateAsserv();
+  if(!manualMode) updateAsserv();
   #ifdef SERIAL_DEBUG
     printCharts();
   #endif
@@ -293,16 +337,46 @@ void executeOrder(){
       yTarget = (float)(i_y_pos)/1000.0f;
       angleTarget = (float)(i_angle);
       speedTarget = (float)(i_speed_pos)/10.0f;
-      angleSpeedTarget = speedTarget * 90;
+      angleSpeedTarget = speedTarget * 90.f;
+      targetReached = false;
       emergencyStop = false;
       targetReached = false;
+      runTargetPath = false;
+    }
+    else if(strstr(comunication_InBuffer, "path set ")){
+      sprintf(comunication_OutBuffer,"path OK");
+      comunication_write();//async
+      int action=-1, i_x_pos=0, i_y_pos=0, i_angle=0, i_speed_pos=1;
+      sscanf(comunication_InBuffer, "path set %i %i %i %i %i", &action, &i_y_pos, &i_x_pos, &i_angle, &i_speed_pos);
+      if(action==-1){}//nothing
+      if(action==0){//reset
+        targetReached = false;
+        targetPathIndex = 0;
+        targetPathSize = 0;
+        runTargetPath = false;
+      }
+      if(action==0 || action==1 || action==2){//add
+        int idx = targetPathSize;
+        targetPath[idx].x = (float)(i_x_pos)/1000.0f;
+        targetPath[idx].y = (float)(i_y_pos)/1000.0f;
+        targetPath[idx].angle = (float)(i_angle);
+        speedTarget = (float)(i_speed_pos)/10.0f;
+        angleSpeedTarget = speedTarget * 90.f;
+        targetPathSize++;
+      }
+      if(action==2 && targetPathSize){//run
+        targetReached = false;
+        runTargetPath = true;
+        emergencyStop = false;
+        targetReached = false;
+      }
     }
     else if(strstr(comunication_InBuffer, "move DA")){
       sprintf(comunication_OutBuffer, "ERROR");//max 29 Bytes
       comunication_write();//async
     }
     else if(strstr(comunication_InBuffer, "status get")){
-      sprintf(comunication_OutBuffer,"%s %i %i %i %i", (targetReached?"end":"run"), (int)(yPos*1000.0f), (int)(xPos*1000.0f), (int)(anglePos), (int)(targetSpeed_mps*10));
+      sprintf(comunication_OutBuffer,"%s %i %i %i %i %i", (targetReached?"end":"run"), (int)(yPos*1000.0f), (int)(xPos*1000.0f), (int)(anglePos), (int)(targetSpeed_mps*10), targetPathIndex);
       comunication_write();//async
     }
     else if(strstr(comunication_InBuffer, "speed get")){
@@ -325,7 +399,7 @@ void executeOrder(){
       comunication_write();//async
     }
     else if(strstr(comunication_InBuffer, "support Path")){
-      sprintf(comunication_OutBuffer,"support 0");
+      sprintf(comunication_OutBuffer,"support 1");
       comunication_write();//async
     }
     else if(strstr(comunication_InBuffer, "manual enable")){
@@ -353,6 +427,7 @@ void executeOrder(){
       targetSpeed_mps = (float)(i_move_speed)/10.0f;
       targetAngleSpeed_dps = i_angle_speed;
       emergencyStop = false;
+      runTargetPath = false;
     }
     else{
       sprintf(comunication_OutBuffer,"ERROR");

@@ -265,21 +265,27 @@ module.exports = class Robot {
     async moveToPosition(parameters){
         let path = [];
         if(parameters.preventPathFinding) {
-            path.push([this.x, this.y])
+            //path.push([this.x, this.y])
             path.push([parameters.x, parameters.y])
         }
-        else path = this.app.map.findPath(this.x, this.y, parameters.x, parameters.y);
+        else {
+            path = this.app.map.findPath(this.x, this.y, parameters.x, parameters.y);
+            path.shift();//remove initial position
+        }
         if(path.length==0) return false
-        if(this.modules.base && await this.modules.base.supportPath()){
-            //Robot capable of running paths
-            return await this._performPath(path, parameters.x, parameters.y, parameters.angle, parameters.speed)
+        if(this.modules.base){
+            let startAngle = this.angle;
+            let dangle = startAngle-parameters.angle;
+            let paramPath = []
+            let i=1;
+            for(let p of path){
+                let angle = startAngle-(dangle*(i++/(path.length)))
+                paramPath.push({x:p[0], y:p[1], angle:angle, speed:parameters.speed});
+            }
+            return await this.moveAlongPath({path:paramPath})
+            //return await this._performPath(path, parameters.x, parameters.y, parameters.angle, parameters.speed)
         }
-        else if(this.modules.base && await this.modules.base.supportXY()){
-            //Robot only capable of moving to positions
-            return await this._performPath(path, parameters.x, parameters.y, parameters.angle, parameters.speed)
-        }
-        //Robot disconnected or unable to move
-        else return await this._simulatePath(path, parameters.x, parameters.y, parameters.angle, parameters.speed)
+        return false
     }
 
     async moveSidway(parameters){
@@ -369,8 +375,8 @@ module.exports = class Robot {
         this.movementAngle =  utils.normAngle(Math.atan2(dy,dx)*(180/Math.PI)+180);
     }
 
-    isMovementPossible(x,y){
-        this._updateMovementAngle(x,y);
+    isMovementPossible(x=NaN,y=NaN){
+        if(!isNaN(x) && !isNaN(y)) this._updateMovementAngle(x,y);
         if(!this.modules.lidar) return true;
         if(this.disableColisions) return true;
         let collisionCount = 0;
@@ -489,26 +495,37 @@ module.exports = class Robot {
         return success;
     }
 
-    async _performPath(path, x, y, angle, speed){
-        //await this.modules.base.enableMove();
-        let startAngle = this.angle;
-        let dangle = startAngle-angle;
+    async moveAlongPath(params){
+        let path=params.path;
+        let sleep = 100;
         var success = true;
-        for(let i=1;i<path.length;i++){
-            
-            this.app.logger.log(`-> move path ${i}/${path.length-1}`);
-            success = success && await this._performMovement(path[i][0], path[i][1], startAngle-(dangle*(i/(path.length-1))), speed)
-            /*if(!this.isMovementPossible(path[i][0],path[i][1])){
-                success = false;
-                break;
+        if(!path.length) return false;
+        if(this.modules.base && await this.modules.base.supportPath()){
+            //Update position and check obstacles
+            await this._updatePositionAndMoveStatus();
+            if(!this.isMovementPossible(path[0].x,path[0].y)) return false;
+
+            //Start the move
+            let moveStatus = "";
+            success = !!await this.modules.base.movePath({path:path})
+            console.log("movePath", success)
+            do{
+                await utils.sleep(sleep);
+                if(this.app.intelligence.hasBeenRun && this.app.intelligence.isMatchFinished()) success = false;
+                //moveSpeed = this.slowdown?0.1:speed;
+                if(!this.isMovementPossible()) success = false;
+                moveStatus = await this._updatePositionAndMoveStatus();
+                console.log(success, moveStatus, path)
+            } while(success && moveStatus && moveStatus.includes("run"))
+            if(!success) this.modules.base.break();
+        }
+        else {
+            //Not path support on base, run sections one by one
+            for(let i=0;i<path.length;i++){
+                this.app.logger.log(`-> move path ${i+1}/${path.length}`);
+                success = success && await this._performMovement(path[i].x, path[i].y, path[i].angle, path[i].speed)
+                if(!success) break
             }
-            success = success && !!await this.modules.base.moveXY({
-                x: path[i][0],
-                y: path[i][1],
-                angle: startAngle-(dangle*(i/(path.length-1))),
-                speed: speed
-            })*/
-            if(!success) break
         }
         //if(success) this._updatePosition(x,y,angle, true);
         this.send();

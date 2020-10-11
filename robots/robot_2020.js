@@ -143,10 +143,10 @@ module.exports = class Robot2020 extends Robot{
     }
 
     async closeSideArms(parameters){
-        if(this.modules.arm) await this.modules.arm.setLeft({angle:90})
-        if(this.modules.arm) await this.modules.arm.setRight({angle:90})
-        if(parameters.addBuoyStorageSideA) this.variables.buoyStorageSideA.value++;
-        if(parameters.addBuoyStorageSideB) this.variables.buoyStorageSideB.value++;
+        if(this.modules.arm) await this.modules.arm.setLeft({angle:105})
+        if(this.modules.arm) await this.modules.arm.setRight({angle:105})
+        if(parameters.addBuoyStorageSideA) this.variables.buoyStorageSideA.value+=parameters.addBuoyStorageSideA===true?1:parameters.addBuoyStorageSideA;
+        if(parameters.addBuoyStorageSideB) this.variables.buoyStorageSideB.value+=parameters.addBuoyStorageSideB===true?1:parameters.addBuoyStorageSideB;
         if(parameters.removeFromMap) parameters.removeFromMap.forEach((e)=>this.app.map.removeComponent(this.app.map.getComponent(e, this.team)))
         return true;
     }

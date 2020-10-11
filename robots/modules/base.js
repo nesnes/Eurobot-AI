@@ -126,6 +126,22 @@ module.exports = class Base {
         return result;
     }
 
+    async movePath(params){ //{path:[{x:0,y:0,angle:0,speed:0}]}
+        if(!params.path) return false;
+        let result = true;
+        for(let i=0;result && i<params.path.length;i++){
+            let point = params.path[i];
+            let action = i==0?0:1;
+            if(i==params.path.length-1) action=2;
+            let msg = "path set "+action+" "+Math.round(point.x)+" "+Math.round(point.y)+" "+Math.round(point.angle)+" "+Math.round(parseFloat(""+point.speed)*10);
+            console.log(msg)
+            if(this.app.robot.modules.robotLink)
+                result = await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
+            console.log(msg,result)
+        }
+        return result;
+    }
+
     async enableManual(){
         if(this.app.robot.modules.robotLink)
             return await this.app.robot.modules.robotLink.sendMessage(this.address, "manual enable");
