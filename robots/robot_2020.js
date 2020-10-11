@@ -19,8 +19,8 @@ module.exports = class Robot2020 extends Robot{
         this.name = "Robot Nesnes TDS"
         this.radius = 140;
         this.startPosition = {
-            blue:{x:200,y:900,angle:0},
-            yellow:{x:2800,y:900,angle:180}
+            blue:{x:265,y:650,angle:0},
+            yellow:{x:1735,y:650,angle:180}
         }
         this.variables = {
             buoyStorageFrontA: { value: 0,  max: 1 },
@@ -137,8 +137,8 @@ module.exports = class Robot2020 extends Robot{
     }
 
     async openSideArms(parameters){
-        if(this.modules.arm && parameters.left) await this.modules.arm.setLeft({angle:50})
-        if(this.modules.arm && parameters.right) await this.modules.arm.setRight({angle:50})
+        if(this.modules.arm && parameters.left) await this.modules.arm.setLeft({angle:70})
+        if(this.modules.arm && parameters.right) await this.modules.arm.setRight({angle:70})
         return true;
     }
 

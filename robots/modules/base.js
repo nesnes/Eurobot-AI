@@ -69,8 +69,8 @@ module.exports = class Base {
             let response = await this.app.robot.modules.robotLink.sendMessage(this.address, "status get");
             if(!response) return false;
             let posArray = response.split(" ");
-            if(posArray.length == 5 && ["run","end"].includes(posArray[0])){
-                return {status: posArray[0], x: parseInt(posArray[1]), y: parseInt(posArray[2]), angle: parseInt(posArray[3]), speed: parseInt(posArray[4])/10}
+            if(posArray.length == 6 && ["run","end"].includes(posArray[0])){
+                return {status: posArray[0], x: parseInt(posArray[1]), y: parseInt(posArray[2]), angle: parseInt(posArray[3]), speed: parseInt(posArray[4])/10, pathIndex: parseInt(posArray[5])}
             }
             console.log(response);
             return response;

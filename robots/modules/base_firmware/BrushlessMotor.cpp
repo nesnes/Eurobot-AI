@@ -68,6 +68,10 @@ void BrushlessMotor::begin(){
 	pinMode(m_pinA, OUTPUT);
 	pinMode(m_pinB, OUTPUT);
 	pinMode(m_pinC, OUTPUT);
+
+  analogWrite(m_pinA, m_pwmSin[m_currentStepA]/20);
+  analogWrite(m_pinB, m_pwmSin[m_currentStepB]/20);
+  analogWrite(m_pinC, m_pwmSin[m_currentStepC]/20);
 }
 
 double BrushlessMotor::getAndResetDistanceDone(){

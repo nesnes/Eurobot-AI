@@ -110,6 +110,7 @@ module.exports = class Robot {
             this.angle = this.startPosition[this.team].angle;
             if(this.modules.base) await this.modules.base.enableMove();
             if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle});
+            if(this.modules.base) await this._updatePositionAndMoveStatus();
         }
         //Other specific init actions should be defined in year-dedicated robot file
         this.send();
@@ -453,6 +454,7 @@ module.exports = class Robot {
     async _updatePositionAndMoveStatus(){
         let moveStatus = "end";
         let status = await this.modules.base.getStatus();
+        console.log(status)
         if(status && typeof status === "object"){
             moveStatus = status.status;
             this.x = status.x;

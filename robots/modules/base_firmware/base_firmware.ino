@@ -156,8 +156,6 @@ void updateAsserv(){
     targetReachedCount++;
     targetAngleSpeed_dps=0;
     targetSpeed_mps=0;
-    runTargetPath=false;
-    targetPathSize=0;
   }
 }
 
@@ -189,10 +187,10 @@ void printCharts(){
   Serial.print("\r\n");
 }
 
-float nextPathTranslationError = 0.05;//meters
-float nextPathRotationError = 45;//degrees -> not much important
+float nextPathTranslationError = 0.03;//meters
+float nextPathRotationError = 20;//degrees -> not much important
 void updatePath(){
-  if(!runTargetPath) return;
+  if(!runTargetPath || targetReached) return;
   //Set current target
   xTarget = targetPath[targetPathIndex].x;
   yTarget = targetPath[targetPathIndex].y;
