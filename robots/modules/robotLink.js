@@ -12,11 +12,14 @@ module.exports = class Robotlink {
         this.serial = null;
         this.buffer = "";
         this.inputMessages = [];
+        if(process.platform=="linux") this.port = "/dev/arduino"; //Raspberry/Linux
+        if(process.platform=="darwin") this.port = "/dev/cu.usbserial-001K395U"; //Mac
+        if(process.platform=="win32") this.port = ""; //Windows
     }
     
     async init(){
         //this.serial = new SerialPort('COM9', { baudRate: this.baudrate, autoOpen: false });
-        this.serial = new SerialPort('/dev/cu.usbserial-001K395U', { baudRate: this.baudrate, autoOpen: false });
+        this.serial = new SerialPort(this.port, { baudRate: this.baudrate, autoOpen: false });
         //Connection loop
         let tries = 0;
         while(tries++<5){

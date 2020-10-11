@@ -17,10 +17,13 @@ module.exports = class LidarX2 {
         this.measures = [];
         this.angleOffset = 180;
         this.lastSendTime = 0;
+        if(process.platform=="linux") this.port = "/dev/ydlidarx2"; //Raspberry/Linux
+        if(process.platform=="darwin") this.port = ""; //Mac
+        if(process.platform=="win32") this.port = "COM4"; //Windows
     }
     
     async init(){
-        this.serial = new SerialPort('COM4', { baudRate: this.baudrate }, (err)=>{
+        this.serial = new SerialPort(this.port, { baudRate: this.baudrate }, (err)=>{
             if(err) console.log(err)
         })
         this.serial.on('data', (data)=>{
