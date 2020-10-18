@@ -194,7 +194,7 @@ module.exports = class Robot2020 extends Robot{
         let grabbed=false;
         while(--tryBudget>=0){
             if(this.modules.arm) await this.modules.arm.setPose(armCloseLookPosition)
-            await utils.sleep(200);
+            await utils.sleep(400);
             let detections = await this.modules.camera.detect();
             console.log(detections);
             //Find Most centered and low object in the image
@@ -209,9 +209,10 @@ module.exports = class Robot2020 extends Robot{
                     minDist = dist;
                 }
             }
-            if(target.y<75 || target==null){
+            if(target.y<80 || target==null){
                 console.log("Detect, move forward")
-                await this.moveForward({distance:50, speed:1});
+                await this.moveForward({distance:100, speed:1});
+                await this.moveBackward({distance:50, speed:1});
                 continue;
             }
             console.log("Detect, grab")

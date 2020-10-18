@@ -54,7 +54,7 @@ module.exports = class Arm {
 
     async setPose(params){
         this.app.logger.log("set pose");
-        let msg = "Z "+params.a1+" "+params.a2+" "+params.a3+" "+params.a4+" "+params.a5+" "+params.duration;
+        let msg = "Z "+parseInt(""+params.a1)+" "+parseInt(""+params.a2)+" "+parseInt(""+params.a3)+" "+parseInt(""+params.a4)+" "+parseInt(""+params.a5)+" "+parseInt(""+params.duration);
         let result = true;
         if(this.app.robot.modules.robotLink)
             result = await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
