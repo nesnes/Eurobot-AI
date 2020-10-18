@@ -189,25 +189,36 @@ module.exports = class Robot2020 extends Robot{
     async detectAndGrabBuoy(parameters){
         if(!this.modules.camera) return true;
         let armCloseLookPosition = {a1:40, a2:95, a3:60, a4:60, a5:20, duration:200};
-        if(this.modules.arm) await this.modules.arm.setPose(armCloseLookPosition)
-        await utils.sleep(2000);
-        let detections = await this.modules.camera.detect();
-        console.log(detections);
-        //Find Most centered in the image
-        let target = null;
-        let minDist = 10;
-        for(let obj of detections){
-            let dx = 0.5 - obj.x;
-            let dy = 0.5 - obj.y;
-            let dist = Math.sqrt(dx*dx + dy*dy);
-            if(dist<minDist){
-                target = obj;
-                minDist = dist;
+        let tryBudget = 3;
+        while(--tryBudget>=0){
+            if(this.modules.arm) await this.modules.arm.setPose(armCloseLookPosition)
+            await utils.sleep(200);
+            let detections = await this.modules.camera.detect();
+            console.log(detections);
+            //Find Most centered and low object in the image
+            let target = null;
+            let minDist = 1000;
+            for(let obj of detections){
+                let dx = 50 - obj.x;
+                let dy = 100 - obj.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                if(dist<minDist){
+                    target = obj;
+                    minDist = dist;
+                }
             }
+            if(target.y<75 || target==null){
+                console.log("Detect, move forward")
+                await this.moveForward({distance:50, speed:1});
+                continue;
+            }
+            console.log("Detect, grab")
+            //Orient Arm
+            let armPreGrabPosition = {a1:20, a2:95, a3:175, a4:70, a5:100, duration:200};
+            let rotationDiff = (target.x-50)*0.5;
+            armPreGrabPosition.a2 += rotationDiff;
+            if(this.modules.arm) await this.modules.arm.setPose(armPreGrabPosition)
         }
-        if(target==null) return false;
-        //Orient Arm
-        let armPreGrabPosition = {a1:20, a2:95, a3:175, a4:70, a5:100, duration:200};
         return true;
     }
 
