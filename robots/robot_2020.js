@@ -218,7 +218,7 @@ module.exports = class Robot2020 extends Robot{
             console.log("Detect, grab")
             //Orient Arm
             let armPreGrabPosition = {a1:20, a2:95, a3:175, a4:70, a5:100, duration:200};
-            let rotationDiff = Math.min(45, Math.max(-45,(target.x-50)*0.5));
+            let rotationDiff = Math.min(45, Math.max(-45,(target.x-50)*0.9));
             armPreGrabPosition.a2 += rotationDiff;
             if(this.modules.arm) await this.modules.arm.setPose(armPreGrabPosition)
             grabbed=true;
