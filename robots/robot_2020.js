@@ -188,8 +188,10 @@ module.exports = class Robot2020 extends Robot{
 
     async detectAndGrabBuoy(parameters){
         if(!this.modules.camera) return true;
+        //Grab
         let armCloseLookPosition = {a1:60, a2:95, a3:65, a4:75, a5:20, duration:200};
         let tryBudget = 3;
+        let grabbed=false;
         while(--tryBudget>=0){
             if(this.modules.arm) await this.modules.arm.setPose(armCloseLookPosition)
             await utils.sleep(200);
@@ -218,7 +220,11 @@ module.exports = class Robot2020 extends Robot{
             let rotationDiff = Math.min(45, Math.max(-45,(target.x-50)*0.5));
             armPreGrabPosition.a2 += rotationDiff;
             if(this.modules.arm) await this.modules.arm.setPose(armPreGrabPosition)
+            grabbed=true;
+            break;
         }
+        //Deposit
+
         return true;
     }
 
