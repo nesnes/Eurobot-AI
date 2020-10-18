@@ -188,7 +188,7 @@ void printCharts(){
 }
 
 float nextPathTranslationError = 0.03;//meters
-float nextPathRotationError = 20;//degrees -> not much important
+float nextPathRotationError = 5;//degrees
 void updatePath(){
   if(!runTargetPath || targetReached) return;
   //Set current target

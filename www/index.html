@@ -159,6 +159,15 @@
                 <!-- Main Panel -->
                 <div class="col-md-7 h-100 border-left">
                     <div class="row p-2" style="font-size: 12px;">
+                        <!--Images-->
+                        <div class="card m-1" style="min-width: 18em;box-shadow: 0px 0px 10px 2px #ececec;">
+                            <div class="d-flex flex-column">
+                                <div v-for="(img, index) in images.list" style="position:relative;flex:1">
+                                    <span style="position:absolute;top:0;left:0;color:white;background-color: rgba(0,0,0,0.5);">{{img.name}}</span>
+                                    <img style="width:100%" v-bind:src="'data:image/jpeg;base64,'+img.data"/>
+                                </div>
+                            </div>
+                        </div>
                         <!--Joystick-->
                         <div id="joyDiv" style="width:200px;height:200px;margin-bottom:20px;"></div>
                         <!--Robot-->
@@ -186,7 +195,6 @@
                                 </li>
                             </ul>
                         </div>
-
                         <!--Goals-->
                         <div class="card m-1" v-for="(goal, index) in goals.list" style="min-width: 18em;box-shadow: 0px 0px 10px 2px #ececec;">
                             <div class="card-header font-weight-bold p-1 pl-2 d-flex align-items-center justify-content-between" 
@@ -205,7 +213,6 @@
                             </ul>
                         </div>
                     </div>
-
                     <!--Modules-->
                     <div class="row p-2" style="font-size: 12px;">
                         <div class="card m-1" v-for="(module, moduleName, index) in modules.modules" style="min-width: 18em;box-shadow: 0px 0px 10px 2px #ececec;">

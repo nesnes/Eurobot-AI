@@ -31,6 +31,9 @@ var robot = {
 var lidar = {
     measures: null
 }
+var images = {
+    list:[]
+}
 /*var lidarLocalisation = {
     x: 0,
     y: 0,
@@ -57,6 +60,7 @@ communication.client.subscribe("/intelligence");
 communication.client.subscribe("/robot");
 communication.client.subscribe("/robot/modules");
 communication.client.subscribe("/lidar");
+communication.client.subscribe("/images");
 //communication.client.subscribe("/lidar/localisation");
 
 communication.client.on("connect", function (){
@@ -86,6 +90,12 @@ communication.client.on("message", function (topic, payload) {
     }
     else if(topic == "/logs"){
         logs.push(""+payload);
+    }
+    else if(topic == "/images"){
+        let obj = JSON.parse(""+payload)
+        let img = images.list.find(i=>i.name==obj.name)
+        if(img) img.data = obj.data
+        else images.list.push(obj)
     }
     else if(topic == "/intelligence"){
         var newIntelligence = JSON.parse(""+payload)
@@ -122,6 +132,7 @@ var app = new Vue({
         intelligence: intelligence,
         robot: robot,
         lidar: lidar,
+        images: images,
         //lidarLocalisation: lidarLocalisation,
         modules: modules,
         communication: communication,

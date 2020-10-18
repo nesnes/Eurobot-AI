@@ -72,7 +72,6 @@ module.exports = class Base {
             if(posArray.length == 6 && ["run","end"].includes(posArray[0])){
                 return {status: posArray[0], x: parseInt(posArray[1]), y: parseInt(posArray[2]), angle: parseInt(posArray[3]), speed: parseInt(posArray[4])/10, pathIndex: parseInt(posArray[5])}
             }
-            console.log(response);
             return response;
         }
     }
@@ -134,10 +133,8 @@ module.exports = class Base {
             let action = i==0?0:1;
             if(i==params.path.length-1) action=2;
             let msg = "path set "+action+" "+Math.round(point.x)+" "+Math.round(point.y)+" "+Math.round(point.angle)+" "+Math.round(parseFloat(""+point.speed)*10);
-            console.log(msg)
             if(this.app.robot.modules.robotLink)
                 result = await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
-            console.log(msg,result)
         }
         return result;
     }

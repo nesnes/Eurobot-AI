@@ -11,6 +11,9 @@ const Lidar = require('./modules/lidarx2');
 delete require.cache[require.resolve('./modules/arm')]; //Delete require() cache
 const Arm = require('./modules/arm');
 
+delete require.cache[require.resolve('./modules/camera')]; //Delete require() cache
+const Camera = require('./modules/camera');
+
 const utils = require("../utils")
 
 module.exports = class Robot2020 extends Robot{
@@ -35,6 +38,7 @@ module.exports = class Robot2020 extends Robot{
         //this.modules.lidar = new Lidar(app)
         //this.modules.lidarLocalisation = new LidarLocalisation(app)
         this.modules.arm = new Arm(app);
+        this.modules.camera = new Camera(app);
     }
 
     async init(){
@@ -44,12 +48,18 @@ module.exports = class Robot2020 extends Robot{
                 this.modules.arm = null;
             })
         } else this.modules.arm = null;
+        if(this.modules.camera){
+            await this.modules.camera.init().catch((e)=>{
+                this.modules.camera = null;
+            })
+        } else this.modules.camera = null;
         this.sendModules();
     }
 
     async close(){
         await super.close();
         //custom close here
+        if(this.modules.camera) await this.modules.camera.close();
     }
 
     async initMatch(){

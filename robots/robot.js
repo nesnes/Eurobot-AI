@@ -454,7 +454,7 @@ module.exports = class Robot {
     async _updatePositionAndMoveStatus(){
         let moveStatus = "end";
         let status = await this.modules.base.getStatus();
-        console.log(status)
+        //console.log(status)
         if(status && typeof status === "object"){
             moveStatus = status.status;
             this.x = status.x;
@@ -510,14 +510,14 @@ module.exports = class Robot {
             //Start the move
             let moveStatus = "";
             success = !!await this.modules.base.movePath({path:path})
-            console.log("movePath", success)
+            //console.log("movePath", success)
             do{
                 await utils.sleep(sleep);
                 if(this.app.intelligence.hasBeenRun && this.app.intelligence.isMatchFinished()) success = false;
                 //moveSpeed = this.slowdown?0.1:speed;
                 if(!this.isMovementPossible()) success = false;
                 moveStatus = await this._updatePositionAndMoveStatus();
-                console.log(success, moveStatus, path)
+                //console.log(success, moveStatus, path)
             } while(success && moveStatus && moveStatus.includes("run"))
             if(!success) this.modules.base.break();
         }
