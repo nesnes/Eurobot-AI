@@ -88,7 +88,7 @@ async function detect(img){
 
 async function run(){
     let frame = null;
-    for(let i=0;i<2;i++) frame = cap.read();
+    for(let i=0;i<6;i++) frame = cap.read();
     await detect(frame);
     //const img = await cv.imreadAsync('./buoy-img/hsv-palette.jpg');
 }
