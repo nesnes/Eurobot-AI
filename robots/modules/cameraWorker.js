@@ -87,7 +87,8 @@ async function detect(img){
 }
 
 async function run(){
-    let frame = cap.read();
+    let frame = null;
+    for(let i=0;i<2;i++) frame = cap.read();
     await detect(frame);
     //const img = await cv.imreadAsync('./buoy-img/hsv-palette.jpg');
 }
@@ -126,6 +127,7 @@ async function main(){
     
     cap.set(cv.CAP_PROP_FRAME_WIDTH,320);
     cap.set(cv.CAP_PROP_FRAME_HEIGHT,240);
+    cap.set(cv.CAP_PROP_BUFFERSIZE, 2);
     
     if(isMainThread){
         while(1){
