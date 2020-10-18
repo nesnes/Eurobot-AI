@@ -9,6 +9,7 @@ module.exports = class Camera {
         this.app = app;
         this.worker = null;
         this.detections = [];
+        this.pendingDetection = null;
     }
     
     async init(){
@@ -47,14 +48,23 @@ module.exports = class Camera {
         })
     }*/
 
-    detect(){
+    async detect(){
+        this.detections = [];
         if(this.worker) this.worker.send({action:"detect"});
+        await new Promise(resolve=>{
+            this.pendingDetection = resolve;
+            setTimeout(resolve, 2000)
+        })
+        this.pendingDetection = null;
+        return this.detections
     }
 
     onWorkerMessage(msg){
-        console.log(msg)
         try{
-            if(msg.type=="detections") this.detections = msg.detections;
+            if(msg.type=="detections"){
+                this.detections = msg.detections;
+                if(this.pendingDetection) this.pendingDetection();
+            }
             if(msg.type=="image") this.sendImage(msg);
         }catch(e){console.log(e)}
     }

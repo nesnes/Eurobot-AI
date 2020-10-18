@@ -72,7 +72,9 @@ module.exports = class Server {
             //console.log(msg)
             if(msg.command == "runModuleFunction"){
                 //console.log("func ", msg.moduleName, msg.funcName)
-                this.app.robot.modules[msg.moduleName][msg.funcName](msg.params);
+                if(msg.moduleName in this.app.robot.modules)
+                    this.app.robot.modules[msg.moduleName][msg.funcName](msg.params);
+                else if(msg.moduleName=="robot") this.app.robot[msg.funcName](msg.params);
             }
         }
         

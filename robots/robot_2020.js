@@ -78,6 +78,19 @@ module.exports = class Robot2020 extends Robot{
         if(this.modules.arm) await this.modules.arm.setRight({angle:60});
     }
 
+    getDescription(){
+        return {
+            functions:{
+                detectAndGrabBuoy: {},
+                setPosDebug: {},
+                activateLighthouse: {},
+                readWeathervane: {},
+                setArmDefault: {},
+                setArmWindsock: {},
+            }
+        }
+    }
+
     async setPosDebug(parameters){
         if(this.modules.base) await this.modules.base.enableMove();
         if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle});
@@ -170,6 +183,13 @@ module.exports = class Robot2020 extends Robot{
 
     async validateEndZone(parameters){
         if(this.variables.endZone.value!=0) this.addScore(5);
+        return true;
+    }
+
+    async detectAndGrabBuoy(parameters){
+        if(!this.modules.camera) return true;
+        let detections = await this.modules.camera.detect();
+        console.log(detections);
         return true;
     }
 

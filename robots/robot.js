@@ -156,6 +156,7 @@ module.exports = class Robot {
             if(this.modules[module] && "getDescription" in this.modules[module])
                 payload.modules[module] = this.modules[module].getDescription();
         }
+        if("getDescription" in this) payload.modules["robot"] = this.getDescription();
         this.app.mqttServer.publish({
             topic: '/robot/modules',
             payload: JSON.stringify(payload),

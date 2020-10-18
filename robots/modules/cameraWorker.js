@@ -115,7 +115,15 @@ function onParentMessage(msg){
 
 async function main(){
     process.on('message', message=>{onParentMessage(message);});
-    cap = new cv.VideoCapture(0);
+    //On raspberry, add "bcm2835-v4l2" in /etc/modules and reboot to get /dev/video0
+    try{
+        cap = new cv.VideoCapture(0);
+    }catch(e){
+        console.log("On raspberry, add 'bcm2835-v4l2' in /etc/modules and reboot to get /dev/video0")
+        console.log(e)
+        process.exit();
+    }
+    
     cap.set(cv.CAP_PROP_FRAME_WIDTH,320);
     cap.set(cv.CAP_PROP_FRAME_HEIGHT,240);
     
