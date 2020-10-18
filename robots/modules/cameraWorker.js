@@ -61,9 +61,10 @@ async function detect(img){
             let convex_hull = cont.convexHull();
             if(convex_hull.area < img.cols*img.rows/20) continue;
             let mo = convex_hull.moments();
-            let x = mo.m10 / mo.m00
-            let y = mo.m01 / mo.m00
-            detections.push({color:color, x:x, y:y, area:convex_hull.area})
+            let x = 100/img.cols * (mo.m10 / mo.m00);
+            let y = 100/img.rows * (mo.m01 / mo.m00);
+            let area = 100/(img.cols*img.rows)*convex_hull.area;
+            detections.push({color:color, x:x, y:y, area:area})
             if(isMainThread) img.drawContours([convex_hull.getPoints()], -1, vec);
             if(isMainThread) console.log(x,y)
         }
