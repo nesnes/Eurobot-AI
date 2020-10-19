@@ -209,7 +209,7 @@ module.exports = class Robot2020 extends Robot{
                     minDist = dist;
                 }
             }
-            if(target==null || target.y<80){
+            if(target==null || target.y<30){
                 console.log("Detect, move forward")
                 await this.moveForward({distance:100, speed:1});
                 await this.moveBackward({distance:50, speed:1});
