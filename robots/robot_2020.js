@@ -228,6 +228,16 @@ module.exports = class Robot2020 extends Robot{
             let rotationDiff = Math.min(50, Math.max(-50,(target.x-50)*1.5));
             armPreGrabPosition.a2 += rotationDiff;
             if(this.modules.arm) await this.modules.arm.setPose(armPreGrabPosition)
+            await utils.sleep(200);
+            //Enable pump
+            if(this.modules.arm) await this.modules.arm.enablePump();
+            //Move down
+            armPreGrabPosition.a1 += 20;
+            if(this.modules.arm) await this.modules.arm.setPose(armPreGrabPosition)
+            await utils.sleep(200);
+            //Move up
+            armPreGrabPosition.a1 = 40;
+            if(this.modules.arm) await this.modules.arm.setPose(armPreGrabPosition)
             grabbed=true;
             break;
         }
