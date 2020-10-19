@@ -232,7 +232,7 @@ module.exports = class Robot2020 extends Robot{
             //Enable pump
             if(this.modules.arm) await this.modules.arm.enablePump();
             //Move down
-            armPreGrabPosition.a1 += 20;
+            armPreGrabPosition.a1 = Math.max(170, armPreGrabPosition.a1+50);
             if(this.modules.arm) await this.modules.arm.setPose(armPreGrabPosition)
             await utils.sleep(200);
             //Move up
