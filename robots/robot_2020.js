@@ -209,7 +209,7 @@ module.exports = class Robot2020 extends Robot{
                     minDist = dist;
                 }
             }
-            if(target.y<80 || target==null){
+            if(target==null || target.y<80){
                 console.log("Detect, move forward")
                 await this.moveForward({distance:100, speed:1});
                 await this.moveBackward({distance:50, speed:1});
@@ -218,7 +218,13 @@ module.exports = class Robot2020 extends Robot{
             console.log("Detect, grab")
             //Orient Arm
             let armPreGrabPosition = {a1:20, a2:95, a3:175, a4:70, a5:100, duration:200};
-            let rotationDiff = Math.min(45, Math.max(-45,(target.x-50)*0.9));
+            armPreGrabPosition.a1 = 107.00000 + x*0.00000 + y*0.00000 + x2*0.00000 + y2*0.00000;
+            armPreGrabPosition.a2 = 95.00000 + x*0.00000 + y*0.00000 + x2*0.00000 + y2*-0.00000;
+            armPreGrabPosition.a3 = 248.30275 + x*0.00000 + y*-4.43747 + x2*0.00000 + y2*0.03621;
+            armPreGrabPosition.a4 = 280.62456 + x*0.00000 + y*-5.93735 + x2*0.00000 + y2*0.03378;
+            armPreGrabPosition.a5 = -31.23180 + x*-0.00000 + y*1.32075 + x2*0.00000 + y2*0.00369;
+            //let armPreGrabFarPosition = {a1:120, a2:95, a3:147, a4:134, a5:10, duration:200};
+            let rotationDiff = Math.min(50, Math.max(-50,(target.x-50)*1.5));
             armPreGrabPosition.a2 += rotationDiff;
             if(this.modules.arm) await this.modules.arm.setPose(armPreGrabPosition)
             grabbed=true;
