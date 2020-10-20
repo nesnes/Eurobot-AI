@@ -228,11 +228,11 @@ module.exports = class Robot2020 extends Robot{
             armPreGrabPosition.a4 = 280.62456 + x*0.00000 + y*-5.93735 + x2*0.00000 + y2*0.03378;
             armPreGrabPosition.a5 = -31.23180 + x*-0.00000 + y*1.32075 + x2*0.00000 + y2*0.00369;*/
 
-            armPreGrabPosition.a1 = 120 + -9.17*y + 7.08*y2 + -3.33*y3 + 0.417*y4;
+            armPreGrabPosition.a1 = 194 + -5.33*y + 0.134*y2 + -1.45e-03*y3 + 5.24e-06*y4;
             armPreGrabPosition.a2 = 95;
-            armPreGrabPosition.a3 = 147 + -47.5*y + 27.1*y2 + -7.5*y3 + 0.917*y4;
-            armPreGrabPosition.a4 = 134 + -97.5*y + 44.6*y2 + -12.5*y3 + 1.42*y4;
-            armPreGrabPosition.a5 = 10 + 45.8*y + -14.6*y2 + 4.17*y3 + -0.417*y4;
+            armPreGrabPosition.a3 = 513 + -26.1*y + 0.659*y2 + -7.51e-03*y3 + 3.23e-05*y4;
+            armPreGrabPosition.a4 = 673 + -35.8*y + 0.828*y2 + -8.89e-03*y3 + 3.57e-05*y4;
+            armPreGrabPosition.a5 = -142 + 8.3*y + -0.139*y2 + 1.09e-03*y3 + -2.39e-06*y4;
 
             //let armPreGrabFarPosition = {a1:120, a2:95, a3:147, a4:134, a5:10, duration:200};
             let rotationDiff = Math.min(50, Math.max(-50,(target.x-50)*1.5));
