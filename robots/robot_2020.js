@@ -231,7 +231,7 @@ module.exports = class Robot2020 extends Robot{
             armPreGrabPosition.a1 = 5.236e-6*y4 + -0.0014*y3 + 0.1341*y2 + 5.3322*y + 194.07;
             armPreGrabPosition.a2 = 0.0000*y4 + 0.0000*y3 + 0.0000*y2 + 0.0000*y + 95;
             armPreGrabPosition.a3 = 3.226e-5*y4 + -0.0075*y3 + 0.6588*y2 + -26.076*y + 512.99;
-            armPreGrabPosition.a4 = 3.568e-5*y4 + -0.0089*y3 + 0.8282*y2 + -35,775*y + 673;
+            armPreGrabPosition.a4 = 3.568e-5*y4 + -0.0089*y3 + 0.8282*y2 + -35,775*y + 673.08;
             armPreGrabPosition.a5 = -2.388e-6*y4 + 0.0011*y3 + -0.1388*y2 + 8.3011*y - 141.62;
 
             //let armPreGrabFarPosition = {a1:120, a2:95, a3:147, a4:134, a5:10, duration:200};
