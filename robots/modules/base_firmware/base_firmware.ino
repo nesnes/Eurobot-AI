@@ -1,6 +1,6 @@
 #include "BrushlessMotor.h" 
 
-#define MODE_I2C
+//#define MODE_I2C
 #ifndef MODE_I2C
   #define MODE_SERIAL
   #define SERIAL_DEBUG
@@ -61,6 +61,7 @@ void setup()
 //wheel perimeter 247mm
 
 //In meters, degrees, m/s and °/s
+double xStart = 0, yStart = 0, angleStart = 0;
 double xPos = 0, yPos = 0, anglePos = 0;
 double xTarget = 0, yTarget = 0, angleTarget = 0, speedTarget = 5.5, angleSpeedTarget = 50;
 
@@ -108,6 +109,27 @@ bool targetReached = true;
 int targetReachedCountTarget = 10;
 int targetReachedCount = 0;
 
+double applySpeedRamp(double distFromStart, double distFromEnd, double rampDist, double speedTarget, double minSpeed){
+  double speed = speedTarget;
+  double errorSign = distFromEnd>0?1:-1;
+  if(abs(distFromStart)<rampDist){ //speed up ramp
+    float factor = 1.0/rampDist*abs(distFromStart);
+    speed = speedTarget*factor;
+  }
+  else if(abs(distFromEnd)<rampDist){ //speed down ramp
+    float factor = 1.0/rampDist*abs(distFromEnd);
+    speed = speedTarget*factor;
+  }
+  else { //cruise speed
+    speed = speedTarget;
+  }
+  //Bound speed
+  if(abs(speed)>speedTarget) speed = speedTarget;
+  if(abs(speed)<minSpeed) speed = minSpeed;
+  speed *= errorSign;
+  return speed;
+}
+
 //Y is forward, X is right side (motor C side)
 void updateAsserv(){
   //Translation
@@ -123,22 +145,26 @@ void updateAsserv(){
   targetMovmentAngle = angleDiff(translationAngle, anglePos);
 
   //Translation Speed
-  double slowDownDistance = 0.2;//m
-  //double speedFromError = translationError*2;//Speed from error
-  if(translationError>slowDownDistance) targetSpeed_mps = speedTarget;
-  else targetSpeed_mps = (speedTarget/slowDownDistance)*translationError;
-  if(abs(targetSpeed_mps)>speedTarget) //reduce to max speed
-    targetSpeed_mps = targetSpeed_mps>0?speedTarget:-speedTarget;
+  double minSpeed = 0.05;
+  double slowDownDistance = 0.1;//m
+  double distFromStart = sqrt(pow(xPos - xStart,2) + pow(yPos - yStart,2)); // meters
+  double distFromEnd = translationError;
+  targetSpeed_mps = applySpeedRamp(distFromStart, distFromEnd, slowDownDistance, speedTarget, minSpeed);
   
 
   //Rotation
+  double angleMinSpeed = 10;//deg/s
   double slowDownAngle = 15;//deg
   double rotationError = angleDiff(angleTarget,anglePos);
+  double rotationFromStart = angleDiff(angleStart,anglePos);
+  
+  targetAngleSpeed_dps = applySpeedRamp(rotationFromStart, rotationError, slowDownAngle, angleSpeedTarget, angleMinSpeed);
+  
   //double speedFromError = rotationError*5;
-  if(rotationError>slowDownAngle) targetAngleSpeed_dps = angleSpeedTarget;
+  /*if(rotationError>slowDownAngle) targetAngleSpeed_dps = angleSpeedTarget;
   else targetAngleSpeed_dps = (angleSpeedTarget/slowDownAngle)*rotationError;
   if(abs(targetAngleSpeed_dps)>angleSpeedTarget)
-    targetAngleSpeed_dps = targetAngleSpeed_dps>0?angleSpeedTarget:-angleSpeedTarget;
+    targetAngleSpeed_dps = targetAngleSpeed_dps>0?angleSpeedTarget:-angleSpeedTarget;*/
    //targetAngleSpeed_dps = 0;
   //Limit speed variation rate
   //if(abs(targetAngleSpeed_dps)<0.01 && abs(speedFromError)>0) targetAngleSpeed_dps=speedFromError>0?0.01:-0.01;
@@ -251,9 +277,9 @@ void control(){
   
   //Serial.print(speedA*1000.0d);Serial.print("\t");Serial.print(arcLength*1000.0d);Serial.print("\n");
   
-  speedA += speedAngleA;
-  speedB += speedAngleB;
-  speedC += speedAngleC;
+  speedA += speedAngleA*2;
+  speedB += speedAngleB*2;
+  speedC += speedAngleC*2;
 
 
   //Serial.print(speedA*1000000.f);Serial.print("\t");Serial.print(speedB*1000000.f);Serial.print("\t");Serial.print(speedC*1000000.f);Serial.print("\n");
@@ -331,11 +357,14 @@ void executeOrder(){
       comunication_write();//async
       int i_x_pos=0, i_y_pos=0, i_angle=0, i_speed_pos=1;
       sscanf(comunication_InBuffer, "move XY %i %i %i %i", &i_y_pos, &i_x_pos, &i_angle, &i_speed_pos);
+      xStart = xPos;
+      yStart = yPos;
+      angleStart = anglePos;
       xTarget = (float)(i_x_pos)/1000.0f;
       yTarget = (float)(i_y_pos)/1000.0f;
       angleTarget = (float)(i_angle);
       speedTarget = (float)(i_speed_pos)/10.0f;
-      angleSpeedTarget = speedTarget * 90.f;
+      angleSpeedTarget = speedTarget * 180.f;
       targetReached = false;
       emergencyStop = false;
       targetReached = false;
@@ -359,10 +388,13 @@ void executeOrder(){
         targetPath[idx].y = (float)(i_y_pos)/1000.0f;
         targetPath[idx].angle = (float)(i_angle);
         speedTarget = (float)(i_speed_pos)/10.0f;
-        angleSpeedTarget = speedTarget * 90.f;
+        angleSpeedTarget = speedTarget * 180.f;
         targetPathSize++;
       }
       if(action==2 && targetPathSize){//run
+        xStart = xPos;
+        yStart = yPos;
+        angleStart = anglePos;
         targetReached = false;
         runTargetPath = true;
         emergencyStop = false;

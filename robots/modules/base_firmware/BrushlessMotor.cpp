@@ -99,7 +99,7 @@ float BrushlessMotor::getPower(){ // m/s
 
 void BrushlessMotor::computeSpeed(){
   //Acceleration
-  double speedStep = 0.001*m_syncFactor;//0.001
+  double speedStep = 0.005*m_syncFactor;//0.001
   //double speedStepAccel = 0.0001;//0.001
   //double speedStep = (!m_inverted)?speedStepAccel:speedStepBreak;//0.001
   double absCurrSpeed = abs(m_currSpeed);
@@ -175,7 +175,7 @@ void BrushlessMotor::spin(){
 
 void BrushlessMotor::spinDegrees(float degrees)
 {
-  int sleep = 1500;//400
+  int sleep = 3000;//1500;//400
   float currDegrees=0;
   unsigned long now = micros();
   
@@ -205,8 +205,9 @@ void BrushlessMotor::spinDegrees(float degrees)
 		analogWrite(m_pinC, m_pwmSin[m_currentStepC]/4);
 		if(sleep>0)
 			delayMicroseconds(sleep);
+    float degPerStep = 360.f/(float)(BRUSHLESS_STEP_PER_REVOLUTION);
+    currDegrees += (degrees>0)?degPerStep:-degPerStep;
 		//currDegrees += (degrees>0)?0.275:-0.275;
-    currDegrees += (degrees>0)?1:-1;
+    //currDegrees += (degrees>0)?1:-1;
 	}
 }
-

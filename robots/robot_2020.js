@@ -37,8 +37,10 @@ module.exports = class Robot2020 extends Robot{
         this.slowdownDistance = this.collisionDistance+100;
         //this.modules.lidar = new Lidar(app)
         //this.modules.lidarLocalisation = new LidarLocalisation(app)
-        this.modules.arm = new Arm(app);
-        this.modules.camera = new Camera(app);
+        if(!this.app.parameters.simulate){
+            this.modules.arm = new Arm(app);
+            this.modules.camera = new Camera(app);
+        }
     }
 
     async init(){
@@ -235,7 +237,7 @@ module.exports = class Robot2020 extends Robot{
             armPreGrabPosition.a5 = -142 + 8.3*y + -0.139*y2 + 1.09e-03*y3 + -2.39e-06*y4;
 
             //let armPreGrabFarPosition = {a1:120, a2:95, a3:147, a4:134, a5:10, duration:200};
-            let rotationDiff = Math.min(50, Math.max(-50,(target.x-50)*1.2));
+            let rotationDiff = Math.min(50, Math.max(-50,(target.x-50)*0.));
             armPreGrabPosition.a2 += rotationDiff;
             if(this.modules.arm) await this.modules.arm.setPose(armPreGrabPosition)
             await utils.sleep(200);
