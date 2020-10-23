@@ -8,12 +8,13 @@
         <script src="js/lib/jquery-3.4.1.slim.min.js"></script>
         <script src="js/lib/bootstrap.bundle.min.js"></script>
         <script src="js/lib/joy.min.js"></script>
+        <script src="js/lib/ace/ace.js" type="text/javascript" charset="utf-8"></script>
     </head>
     <body>
         <div id="app" class="container-fluid h-100">
             <div class="row h-100">
                 <!-- Side Panel -->
-                <div class="col-md-5 h-100 d-flex flex-column">
+                <div class="col-md-4 h-100 d-flex flex-column">
                     <!--Map-->
                     <div class="row justify-content-center">
                         <svg class="w-100"  viewBox="-100 -100 3200 2200" unit="mm">
@@ -122,18 +123,18 @@
 
                     <!--Control-->
                     <div class="row justify-content-center">
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <button class="btn btn-primary mx-1" v-on:click="reloadAI()" v-bind:disabled="communication.client.connected === false">Reload AI</button>                            
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <button class="btn btn-success mx-1" v-if="!intelligence.running && !intelligence.hasBeenRun" v-on:click="runMatch()" v-bind:disabled="communication.client.connected === false">Run Match</button>                            
                             <button class="btn btn-danger mx-1" v-if="intelligence.running"v-on:click="stopMatch()" v-bind:disabled="communication.client.connected === false">Stop Match</button>                            
                         </div>
-                        <div class="col-md-3">
+                        <div v-if="intelligence.currentTime>0 || communication.client.connected === false" class="col-md-4">
                             <span v-if="intelligence.currentTime>0" class="text-primary mx-2 font-weight-bold">{{intelligence.currentTime}}s</span>
                             <span v-if="communication.client.connected === false" class="text-danger mx-2 font-weight-bold">Not connected</span>
                         </div>
-                        <div class="col-md-3">
+                        <div v-if="intelligence.currentTime==0 && communication.client.connected === true" class="col-md-4">
                             <div class="form-check">
                                 <input type="checkbox" class="form-check-input" id="cb-simulation" v-model="appParams.simulate">
                                 <label class="form-check-label" for="cb-simulation">Simulate</label>
@@ -157,87 +158,138 @@
                 </div>
 
                 <!-- Main Panel -->
-                <div class="col-md-7 h-100 border-left">
-                    <div class="row p-2" style="font-size: 12px;">
-                        <!--Images-->
-                        <div class="card m-1" style="min-width: 18em;box-shadow: 0px 0px 10px 2px #ececec;">
-                            <div class="d-flex flex-column">
-                                <div v-for="(img, index) in images.list" style="position:relative;flex:1">
-                                    <span style="position:absolute;top:0;left:0;color:white;background-color: rgba(0,0,0,0.5);">{{img.name}}</span>
-                                    <img style="width:100%" v-bind:src="'data:image/jpeg;base64,'+img.data"/>
+                <div class="col-md-8 h-100 border-left">
+                    <!-- Top Menu-->
+                    <ul class="nav nav-tabs" id="myTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                          <a class="nav-link active" id="actions-tab-select" data-toggle="tab" href="#actions-tab" role="tab" aria-controls="actions" aria-selected="true">Actions</a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                          <a class="nav-link" id="files-tab-select" data-toggle="tab" href="#files-tab" role="tab" aria-controls="filesq" aria-selected="false">Files</a>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="myTabContent">
+                        <!-- Actions tab content-->
+                        <div class="tab-pane fade show active" id="actions-tab" role="tabpanel" aria-labelledby="actions-tab-select">
+                            <div class="row p-2" style="font-size: 12px;">
+                                <!--Images-->
+                                <div class="card m-1" style="min-width: 18em;box-shadow: 0px 0px 10px 2px #ececec;">
+                                    <div class="d-flex flex-column">
+                                        <div v-for="(img, index) in images.list" style="position:relative;flex:1">
+                                            <span style="position:absolute;top:0;left:0;color:white;background-color: rgba(0,0,0,0.5);">{{img.name}}</span>
+                                            <img style="width:100%" v-bind:src="'data:image/jpeg;base64,'+img.data"/>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!--Joystick-->
+                                <div id="joyDiv" style="width:200px;height:200px;margin-bottom:20px;"></div>
+                                <!--Robot-->
+                                <div class="card m-1" style="min-width: 18em;box-shadow: 0px 0px 10px 2px #ececec; background-color:#d1d8e0;">
+                                    <div class="card-header font-weight-bold p-1 pl-2 d-flex align-items-center justify-content-between">
+                                        <span class="w-100">
+                                            {{robot.name}} score:{{robot.score}}
+                                            <br/>Team:{{robot.team}}
+                                            <br/>x:{{robot.x}}
+                                            <br/>y:{{robot.y}}
+                                            <br/>angle:{{robot.angle}}
+                                            <br/>speed:{{robot.speed}}
+                                            <br/>angleSpeed:{{robot.angleSpeed}}
+                                            <br/>slowdown:{{robot.slowdown}}
+                                        </span>
+                                    </div>
+                                    <ul class="list-group list-group-flush">
+                                        <li v-for="(variable, name, index) in robot.variables" class="list-group-item p-1 pl-2 d-flex align-items-center justify-content-between">
+                                            {{name}}
+                                            <span>
+                                                {{variable.value}}
+                                                <span v-if="variable.max!=undefined">/{{variable.max}}</span>
+                                            </span>
+                                            
+                                        </li>
+                                    </ul>
+                                </div>
+                                <!--Goals-->
+                                <div class="card m-1" v-for="(goal, index) in goals.list" style="min-width: 18em;box-shadow: 0px 0px 10px 2px #ececec;">
+                                    <div class="card-header font-weight-bold p-1 pl-2 d-flex align-items-center justify-content-between" 
+                                    v-bind:class="{ 'bg-success': goal.status == 'done', 'bg-primary': goal.status == 'running', 'bg-danger': goal.status == 'failed' }">
+                                        <span class="w-100">Goal {{index}} - {{goal.name}}</span>
+                                        <button class="btn btn-success py-1 px-2 " style="font-size:12px" v-on:click="runGoal(goal)">Run</button>
+                                    </div>
+                                    <ul class="list-group list-group-flush">
+                                        <li v-for="action in goal.actions" class="list-group-item p-1 pl-2 d-flex align-items-center justify-content-between"
+                                        v-bind:class="{ 'bg-success': action.status == 'done', 'bg-primary': action.status == 'running', 'bg-danger': action.status == 'failed' }">
+                                            {{action.name}}
+                                            <template v-if="action.team!=undefined">[{{action.team}}]</template>
+                                            <template v-if="action.parameters!=undefined && action.parameters.component!=undefined">({{action.parameters.component}})</template>
+                                            <button class="btn btn-info px-2 " style="font-size:12px;padding-top:1px;padding-bottom:1px;" v-on:click="runAction(action)">Run</button>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <!--Modules-->
+                            <div class="row p-2" style="font-size: 12px;">
+                                <div class="card m-1" v-for="(module, moduleName, index) in modules.modules" style="min-width: 18em;box-shadow: 0px 0px 10px 2px #ececec;">
+                                    <div class="card-header font-weight-bold p-1 pl-2 d-flex align-items-center justify-content-between" style="background-color: #34495e;">
+                                        <span class="w-100" style="color:#ecf0f1">Module {{index}} - {{moduleName}}</span>
+                                    </div>
+                                    <ul class="list-group list-group-flush" style="color:#ecf0f1">
+                                        <li v-for="(func, funcName, index) in module.functions" style="background-color: #487eb0; " class="list-group-item p-1 pl-2">
+                                            <div class="d-flex align-items-center justify-content-between">
+                                                <span>{{funcName}}</span>
+                                                <button class="btn btn-info py-1 px-2 " style="font-size:12px" v-on:click="runModuleFunction(moduleName,funcName, func)">Run</button>
+                                            </div>
+                                            <div v-for="(param, paramName, index) in func">
+                                                <span v-if="!param.legend">{{paramName}}</span>
+                                                <span v-if="param.legend">{{param.legend}}</span>
+                                                <template v-if="param.type=='range'">
+                                                    <span>:{{param.value}}</span>
+                                                    <input class="slider" v-bind:type="param.type" v-bind:min="param.min" v-bind:max="param.max" v-model:value="param.value" v-bind:step="param.step">
+                                                </template>
+                                                <template v-if="param.type=='number'">
+                                                    <input class="form-control" v-bind:type="param.type" v-bind:min="param.min" v-bind:max="param.max" v-model:value="param.value">
+                                                </template>
+                                            </div>
+                                        </li>
+                                    </ul>
                                 </div>
                             </div>
                         </div>
-                        <!--Joystick-->
-                        <div id="joyDiv" style="width:200px;height:200px;margin-bottom:20px;"></div>
-                        <!--Robot-->
-                        <div class="card m-1" style="min-width: 18em;box-shadow: 0px 0px 10px 2px #ececec; background-color:#d1d8e0;">
-                            <div class="card-header font-weight-bold p-1 pl-2 d-flex align-items-center justify-content-between">
-                                <span class="w-100">
-                                    {{robot.name}} score:{{robot.score}}
-                                    <br/>Team:{{robot.team}}
-                                    <br/>x:{{robot.x}}
-                                    <br/>y:{{robot.y}}
-                                    <br/>angle:{{robot.angle}}
-                                    <br/>speed:{{robot.speed}}
-                                    <br/>angleSpeed:{{robot.angleSpeed}}
-                                    <br/>slowdown:{{robot.slowdown}}
-                                </span>
-                            </div>
-                            <ul class="list-group list-group-flush">
-                                <li v-for="(variable, name, index) in robot.variables" class="list-group-item p-1 pl-2 d-flex align-items-center justify-content-between">
-                                    {{name}}
-                                    <span>
-                                        {{variable.value}}
-                                        <span v-if="variable.max!=undefined">/{{variable.max}}</span>
-                                    </span>
-                                    
-                                </li>
-                            </ul>
-                        </div>
-                        <!--Goals-->
-                        <div class="card m-1" v-for="(goal, index) in goals.list" style="min-width: 18em;box-shadow: 0px 0px 10px 2px #ececec;">
-                            <div class="card-header font-weight-bold p-1 pl-2 d-flex align-items-center justify-content-between" 
-                            v-bind:class="{ 'bg-success': goal.status == 'done', 'bg-primary': goal.status == 'running', 'bg-danger': goal.status == 'failed' }">
-                                <span class="w-100">Goal {{index}} - {{goal.name}}</span>
-                                <button class="btn btn-success py-1 px-2 " style="font-size:12px" v-on:click="runGoal(goal)">Run</button>
-                            </div>
-                            <ul class="list-group list-group-flush">
-                                <li v-for="action in goal.actions" class="list-group-item p-1 pl-2 d-flex align-items-center justify-content-between"
-                                v-bind:class="{ 'bg-success': action.status == 'done', 'bg-primary': action.status == 'running', 'bg-danger': action.status == 'failed' }">
-                                    {{action.name}}
-                                    <template v-if="action.team!=undefined">[{{action.team}}]</template>
-                                    <template v-if="action.parameters!=undefined && action.parameters.component!=undefined">({{action.parameters.component}})</template>
-                                    <button class="btn btn-info px-2 " style="font-size:12px;padding-top:1px;padding-bottom:1px;" v-on:click="runAction(action)">Run</button>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                    <!--Modules-->
-                    <div class="row p-2" style="font-size: 12px;">
-                        <div class="card m-1" v-for="(module, moduleName, index) in modules.modules" style="min-width: 18em;box-shadow: 0px 0px 10px 2px #ececec;">
-                            <div class="card-header font-weight-bold p-1 pl-2 d-flex align-items-center justify-content-between" style="background-color: #34495e;">
-                                <span class="w-100" style="color:#ecf0f1">Module {{index}} - {{moduleName}}</span>
-                            </div>
-                            <ul class="list-group list-group-flush" style="color:#ecf0f1">
-                                <li v-for="(func, funcName, index) in module.functions" style="background-color: #487eb0; " class="list-group-item p-1 pl-2">
-                                    <div class="d-flex align-items-center justify-content-between">
-                                        <span>{{funcName}}</span>
-                                        <button class="btn btn-info py-1 px-2 " style="font-size:12px" v-on:click="runModuleFunction(moduleName,funcName, func)">Run</button>
+                        <!-- Files tab content-->
+                        <div class="tab-pane fade" id="files-tab" role="tabpanel" aria-labelledby="files-tab-select">
+                            <div class="row p-2" style="font-size: 12px;">
+                                <!--File List-->
+                                <div class="col-md-3" style="background-color: #34495e;">
+                                    <div class="d-flex flex-row justify-content-around align-items-center py-2">
+                                        <button class="btn btn-primary m-0" v-on:click="loadFiles()">Load files</button>
+                                        <button class="btn btn-success m-0" v-on:click="saveAllFiles()">Save files</button>
                                     </div>
-                                    <div v-for="(param, paramName, index) in func">
-                                        <span v-if="!param.legend">{{paramName}}</span>
-                                        <span v-if="param.legend">{{param.legend}}</span>
-                                        <template v-if="param.type=='range'">
-                                            <span>:{{param.value}}</span>
-                                            <input class="slider" v-bind:type="param.type" v-bind:min="param.min" v-bind:max="param.max" v-model:value="param.value" v-bind:step="param.step">
+                                    <ul class="list-group list-group-flush" style="color:#ecf0f1;">
+                                        <li v-for="file of files.list" v-on:click="editFile(file)" class="list-group-item p-1 pl-2" style="cursor:pointer;background-color: transparent;line-break: anywhere;">
+                                            <span>{{file.name}}</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <!--File content-->
+                                <div class="col-md-9">
+                                    <!--Opened file list-->
+                                    <ul class="nav nav-tabs" id="fileTab" role="tablist">
+                                        <template v-for="file of files.list">
+                                            <li v-if="file.open" class="nav-item" role="presentation">
+                                              <a class="nav-link" v-bind:id="'file-tab-select-'+file.id" data-toggle="tab" v-bind:href="'#file-tab-content-'+file.id" role="tab" aria-controls="actions" aria-selected="true">{{file.name}}</a>
+                                            </li>
                                         </template>
-                                        <template v-if="param.type=='number'">
-                                            <input class="form-control" v-bind:type="param.type" v-bind:min="param.min" v-bind:max="param.max" v-model:value="param.value">
+                                    </ul>
+                                    <!--Selected file content-->
+                                    <div class="tab-content" id="fileTabContent">
+                                        <template v-for="file of files.list">
+                                            <div v-if="file.open" class="tab-pane h-100" v-bind:id="'file-tab-content-'+file.id" role="tabpanel" v-bind:aria-labelledby="'file-tab-select-'+file.id">
+                                                <div v-bind:id="'file-tab-editor-'+file.id" class="h-100"></div>
+                                            </div>
                                         </template>
                                     </div>
-                                </li>
-                            </ul>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
 

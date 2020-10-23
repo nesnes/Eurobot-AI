@@ -1,6 +1,8 @@
 'use strict';
 const express = require('express');
 const http = require('http');
+const fs = require ('fs')
+const path = require('path')
 
 module.exports = class Server {
     constructor(app) {
@@ -77,6 +79,58 @@ module.exports = class Server {
                 else if(msg.moduleName=="robot") this.app.robot[msg.funcName](msg.params);
             }
         }
+
+        if(packet.topic == "/files" && "command" in msg){
+            if(msg.command == "listFiles"){
+                this.sendFileList();
+            }
+            if(msg.command == "getFile" && msg.file){
+                this.sendFileContent(msg.file);
+            }
+            if(msg.command == "saveFile" && msg.file && msg.content){
+                this.saveFileContent(msg.file, msg.content);
+            }
+        }
         
+    }
+
+    async sendFileList(){
+        let root = "./";
+        var fileList = []
+        const walkSync = (dir, filelist = []) => {
+            fs.readdirSync(dir).forEach(file => {
+                if(file && file.endsWith("node_modules")) return;
+                if(file && file.startsWith(".")) return;
+                if(fs.statSync(path.join(dir, file)).isDirectory())
+                    walkSync(path.join(dir, file), filelist)
+                else if(file.endsWith(".js") || file.endsWith(".html") || file.endsWith(".css"))
+                    filelist.push(path.join(dir, file));
+          
+            });
+          return filelist;
+        }
+        walkSync(root, fileList);
+        let payload = {type:"list", files: []}
+        for(let file of fileList) payload.files.push({name:file})
+        this.app.mqttServer.publish({topic: '/files', payload: JSON.stringify(payload), qos: 0, retain: false});
+    }
+
+    async sendFileContent(file){
+        try{
+        let content = await fs.promises.readFile(file);
+        let payload = {type:"content", file: file, content:""+content}
+        this.app.mqttServer.publish({topic: '/files', payload: JSON.stringify(payload), qos: 0, retain: false});
+        }catch(e){console.log("err",e)}
+    }
+
+    async saveFileContent(file, content){
+        try{
+            //Save current file backup
+            let currentContent = await fs.promises.readFile(file);
+            if(this.app.logger) this.app.logger.log("Saving " + file)
+            await fs.promises.mkdir("backups").catch((e)=>{})
+            await fs.promises.writeFile("backups/"+file.replace("/","_"), currentContent);
+            await fs.promises.writeFile(file, content);
+        }catch(e){console.log("err",e)}
     }
 }

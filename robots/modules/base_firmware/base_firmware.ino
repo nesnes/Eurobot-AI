@@ -1,6 +1,6 @@
 #include "BrushlessMotor.h" 
 
-//#define MODE_I2C
+#define MODE_I2C
 #ifndef MODE_I2C
   #define MODE_SERIAL
   #define SERIAL_DEBUG

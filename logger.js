@@ -5,6 +5,7 @@ module.exports = class Logger {
         this.app = app;
     }
 
+    //Send logs over MQTT 
     log(msg){
         this.app.mqttServer.publish({
             topic: '/logs',

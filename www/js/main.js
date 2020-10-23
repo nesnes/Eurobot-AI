@@ -34,6 +34,9 @@ var lidar = {
 var images = {
     list:[]
 }
+var files = {
+    list: []
+}
 /*var lidarLocalisation = {
     x: 0,
     y: 0,
@@ -51,6 +54,7 @@ var joystick = null;
 
 //MQTT.js
 communication.client = mqtt.connect("ws://"+location.hostname+":"+8081)
+communication.client.subscribe("/files");
 communication.client.subscribe("/logs");
 communication.client.subscribe("/map");
 communication.client.subscribe("/map/grid");
@@ -114,6 +118,29 @@ communication.client.on("message", function (topic, payload) {
         var newLidar = JSON.parse(""+payload)
         Object.assign(lidar, newLidar);
     }
+    else if(topic == "/files"){
+        var msg = JSON.parse(""+payload)
+        if(msg.type == "list"){
+            for(let file of msg.files){
+                file.id = file.name.replace(/\//g,"_").replace(/\\/g,"_").replace(/\./g,"_");
+                let existing = files.list.find(f=>f.id == file.id)
+                if(!existing) files.list.push(file);
+            }
+            //files.list = msg.files;
+        }
+        if(msg.type == "content" && msg.file && msg.content){
+            let file = files.list.find((f)=>f.name == msg.file)
+            if(file){
+                file.content = msg.content;
+                if(!file.editor) file.editor = ace.edit("file-tab-editor-"+file.id);
+                file.editor.setTheme("ace/theme/cobalt");
+                if(file.name.endsWith(".html")) file.editor.session.setMode("ace/mode/html");
+                if(file.name.endsWith(".js")) file.editor.session.setMode("ace/mode/javascript");
+                if(file.name.endsWith(".css")) file.editor.session.setMode("ace/mode/css");
+                file.editor.setValue(""+file.content, -1)
+            }
+        }
+    }
     /*else if(topic == "/lidar/localisation"){
         var newLidarLocalisation = JSON.parse(""+payload)
         Object.assign(lidarLocalisation, newLidarLocalisation);
@@ -133,6 +160,7 @@ var app = new Vue({
         robot: robot,
         lidar: lidar,
         images: images,
+        files: files,
         //lidarLocalisation: lidarLocalisation,
         modules: modules,
         communication: communication,
@@ -211,3 +239,49 @@ function runModuleFunction(moduleName, funcName, parameters={}){
     var payload = {command: "runModuleFunction", moduleName: moduleName, funcName: funcName, params: params};
     communication.client.publish("/control", JSON.stringify(payload))
 }
+
+
+function loadFiles(){
+    var payload = {command: "listFiles"};
+    communication.client.publish("/files", JSON.stringify(payload))
+}
+
+function editFile(file){
+    console.log("editing", file)
+    file.open = true;
+    app.$forceUpdate();
+    setTimeout(()=>{
+        var payload = {command: "getFile", file:file.name};
+        communication.client.publish("/files", JSON.stringify(payload));
+    }, 100)
+}
+function saveFile(file){
+    if(!file.name || !file.editor) return;
+    var payload = {command: "saveFile", file:file.name, content:file.editor.getValue()};
+    communication.client.publish("/files", JSON.stringify(payload));
+    console.log("save", payload)
+    //sendFileSaveRequest($("#mapFilePath").val(), getFileEditorContent($("#mapFilePath").val()))
+    //sendFileSaveRequest($("#robotFilePath").val(), getFileEditorContent($("#robotFilePath").val()))
+    //sendFileSaveRequest($("#objectiveFilePath").val(), getFileEditorContent($("#objectiveFilePath").val()))
+}
+function saveAllFiles(){
+    for(let file of files.list){
+        if(file.open) saveFile(file);
+    }
+}
+
+$(document).keydown(function(e) {
+    var key = undefined;
+    var possible = [ e.key, e.keyIdentifier, e.keyCode, e.which ];
+    while (key === undefined && possible.length > 0)
+        key = possible.pop();
+    if (key && (key == '115' || key == '83' ) && (e.ctrlKey || e.metaKey) && !(e.altKey)){
+        e.preventDefault();
+        saveAllFiles();
+        return false;
+    }
+    return true;
+});
+window.onbeforeunload = function() {
+    return "Leave the page? Make sure that files are saved.";
+};
