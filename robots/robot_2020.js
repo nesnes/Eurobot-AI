@@ -33,11 +33,12 @@ module.exports = class Robot2020 extends Robot{
             windsocks: { value: 0,  max: 2 },
             endZone: { value: 0,  max: 2 }, //0 undefined, 1 north, 2 south
         }
-        this.collisionDistance = this.radius+175;
+        this.collisionAngle = 115;
+        this.collisionDistance = this.radius+250;
         this.slowdownDistance = this.collisionDistance+100;
-        //this.modules.lidar = new Lidar(app)
-        //this.modules.lidarLocalisation = new LidarLocalisation(app)
         if(!this.app.parameters.simulate){
+            this.modules.lidar = new Lidar(app)
+            //this.modules.lidarLocalisation = new LidarLocalisation(app)
             this.modules.arm = new Arm(app);
             this.modules.camera = new Camera(app);
         }
@@ -94,6 +95,9 @@ module.exports = class Robot2020 extends Robot{
     }
 
     async setPosDebug(parameters){
+        this.x = this.startPosition["blue"].x;
+        this.y = this.startPosition["blue"].y;
+        this.angle = this.startPosition["blue"].angle;
         if(this.modules.base) await this.modules.base.enableMove();
         if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle});
         return true;
@@ -129,6 +133,26 @@ module.exports = class Robot2020 extends Robot{
         return true
     }
 
+    async grabBuoy(parameters){
+        let elemList = []
+        let result = await this.openSideArms({sideB:!!parameters.sideB, sideA:!!parameters.sideA});
+        if(!result) return result;
+        result = await this.moveBackward({distance:150, speed:0.2});
+        if(!result) return result;
+        if(parameters.component){
+            this.app.map.removeComponent(this.app.map.getComponent(parameters.component, this.team));
+            elemList.push(parameters.component)
+        }
+        result = await this.closeSideArms({
+            sideB:!!parameters.sideB,
+            sideA:!!parameters.sideA,
+            addBuoyStorageSideA:!!parameters.sideA,
+            addBuoyStorageSideB:!!parameters.sideB,
+            removeFromMap:elemList
+        });
+        return result;
+    }
+
     async grabReaf(parameters){
         this.variables.buoyStorageFrontA.value++;
         this.variables.buoyStorageFrontB.value++;
@@ -137,12 +161,25 @@ module.exports = class Robot2020 extends Robot{
     }
 
     async depositBuoys(parameters){
-        this.variables.buoyStorageFrontA.value = 0;
-        this.variables.buoyStorageFrontB.value = 0;
-        this.variables.buoyStorageSideA.value = 0;
-        this.variables.buoyStorageSideB.value = 0;
-        this.addScore(20);
-        await utils.sleep(500);
+        let result = await this.moveBackward({distance:100, speed:0.2});
+        if(!result) return result;
+        result = await this.openSideArms({sideA:!!parameters.sideA, sideB:!!parameters.sideB});
+        if(!result) return result;
+        let buoyCount = 0;
+        if(parameters.sideA){ 
+            buoyCount += this.variables.buoyStorageSideA.value;
+            this.variables.buoyStorageSideA.value = 0;
+        }
+        if(parameters.sideB){ 
+            buoyCount += this.variables.buoyStorageSideB.value;
+            this.variables.buoyStorageSideB.value = 0;
+        }
+        result = await this.moveForward({distance:200, speed:0.2});
+        if(!result) return result;
+        await this.closeSideArms({sideB:true, sideA:true});
+        
+        this.addScore(buoyCount*2);
+        //need to add 2 point per buoy pair
         return true
     }
 
@@ -162,8 +199,8 @@ module.exports = class Robot2020 extends Robot{
     }
 
     async openSideArms(parameters){
-        if(this.modules.arm && parameters.left) await this.modules.arm.setLeft({angle:70})
-        if(this.modules.arm && parameters.right) await this.modules.arm.setRight({angle:70})
+        if(this.modules.arm && parameters.sideA) await this.modules.arm.setLeft({angle:70})
+        if(this.modules.arm && parameters.sideB) await this.modules.arm.setRight({angle:70})
         return true;
     }
 

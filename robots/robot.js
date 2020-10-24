@@ -53,7 +53,7 @@ module.exports = class Robot {
         this.movementAngle = 0;
         this.collisionAngle = 90; // angle used to check obstacles from lidar around movement direction
         this.collisionDistance = 0; // distance of objects to trigger a break (usually radius + ~100mm)
-        this.slowdownAngle = 120; // angle used to check obstacles from lidar around movement direction
+        this.slowdownAngle = 150; // angle used to check obstacles from lidar around movement direction
         this.slowdownDistance = 0; // distance of object to slow down the robot (greater than collisionDistance)
         this.slowdown = false;
         this.disableColisions = !!this.app.parameters.disableColisions;
@@ -65,13 +65,13 @@ module.exports = class Robot {
     async init(){
         if(this.modules.lidar){
             await this.modules.lidar.init().then(()=>{}).catch(()=>{
-                console.log("==> Lidar not connected");
+                this.app.logger.log("==> Lidar not connected");
                 this.modules.lidar = null;
             })
         }
         if(this.modules.robotLink){
             await this.modules.robotLink.init().catch((e)=>{
-                console.log("==> RobotLink not connected",e);
+                this.app.logger.log("==> RobotLink not connected",e);
                 this.modules.robotLink = null;
             })
         }
@@ -274,7 +274,10 @@ module.exports = class Robot {
             path = this.app.map.findPath(this.x, this.y, parameters.x, parameters.y);
             path.shift();//remove initial position
         }
-        if(path.length==0) return false
+        if(path.length==0){
+            this.app.logger.log(" Error, empty path to "+parameters.x+" "+parameters.y);
+            return false;
+        }
         if(this.modules.base){
             let startAngle = this.angle;
             let dangle = startAngle-parameters.angle;
@@ -392,9 +395,9 @@ module.exports = class Robot {
             );
             if(inCollisionRange && measure.d>0 && measure.d<this.collisionDistance){
                 collisionCount++
-                if(collisionCount>=4){
+                if(collisionCount>=3){
                     //Add obstacle on map
-                    let obstacleRadius = 150
+                    let obstacleRadius = 150;
                     let obstacleTimeout = 2000; //will be removed from map in N milliseconds
                     this.app.logger.log("collision detected");
                     let rayAngleRad = utils.normAngle(measure.a+this.angle)*(Math.PI/180);
@@ -424,7 +427,7 @@ module.exports = class Robot {
             );
             if(inSlowdownRange && measure.d>0 && measure.d<this.slowdownDistance) slowdownCount++
         }
-        this.slowdown = slowdownCount>=4;
+        this.slowdown = slowdownCount>=3;
         return true
     }
 
@@ -511,14 +514,15 @@ module.exports = class Robot {
             //Start the move
             let moveStatus = "";
             success = !!await this.modules.base.movePath({path:path})
-            //console.log("movePath", success)
+            console.log("movePath", success, {path:path})
             do{
                 await utils.sleep(sleep);
                 if(this.app.intelligence.hasBeenRun && this.app.intelligence.isMatchFinished()) success = false;
                 //moveSpeed = this.slowdown?0.1:speed;
                 if(!this.isMovementPossible()) success = false;
+                //console.log("move possible", success)
                 moveStatus = await this._updatePositionAndMoveStatus();
-                //console.log(success, moveStatus, path)
+                console.log(success, moveStatus, path)
             } while(success && moveStatus && moveStatus.includes("run"))
             if(!success) this.modules.base.break();
         }

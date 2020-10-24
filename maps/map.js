@@ -199,6 +199,8 @@ module.exports = class Map {
             }
         }
         //Free start and end cells
+        //grid.nodes[Math.floor(yFrom/this.pathResolution)][Math.floor(xFrom/this.pathResolution)] = true;
+        //grid.nodes[Math.floor(xTo/this.pathResolution)][Math.floor(yTo/this.pathResolution)] = true;
         grid.setWalkableAt(Math.floor(xFrom/this.pathResolution), Math.floor(yFrom/this.pathResolution), true);
         grid.setWalkableAt(Math.floor(xTo/this.pathResolution), Math.floor(yTo/this.pathResolution), true);
         return grid;

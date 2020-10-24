@@ -101,6 +101,7 @@ module.exports = class Server {
             fs.readdirSync(dir).forEach(file => {
                 if(file && file.endsWith("node_modules")) return;
                 if(file && file.startsWith(".")) return;
+                if(file && file.startsWith("backup")) return;
                 if(fs.statSync(path.join(dir, file)).isDirectory())
                     walkSync(path.join(dir, file), filelist)
                 else if(file.endsWith(".js") || file.endsWith(".html") || file.endsWith(".css"))
@@ -129,7 +130,7 @@ module.exports = class Server {
             let currentContent = await fs.promises.readFile(file);
             if(this.app.logger) this.app.logger.log("Saving " + file)
             await fs.promises.mkdir("backups").catch((e)=>{})
-            await fs.promises.writeFile("backups/"+file.replace("/","_"), currentContent);
+            await fs.promises.writeFile("backups/"+file.replace(/\//g,"_"), currentContent);
             await fs.promises.writeFile(file, content);
         }catch(e){console.log("err",e)}
     }

@@ -23,8 +23,11 @@ module.exports = class Intelligence {
         this.app.logger.log("Map loaded");
 
         //Read the goals
-        delete require.cache[require.resolve('./goals/goals_2020')]; //Delete require() cache
-        const Goals = require('./goals/goals_2020');
+        let goalsFile='./goals/goals_homologation';
+        //let goalsFile='./goals/goals_2020';
+        //let goalsFile='./goals/goals_2020';
+        delete require.cache[require.resolve(goalsFile)]; //Delete require() cache
+        const Goals = require(goalsFile);
         this.app.goals = new Goals(this.app);
         this.app.goals.init();
         this.app.logger.log("Goals loaded");
@@ -98,8 +101,10 @@ module.exports = class Intelligence {
                 //Ignore goals already done
                 if(goal.status == "done" && goal.executionCount == 0) continue;
                 //Run goal
-                if(goal.condition())
+                if(goal.condition()){
                     await this.runGoal(goal);
+                    await utils.sleep(250);
+                }
             }
         }
         this.app.logger.log("End of match, score:"+this.app.robot.score);
@@ -118,6 +123,14 @@ module.exports = class Intelligence {
         goal.status = success?"done":"failed";
         if(success) goal.executionCount--;
         this.app.goals.send(); //Notify UI
+        //Run on-error actions
+        if(!success && goal.onError && goal.onError.length){
+            for(const action of goal.onError){
+                if("team" in action && action.team != this.app.robot.team) continue;
+                console.log("onError", action.name)
+                await this.runAction(action);
+            }
+        }
         
         //await utils.sleep(1000);
         return success;

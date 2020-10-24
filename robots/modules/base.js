@@ -132,9 +132,12 @@ module.exports = class Base {
             let point = params.path[i];
             let action = i==0?0:1;
             if(i==params.path.length-1) action=2;
+            if(i==0 && action==2) action=3;
             let msg = "path set "+action+" "+Math.round(point.x)+" "+Math.round(point.y)+" "+Math.round(point.angle)+" "+Math.round(parseFloat(""+point.speed)*10);
-            if(this.app.robot.modules.robotLink)
+            if(this.app.robot.modules.robotLink){
                 result = await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
+                console.log(msg, result)
+            }
         }
         return result;
     }
