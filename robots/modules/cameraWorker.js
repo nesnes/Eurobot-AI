@@ -95,8 +95,7 @@ async function detectWeathervane(img){
     detectionRunning = true;
     let orientation = null;
     let timeA = new Date().getTime();
-
-    let bgr = img;//await img.cvtColor(cv.COLOR_RGB2BGR);
+    
     const rgba = img.cvtColor(cv.COLOR_BGR2RGBA);
     let imgData = canvas.createImageData( new Uint8ClampedArray(rgba.getData()), img.cols, img.rows);
     let markers = detector.detect(imgData);
