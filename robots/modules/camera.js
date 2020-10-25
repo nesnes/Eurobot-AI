@@ -18,9 +18,9 @@ module.exports = class Camera {
         console.log("init")
         var w = spawn("node",["./robots/modules/cameraWorker.js"], {detached: true, stdio: ['pipe', 'pipe', 'pipe', 'ipc']});
         process.on("exit",()=>{w.kill();})
-        process.on("error",(e)=>{console.log("cameraWorker error", e)});
         this.worker = w;
         this.worker.on("message",msg=>{ this.onWorkerMessage(msg); })
+        this.worker.on("error",(e)=>{console.log("cameraWorker error", e)});
         this.send();
     }
 
