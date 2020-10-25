@@ -120,9 +120,19 @@ module.exports = class Robot2020 extends Robot{
     }
 
     async readWeathervane(parameters){
-        this.variables.endZone.value = 1;
-        await utils.sleep(500);
-        return true
+        if(!this.modules.camera) return true;
+        let armLookPosition = { a1:170, a2:90, a3:50, a4:140, a5:25, duration:200 };
+        let tryBudget = 3;
+        while(--tryBudget>=0){
+            if(this.modules.arm) await this.modules.arm.setPose(armLookPosition);
+            await utils.sleep(400);
+            let orientation = await this.modules.camera.detectWeathervane();
+            if(orientation){
+                this.variables.endZone.value = orientation=="north"?1:2;
+                break;
+            }
+        }
+        return this.variables.endZone.value>0;
     }
 
     async grabBuoysBottom(parameters){
@@ -234,7 +244,7 @@ module.exports = class Robot2020 extends Robot{
         while(--tryBudget>=0){
             if(this.modules.arm) await this.modules.arm.setPose(armCloseLookPosition)
             await utils.sleep(400);
-            let detections = await this.modules.camera.detect();
+            let detections = await this.modules.camera.detectBuoys();
             console.log(detections);
             //Find Most centered and low object in the image
             let target = null;

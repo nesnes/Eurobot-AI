@@ -277,9 +277,9 @@ void control(){
   
   //Serial.print(speedA*1000.0d);Serial.print("\t");Serial.print(arcLength*1000.0d);Serial.print("\n");
   
-  speedA += speedAngleA*2;
-  speedB += speedAngleB*2;
-  speedC += speedAngleC*2;
+  speedA += speedAngleA*1.25;
+  speedB += speedAngleB*1.25;
+  speedC += speedAngleC*1.25;
 
 
   //Serial.print(speedA*1000000.f);Serial.print("\t");Serial.print(speedB*1000000.f);Serial.print("\t");Serial.print(speedC*1000000.f);Serial.print("\n");
@@ -343,6 +343,7 @@ void executeOrder(){
       xTarget = xPos;
       yTarget = yPos;
       angleTarget = anglePos;
+      updateAsserv();
     }
     else if(strstr(comunication_InBuffer, "pos getXY")){
       sprintf(comunication_OutBuffer,"pos %i %i %i %i",(int)(yPos*1000.0f), (int)(xPos*1000.0f), (int)(anglePos), (int)(targetSpeed_mps*10));
@@ -369,20 +370,25 @@ void executeOrder(){
       emergencyStop = false;
       targetReached = false;
       runTargetPath = false;
+      movementEnabled = true;
+      updateAsserv();
     }
     else if(strstr(comunication_InBuffer, "path set ")){
       sprintf(comunication_OutBuffer,"path OK");
       comunication_write();//async
       int action=-1, i_x_pos=0, i_y_pos=0, i_angle=0, i_speed_pos=1;
       sscanf(comunication_InBuffer, "path set %i %i %i %i %i", &action, &i_y_pos, &i_x_pos, &i_angle, &i_speed_pos);
-      if(action==-1){}//nothing
-      if(action==0){//reset
+      //0 reset and add 1 point
+      //1 add 1 point
+      //2 add 1 point and run
+      //3 reset, add 1 point and run
+      if(action==0 || action==3){//reset
         targetReached = false;
         targetPathIndex = 0;
         targetPathSize = 0;
         runTargetPath = false;
       }
-      if(action==0 || action==1 || action==2){//add
+      if(action==0 || action==1 || action==2 || action==3){//add
         int idx = targetPathSize;
         targetPath[idx].x = (float)(i_x_pos)/1000.0f;
         targetPath[idx].y = (float)(i_y_pos)/1000.0f;
@@ -391,14 +397,16 @@ void executeOrder(){
         angleSpeedTarget = speedTarget * 180.f;
         targetPathSize++;
       }
-      if(action==2 && targetPathSize){//run
+      if((action==2 || action==3) && targetPathSize){//run
         xStart = xPos;
         yStart = yPos;
         angleStart = anglePos;
         targetReached = false;
         runTargetPath = true;
         emergencyStop = false;
-        targetReached = false;
+        movementEnabled = true;
+        updatePath();
+        updateAsserv();
       }
     }
     else if(strstr(comunication_InBuffer, "move DA")){
@@ -414,9 +422,11 @@ void executeOrder(){
       comunication_write();//async
     }
     else if(strstr(comunication_InBuffer, "move break")){
-      emergencyStop = true;
       sprintf(comunication_OutBuffer,"move OK");
       comunication_write();//async
+      emergencyStop = true;
+      targetSpeed_mps = 0;
+      targetAngleSpeed_dps = 0;
     }
     else if(strstr(comunication_InBuffer, "move RM")){
       int i_distance=0, i_vitesse=4;

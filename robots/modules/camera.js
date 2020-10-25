@@ -9,7 +9,9 @@ module.exports = class Camera {
         this.app = app;
         this.worker = null;
         this.detections = [];
+        this.orientation = null;
         this.pendingDetection = null;
+        this.pendingOrientation = null;
     }
     
     async init(){
@@ -24,7 +26,8 @@ module.exports = class Camera {
     getDescription(){
         return {
             functions:{
-                detect: {},
+                detectBuoys: {},
+                detectWeathervane: {},
             }
         }
     }
@@ -48,9 +51,9 @@ module.exports = class Camera {
         })
     }*/
 
-    async detect(){
+    async detectBuoys(){
         this.detections = [];
-        if(this.worker) this.worker.send({action:"detect"});
+        if(this.worker) this.worker.send({action:"detectBuoys"});
         await new Promise(resolve=>{
             this.pendingDetection = resolve;
             setTimeout(resolve, 2000)
@@ -59,11 +62,26 @@ module.exports = class Camera {
         return this.detections
     }
 
+    async detectWeathervane(){
+        this.orientation = null;
+        if(this.worker) this.worker.send({action:"detectWeathervane"});
+        await new Promise(resolve=>{
+            this.pendingOrientation = resolve;
+            setTimeout(resolve, 2000)
+        })
+        this.pendingOrientation = null;
+        return this.orientation
+    }
+
     onWorkerMessage(msg){
         try{
             if(msg.type=="detections"){
                 this.detections = msg.detections;
                 if(this.pendingDetection) this.pendingDetection();
+            }
+            if(msg.type=="weathervane"){
+                this.orientation = msg.orientation;
+                if(this.pendingOrientation) this.pendingOrientation();
             }
             if(msg.type=="image") this.sendImage(msg);
         }catch(e){console.log(e)}

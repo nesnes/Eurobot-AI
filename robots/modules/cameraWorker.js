@@ -3,6 +3,9 @@ const cv = require('opencv4nodejs');
 const isMainThread = !process.send;
 let stopCapture = false;
 let cap = null;
+let canvas = require('canvas')
+var AR = require('js-aruco').AR;
+var detector = new AR.Detector(AR.MarkerType4x4);
 
 var circleCP = 1.0
 var param_1 = 200
@@ -19,7 +22,7 @@ var maxS = 255
 var minV = 30
 var maxV = 180
 var detectionRunning = false;
-async function detect(img){
+async function detectBuoys(img){
     if(detectionRunning) return;
     detectionRunning = true;
     let detections = [];
@@ -87,10 +90,40 @@ async function detect(img){
     return detections;
 }
 
-async function run(){
+async function detectWeathervane(img){
+    if(detectionRunning) return;
+    detectionRunning = true;
+    let orientation = null;
+    let timeA = new Date().getTime();
+
+    let bgr = img;//await img.cvtColor(cv.COLOR_RGB2BGR);
+    const rgba = img.cvtColor(cv.COLOR_BGR2RGBA);
+    let imgData = canvas.createImageData( new Uint8ClampedArray(rgba.getData()), img.cols, img.rows);
+    let markers = detector.detect(imgData);
+    for(let marker of markers){
+        if(marker.id==17){
+            if(marker.rotation == 0 || marker.rotation == 1) orientation = "north";
+            if(marker.rotation == 2 || marker.rotation == 3) orientation = "south";
+        }
+    }
+
+    let timeEnd = new Date().getTime();
+    if(!isMainThread){
+        sendMessage({type:"weathervane", orientation:orientation});
+    }
+    else {
+        console.log("Weathervane duration", timeEnd-timeA, "ms")
+        console.log(markers);
+    }
+    detectionRunning = false;
+    return orientation;
+}
+
+async function run(action="buoys"){
     let frame = null;
     for(let i=0;i<6;i++) frame = cap.read();
-    await detect(frame);
+    if(action=="buoys") await detectBuoys(frame);
+    if(action=="weathervane") await detectWeathervane(frame);
     //const img = await cv.imreadAsync('./buoy-img/hsv-palette.jpg');
 }
 
@@ -112,7 +145,8 @@ function sendMessage(json){
 
 function onParentMessage(msg){
     if(!msg || !msg.action) return;
-    if(msg.action == "detect") run();
+    if(msg.action == "detectBuoys") run("buoys");
+    if(msg.action == "detectWeathervane") run("weathervane");
 }
 
 async function main(){
@@ -132,7 +166,9 @@ async function main(){
     
     if(isMainThread){
         while(1){
-            await run();
+            await run("buoys");
+            await run("weathervane");
+
         }
     }
     await run();
