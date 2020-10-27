@@ -229,6 +229,10 @@ void updatePath(){
     && translationError < nextPathTranslationError
     && rotationError < nextPathRotationError){
       targetPathIndex++;
+      //Reset startPos for accel ramp
+      xStart = xPos;
+      yStart = yPos;
+      angleStart = anglePos;
   } 
   
   //Set new target

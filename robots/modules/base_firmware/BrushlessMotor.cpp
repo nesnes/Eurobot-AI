@@ -100,6 +100,7 @@ float BrushlessMotor::getPower(){ // m/s
 void BrushlessMotor::computeSpeed(){
   //Acceleration
   double speedStep = 0.005*m_syncFactor;//0.001
+  //if(m_requestedSpeed==0) speedStep = 0.004*m_syncFactor;
   //double speedStepAccel = 0.0001;//0.001
   //double speedStep = (!m_inverted)?speedStepAccel:speedStepBreak;//0.001
   double absCurrSpeed = abs(m_currSpeed);
