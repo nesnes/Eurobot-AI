@@ -5,6 +5,7 @@ const Goals = require('./goals');
 module.exports = class GoalsTest extends Goals{
     constructor(app) {
         super(app);
+        this.defaultSpeed=0.4; //m/s
 
         this.list = [
 
@@ -27,45 +28,66 @@ module.exports = class GoalsTest extends Goals{
             },
             
             {
-                name: "Deposit North (B)",
+                name: "Perform start move",
                 condition: ()=>{
-                    if(this.app.robot.variables["buoyStorageSideB"].value == 0)
-                        return false;
+                    let buoyStorageSideGreen = this.app.robot.variables["buoyStorageSideGreen"];
+                    let buoyStorageSideRed = this.app.robot.variables["buoyStorageSideRed"];
+                    if(buoyStorageSideGreen.value>0 || buoyStorageSideRed.value>0) return false;
                     return true;
-                },                
-                executionCount: 10,
+                }, 
+                executionCount: 1,
                 actions: [
                     {
-                        name: "Move",
-                        method: "moveToComponent",
-                        parameters:{ component: "startingFairwayNorth", speed: 0.2 }
+                        name: "Position front arm",
+                        method: "setArmDefault"
                     },
                     {
-                        name: "Deposit buoys",
-                        method: "depositBuoys",
-                        parameters:{ sideB: true }
-                    }
+                        name: "perform path",
+                        method: "moveAlongPath",
+                        team: "blue",
+                        parameters:{ path:[
+                            {x:260, y:435, angle:-45, speed:this.defaultSpeed},
+                            {x:260, y:435, angle:10, speed:this.defaultSpeed},
+                            {x:450, y:450, angle:10, speed:this.defaultSpeed}
+                        ]}
+                    },
+                    {
+                        name: "perform path",
+                        method: "moveAlongPath",
+                        team: "yellow",
+                        parameters:{ path:[
+                            {x:2740, y:435, angle:-135, speed:this.defaultSpeed},
+                            {x:2740, y:435, angle:170, speed:this.defaultSpeed},
+                            {x:2550, y:450, angle:170, speed:this.defaultSpeed}
+                        ]}
+                    },
+                    {
+                        name: "Close front arm",
+                        method: "setArmClose",
+                        parameters: { 
+                            addBuoyStorageFrontGreen: 1,
+                            addBuoyStorageFrontRed: 1,
+                            removeFromMap:["buoyStartingNorth","buoyStartingFairwayNorth"]
+                        }
+                    },
                 ]
             },
             
             {
-                name: "Deposit South (A)",
+                name: "Activate lighthouse",
                 condition: ()=>{
-                    if(this.app.robot.variables["buoyStorageSideA"].value == 0)
-                        return false;
                     return true;
                 },                
-                executionCount: 10,
+                executionCount: 1,
                 actions: [
                     {
                         name: "Move",
                         method: "moveToComponent",
-                        parameters:{ component: "startingFairwaySouth", speed: 0.2 }
+                        parameters:{ component: "lighthouse", speed: this.defaultSpeed }
                     },
                     {
-                        name: "Deposit buoys",
-                        method: "depositBuoys",
-                        parameters:{ sideA: true }
+                        name: "Activate",
+                        method: "activateLighthouse"
                     }
                 ]
             },
@@ -73,8 +95,9 @@ module.exports = class GoalsTest extends Goals{
             {
                 name: "Grab Buoy Middle Bottom",
                 condition: ()=>{
-                    let storageSideB = this.app.robot.variables["buoyStorageSideB"];
-                    if(storageSideB.value >= storageSideB.max)
+                    let storageVar = this.app.robot.variables["buoyStorageSideRed"];
+                    if(this.app.robot.team=="yellow") storageVar = this.app.robot.variables["buoyStorageSideGreen"];
+                    if(storageVar.value >= storageVar.max)
                         return false;
                     return true;
                 },
@@ -83,12 +106,16 @@ module.exports = class GoalsTest extends Goals{
                     {
                         name: "Move",
                         method: "moveToComponent",
-                        parameters:{ component: "buoyMiddleBottom", speed: 0.2 }
+                        parameters:{ component: "buoyMiddleBottom", speed: this.defaultSpeed }
                     },
                     {
                         name: "Grab buoys",
                         method: "grabBuoy",
-                        parameters:{ sideB:true, component: "buoyMiddleBottom"}
+                        parameters:{ 
+                            sideRed:this.app.robot.team=="blue", 
+                            sideGreen:this.app.robot.team=="yellow", 
+                            component: "buoyMiddleBottom"
+                        }
                     }
                 ],
                 onError: [
@@ -104,8 +131,9 @@ module.exports = class GoalsTest extends Goals{
             {
                 name: "Grab Buoy Middle Top",
                 condition: ()=>{
-                    let storageSideA = this.app.robot.variables["buoyStorageSideA"];
-                    if(storageSideA.value >= storageSideA.max)
+                    let storageVar = this.app.robot.variables["buoyStorageSideGreen"];
+                    if(this.app.robot.team=="yellow") storageVar = this.app.robot.variables["buoyStorageSideRed"];
+                    if(storageVar.value >= storageVar.max)
                         return false;
                     return true;
                 },
@@ -114,15 +142,16 @@ module.exports = class GoalsTest extends Goals{
                     {
                         name: "Move",
                         method: "moveToComponent",
-                        parameters:{
-                            component: "buoyMiddleTop",
-                            speed: 0.2 // m/s
-                        }
+                        parameters:{ component: "buoyMiddleTop", speed: this.defaultSpeed }
                     },
                     {
                         name: "Grab buoy",
                         method: "grabBuoy",
-                        parameters:{ sideA:true, component: "buoyMiddleTop"}
+                        parameters:{ 
+                            sideRed:this.app.robot.team=="yellow", 
+                            sideGreen:this.app.robot.team=="blue", 
+                            component: "buoyMiddleTop"
+                        }
                     }
                 ],
                 onError: [
@@ -137,8 +166,9 @@ module.exports = class GoalsTest extends Goals{
             {
                 name: "Grab Buoy Top",
                 condition: ()=>{
-                    let storageSideB = this.app.robot.variables["buoyStorageSideB"];
-                    if(storageSideB.value >= storageSideB.max)
+                    let storageVar = this.app.robot.variables["buoyStorageSideRed"];
+                    if(this.app.robot.team=="yellow") storageVar = this.app.robot.variables["buoyStorageSideGreen"];
+                    if(storageVar.value >= storageVar.max)
                         return false;
                     return true;
                 },
@@ -147,15 +177,15 @@ module.exports = class GoalsTest extends Goals{
                     {
                         name: "Move",
                         method: "moveToComponent",
-                        parameters:{
-                            component: "buoyTop",
-                            speed: 0.2 // m/s
-                        }
+                        parameters:{ component: "buoyTop", speed: this.defaultSpeed }
                     },
                     {
                         name: "Grab buoy",
                         method: "grabBuoy",
-                        parameters:{ sideB:true, component: "buoyTop"}
+                        parameters:{ 
+                            sideRed:this.app.robot.team=="blue", 
+                            sideGreen:this.app.robot.team=="yellow", 
+                            component: "buoyTop"}
                     }
                 ],
                 onError: [
@@ -165,7 +195,118 @@ module.exports = class GoalsTest extends Goals{
                         parameters:{}
                     }
                 ]  
-            }
+            },
+            
+            {
+                name: "Deposit Green",
+                condition: ()=>{
+                    if(this.app.robot.variables["buoyStorageSideGreen"].value == 0
+                    && this.app.robot.variables["buoyStorageFrontGreen"].value == 0)
+                        return false;
+                    return true;
+                },                
+                executionCount: 10,
+                actions: [
+                    {
+                        name: "Move",
+                        method: "moveToComponent",
+                        parameters:{ component: "startingFairwayGreen", speed: this.defaultSpeed }
+                    },
+                    {
+                        name: "Deposit buoys",
+                        method: "depositBuoys",
+                        parameters:{ sideGreen: true, component: "startingFairwayGreen", pairedComponent: "startingFairwayRed" }
+                    }
+                ]
+            },
+            
+            {
+                name: "Deposit Red",
+                condition: ()=>{
+                    if(this.app.robot.variables["buoyStorageSideRed"].value == 0
+                    && this.app.robot.variables["buoyStorageFrontRed"].value == 0)
+                        return false;
+                    return true;
+                },                
+                executionCount: 10,
+                actions: [
+                    {
+                        name: "Move",
+                        method: "moveToComponent",
+                        parameters:{ component: "startingFairwayRed", speed: this.defaultSpeed }
+                    },
+                    {
+                        name: "Deposit buoys",
+                        method: "depositBuoys",
+                        parameters:{ sideRed: true, component: "startingFairwayRed", pairedComponent: "startingFairwayGreen" }
+                    }
+                ]
+            },
+            
+            {
+                name: "Read weathervane",
+                condition: ()=>{
+                    if(this.app.intelligence.currentTime >= 25*1000
+                      && this.app.robot.variables["endZone"].value == 0)
+                        return true;
+                    return false;
+                },                
+                executionCount: 1,
+                actions: [
+                    {
+                        name: "Move",
+                        method: "moveToComponent",
+                        parameters:{ component: "weathervane", speed: this.defaultSpeed }
+                    },
+                    {
+                        name: "Read",
+                        method: "readWeathervane"
+                    }
+                ]
+            },
+            
+            {
+                name: "Read weathervane 2",
+                condition: ()=>{
+                    if(this.app.intelligence.currentTime >= 25*1000
+                      && this.app.robot.variables["endZone"].value == 0)
+                        return true;
+                    return false;
+                },                
+                executionCount: 1,
+                actions: [
+                    {
+                        name: "Move",
+                        method: "moveToComponent",
+                        parameters:{ component: "weathervane2", speed: this.defaultSpeed }
+                    },
+                    {
+                        name: "Read",
+                        method: "readWeathervane"
+                    }
+                ]
+            },
+            {
+                name: "Move to End",
+                condition: ()=>{
+                    if(this.app.intelligence.currentTime >= this.app.intelligence.matchDuration-15*1000
+                       && this.app.robot.variables["endZone"].value>0)
+                        return true;
+                    return false;
+                },                
+                executionCount: 1,
+                actions: [
+                    {
+                        name: "Move",
+                        method: "moveToComponent",
+                        parameters:{ component: "startingArea", speed: this.defaultSpeed }
+                    },
+                    {
+                        name: "orientRobot",
+                        method: "performEndingMove"
+                    }
+                ]
+            },
             
             
         ]

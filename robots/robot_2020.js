@@ -23,13 +23,13 @@ module.exports = class Robot2020 extends Robot{
         this.radius = 140;
         this.startPosition = {
             blue:{x:265,y:650,angle:0},
-            yellow:{x:1735,y:650,angle:180}
+            yellow:{x:2735,y:650,angle:180}
         }
         this.variables = {
-            buoyStorageFrontA: { value: 0,  max: 1 },
-            buoyStorageFrontB: { value: 0,  max: 1 },
-            buoyStorageSideA: { value: 0,  max: 2 },
-            buoyStorageSideB: { value: 0,  max: 2 },
+            buoyStorageFrontGreen: { value: 0,  max: 1 },
+            buoyStorageFrontRed: { value: 0,  max: 1 },
+            buoyStorageSideGreen: { value: 0,  max: 2 },
+            buoyStorageSideRed: { value: 0,  max: 2 },
             windsocks: { value: 0,  max: 2 },
             endZone: { value: 0,  max: 2 }, //0 undefined, 1 north, 2 south
         }
@@ -76,7 +76,7 @@ module.exports = class Robot2020 extends Robot{
     async endMatch(){
         await super.endMatch();
         if(this.modules.arm) await this.modules.arm.disablePump();
-        if(this.modules.arm) await this.setArmDefault();
+        //if(this.modules.arm) await this.setArmDefault();
         if(this.modules.arm) await this.modules.arm.setLeft({angle:60});
         if(this.modules.arm) await this.modules.arm.setRight({angle:60});
     }
@@ -104,15 +104,31 @@ module.exports = class Robot2020 extends Robot{
     }
 
     async activateLighthouse(parameters){
-        this.app.logger.log("  -> Activating ligthouse");
+        let buoysOnFront = this.variables.buoyStorageFrontGreen.value>0 || this.variables.buoyStorageFrontRed.value>0;
+        //Arm up
+        if(this.modules.arm) await this.modules.arm.setPose({ a1:50, a2:90, a3:140, a4:140, a5:175, duration:200 })
+        await utils.sleep(200);
+        if(this.modules.arm) await this.modules.arm.setPose({ a1:50, a2:20, a3:140, a4:140, a5:90, duration:200 })
+        await utils.sleep(200);
+        await this.moveForward({distance:75, speed:0.4});
+        //Arm swipe
+        if(this.modules.arm) await this.modules.arm.setPose({ a1:50, a2:160, a3:140, a4:140, a5:90, duration:200 })
+        //Move back
+        if(buoysOnFront){
+            if(this.modules.arm) await this.modules.arm.setPose({ a1:90, a2:90, a3:90, a4:90, a5:90, duration:200 })
+            await utils.sleep(200);
+            await this.setArmClose({});
+        }
+        await this.moveBackward({distance:100, speed:0.4});
         this.addScore(10);
-        await utils.sleep(500);
+        
+        if(!buoysOnFront) await this.setArmDefault({});
         return true
     }
 
     async grabStartingBuoys(parameters){
-        this.variables.buoyStorageFrontA.value++;
-        this.variables.buoyStorageFrontB.value++;
+        this.variables.buoyStorageFrontGreen.value++;
+        this.variables.buoyStorageFrontRed.value++;
         this.app.map.removeComponent(this.app.map.getComponent("buoyStartingNorth", this.team));
         this.app.map.removeComponent(this.app.map.getComponent("buoyStartingFairwayNorth", this.team));
         await utils.sleep(500);
@@ -132,6 +148,7 @@ module.exports = class Robot2020 extends Robot{
                 break;
             }
         }
+        this.send();
         return this.variables.endZone.value>0;
     }
 
@@ -145,7 +162,7 @@ module.exports = class Robot2020 extends Robot{
 
     async grabBuoy(parameters){
         let elemList = []
-        let result = await this.openSideArms({sideB:!!parameters.sideB, sideA:!!parameters.sideA});
+        let result = await this.openSideArms({sideRed:!!parameters.sideRed, sideGreen:!!parameters.sideGreen});
         if(!result) return result;
         result = await this.moveBackward({distance:150, speed:0.2});
         if(!result) return result;
@@ -154,47 +171,175 @@ module.exports = class Robot2020 extends Robot{
             elemList.push(parameters.component)
         }
         result = await this.closeSideArms({
-            sideB:!!parameters.sideB,
-            sideA:!!parameters.sideA,
-            addBuoyStorageSideA:!!parameters.sideA,
-            addBuoyStorageSideB:!!parameters.sideB,
+            sideRed:!!parameters.sideRed,
+            sideGreen:!!parameters.sideGreen,
+            addBuoyStorageSideGreen:!!parameters.sideGreen,
+            addBuoyStorageSideRed:!!parameters.sideRed,
             removeFromMap:elemList
         });
         return result;
     }
 
     async grabReaf(parameters){
-        this.variables.buoyStorageFrontA.value++;
-        this.variables.buoyStorageFrontB.value++;
+        this.variables.buoyStorageFrontGreen.value++;
+        this.variables.buoyStorageFrontRed.value++;
         await utils.sleep(500);
         return true
     }
+    
+    addNewPairsScore(fairway, pairedFairway, fCount, pCount){
+        if(!fairway) return 0;
+        if(!("buoyCount" in fairway)) fairway.buoyCount = 0;
+        if(!pairedFairway) return 0;
+        if(!("buoyCount" in pairedFairway)) pairedFairway.buoyCount = 0;
+        if(fCount==0 && pCount==0) return 0;//no new buoy in fairways
+        //remove existing pairs
+        let existingPairs = Math.min(fairway.buoyCount, pairedFairway.buoyCount);
+        let newCountInFairway = fairway.buoyCount + fCount - existingPairs;
+        let newCountInPaired = pairedFairway.buoyCount + pCount - existingPairs;
+        let newPairCount = Math.min(newCountInFairway, newCountInPaired);
+        this.addScore(fCount*2 + pCount*2 + newPairCount*2);
+        fairway.buoyCount += fCount;
+        pairedFairway.buoyCount += pCount;
+        
+        console.log("Score add", fCount+pCount, "buoy,", newPairCount, "pair");
+        return true;
+    }
 
     async depositBuoys(parameters){
-        let result = await this.moveBackward({distance:100, speed:0.2});
-        if(!result) return result;
-        result = await this.openSideArms({sideA:!!parameters.sideA, sideB:!!parameters.sideB});
-        if(!result) return result;
-        let buoyCount = 0;
-        if(parameters.sideA){ 
-            buoyCount += this.variables.buoyStorageSideA.value;
-            this.variables.buoyStorageSideA.value = 0;
-        }
-        if(parameters.sideB){ 
-            buoyCount += this.variables.buoyStorageSideB.value;
-            this.variables.buoyStorageSideB.value = 0;
-        }
-        result = await this.moveForward({distance:200, speed:0.2});
-        if(!result) return result;
-        await this.closeSideArms({sideB:true, sideA:true});
+        let fairway = this.app.map.getComponent(parameters.component, this.team)
+        if(!fairway) return false;
+        if(!("buoyCount" in fairway)) fairway.buoyCount = 0;
+        let pairedFairway = this.app.map.getComponent(parameters.pairedComponent, this.team)
+        if(!pairedFairway) return false;
+        if(!("buoyCount" in pairedFairway)) pairedFairway.buoyCount = 0;
         
-        this.addScore(buoyCount*2);
+        
+        let backwardDist = 200 - 75*fairway.buoyCount;
+        console.log("buoys in fairway", fairway.buoyCount, "dist", backwardDist, "in paired", pairedFairway.buoyCount)
+        let result = await this.moveBackward({distance:backwardDist, speed:0.4});
+        if(!result) return result;
+        let handleSideGreen = parameters.sideGreen && this.variables.buoyStorageSideGreen.value>0;
+        let handleSideRed = parameters.sideRed && this.variables.buoyStorageSideRed.value>0;
+        
+        if(handleSideGreen || handleSideRed){
+            result = await this.openSideArms({sideGreen:handleSideGreen, sideRed:handleSideRed});
+            if(!result) return result;
+            let buoyCountGreen = 0;
+            let buoyCountRed = 0;
+            let maxSide = 0;
+            if(handleSideGreen){ 
+                buoyCountGreen = this.variables.buoyStorageSideGreen.value;
+                maxSide = Math.max(maxSide, this.variables.buoyStorageSideGreen.value);
+                this.variables.buoyStorageSideGreen.value = 0;
+            }
+            if(handleSideRed){ 
+                buoyCountRed = this.variables.buoyStorageSideRed.value;
+                maxSide = Math.max(maxSide, this.variables.buoyStorageSideRed.value);
+                this.variables.buoyStorageSideRed.value = 0;
+            }
+            let forwardDist = 200;
+            result = await this.moveForward({distance:forwardDist, speed:0.4});
+            if(!result) return result;
+            await this.closeSideArms({sideRed:true, sideGreen:true});
+            
+            //Add to score
+            if(handleSideGreen && handleSideRed) this.addNewPairsScore(fairway, pairedFairway, buoyCountGreen, buoyCountRed )
+            else this.addNewPairsScore(fairway, pairedFairway, maxSide, 0)
+        }
+        
+        //Handle front storage
+        let handleFrontGreen = parameters.sideGreen && this.variables.buoyStorageFrontGreen.value>0;
+        let handleFrontRed = parameters.sideRed && this.variables.buoyStorageFrontRed.value>0;
+        if(handleFrontGreen || handleFrontRed){ 
+            let angleDiff = 180;
+            if(handleFrontRed && !handleFrontGreen) angleDiff = 160;
+            if(handleFrontGreen && !handleFrontRed) angleDiff = -160;
+            await this.rotateToAngle({angle:utils.normAngle(this.angle+angleDiff), speed:0.4})
+            await this.setArmDefault();
+            let armPosCenter_Up = { a1:70, a2:95, a3:100, a4:40, a5:116, duration:200 };
+            let armPosReleaseGreen_Up = { a1:70, a2:30, a3:157, a4:40, a5:116, duration:200 };
+            let armPosReleaseGreen_Down = { a1:90, a2:30, a3:157, a4:40, a5:116, duration:200 };
+            if(handleFrontGreen && !handleFrontRed){
+                await this.modules.arm.setPose(armPosCenter_Up);
+                if(this.variables.buoyStorageFrontRed.value>0){
+                    await this.modules.arm.setPose(armPosReleaseGreen_Up);
+                    await this.modules.arm.enablePump();
+                    await this.modules.arm.setPose(armPosReleaseGreen_Down);
+                    await utils.sleep(750);
+                    await this.modules.arm.setPose(armPosReleaseGreen_Up);
+                }
+                //Score
+                let buoyCount = this.variables.buoyStorageFrontGreen.value;
+                this.addNewPairsScore(fairway, pairedFairway, buoyCount, 0);
+                this.variables.buoyStorageFrontGreen.value = 0;
+                //back move
+                result = await this.moveBackward({distance:200, speed:0.4});
+                if(this.variables.buoyStorageFrontRed.value>0){
+                    await this.modules.arm.setPose(armPosReleaseGreen_Down);
+                    await this.modules.arm.disablePump();
+                    await utils.sleep(500);
+                    await this.modules.arm.setPose(armPosReleaseGreen_Up);
+                    await this.modules.arm.setPose(armPosCenter_Up);
+                    await utils.sleep(100);
+                    await this.setArmClose({});
+                }
+                else await this.setArmDefault();
+            }
+            let armPosReleaseRed_Up = { a1:70, a2:160, a3:157, a4:40, a5:116, duration:200 };
+            let armPosReleaseRed_Down = { a1:90, a2:160, a3:157, a4:40, a5:116, duration:200 };
+            if(!handleFrontGreen && handleFrontRed){
+                await this.modules.arm.setPose(armPosCenter_Up);
+                if(this.variables.buoyStorageFrontGreen.value>0){
+                    await this.modules.arm.setPose(armPosReleaseRed_Up);
+                    await this.modules.arm.enablePump();
+                    await this.modules.arm.setPose(armPosReleaseRed_Down);
+                    await utils.sleep(750);
+                    await this.modules.arm.setPose(armPosReleaseRed_Up);
+                }
+                //score
+                let buoyCount = this.variables.buoyStorageFrontRed.value;
+                this.addNewPairsScore(fairway, pairedFairway, buoyCount, 0);
+                this.variables.buoyStorageFrontRed.value = 0;
+                //back move
+                result = await this.moveBackward({distance:200, speed:0.4});
+                if(this.variables.buoyStorageFrontGreen.value>0){
+                    await this.modules.arm.setPose(armPosReleaseRed_Down);
+                    await this.modules.arm.disablePump();
+                    await utils.sleep(500);
+                    await this.modules.arm.setPose(armPosReleaseRed_Up);
+                    await this.modules.arm.setPose(armPosCenter_Up);
+                    await utils.sleep(100);
+                    await this.setArmClose({});
+                }
+                else await this.setArmDefault();
+            }
+            if(handleFrontGreen && handleFrontRed){
+                //Score
+                this.addNewPairsScore(fairway, pairedFairway, this.variables.buoyStorageFrontGreen.value, this.variables.buoyStorageFrontRed.value );
+                
+                this.variables.buoyStorageFrontGreen.value = 0;
+                this.variables.buoyStorageFrontRed.value = 0;
+                //backmove
+                result = await this.moveBackward({distance:200, speed:0.4});
+            }
+        }
         //need to add 2 point per buoy pair
-        return true
+        return result;
     }
 
     async setArmDefault(parameters){
-        if(this.modules.arm) await this.modules.arm.setPose({ a1:170, a2:90, a3:50, a4:140, a5:25, duration:200 })
+        //if(this.modules.arm) await this.modules.arm.setPose({ a1:170, a2:90, a3:50, a4:140, a5:25, duration:200 })
+        if(this.modules.arm) await this.modules.arm.setPose({ a1:170, a2:90, a3:25, a4:120, a5:10, duration:500 })
+        return true;
+    }
+
+    async setArmClose(parameters){
+        if(this.modules.arm) await this.modules.arm.setPose({ a1:170, a2:95, a3:154, a4:50, a5:65, duration:200 })
+        if(parameters.addBuoyStorageFrontGreen) this.variables.buoyStorageFrontGreen.value+=parameters.addBuoyStorageFrontGreen===true?1:parameters.addBuoyStorageFrontGreen;
+        if(parameters.addBuoyStorageFrontRed) this.variables.buoyStorageFrontRed.value+=parameters.addBuoyStorageFrontRed===true?1:parameters.addBuoyStorageFrontRed;
+        if(parameters.removeFromMap) parameters.removeFromMap.forEach((e)=>this.app.map.removeComponent(this.app.map.getComponent(e, this.team)))
+        
         return true;
     }
 
@@ -209,16 +354,16 @@ module.exports = class Robot2020 extends Robot{
     }
 
     async openSideArms(parameters){
-        if(this.modules.arm && parameters.sideA) await this.modules.arm.setLeft({angle:70})
-        if(this.modules.arm && parameters.sideB) await this.modules.arm.setRight({angle:70})
+        if(this.modules.arm && parameters.sideRed) await this.modules.arm.setLeft({angle:70})
+        if(this.modules.arm && parameters.sideGreen) await this.modules.arm.setRight({angle:70})
         return true;
     }
 
     async closeSideArms(parameters){
         if(this.modules.arm) await this.modules.arm.setLeft({angle:105})
         if(this.modules.arm) await this.modules.arm.setRight({angle:105})
-        if(parameters.addBuoyStorageSideA) this.variables.buoyStorageSideA.value+=parameters.addBuoyStorageSideA===true?1:parameters.addBuoyStorageSideA;
-        if(parameters.addBuoyStorageSideB) this.variables.buoyStorageSideB.value+=parameters.addBuoyStorageSideB===true?1:parameters.addBuoyStorageSideB;
+        if(parameters.addBuoyStorageSideGreen) this.variables.buoyStorageSideGreen.value+=parameters.addBuoyStorageSideGreen===true?1:parameters.addBuoyStorageSideGreen;
+        if(parameters.addBuoyStorageSideRed) this.variables.buoyStorageSideRed.value+=parameters.addBuoyStorageSideRed===true?1:parameters.addBuoyStorageSideRed;
         if(parameters.removeFromMap) parameters.removeFromMap.forEach((e)=>this.app.map.removeComponent(this.app.map.getComponent(e, this.team)))
         return true;
     }
@@ -302,6 +447,22 @@ module.exports = class Robot2020 extends Robot{
         }
         //Deposit
 
+        return true;
+    }
+    
+    async performEndingMove(parameters){
+        if(this.variables.endZone.value==0) return false;
+        let result = true;
+        
+        let armPose = { a1:125, a2:90, a3:140, a4:140, a5:90, duration:200 };
+        if(this.modules.arm) result = await this.modules.arm.setPose(armPose);
+        if(!result) return result;
+        
+        let endingArea = this.variables.endZone.value==1?"endingAreaNorth":"endingAreaSouth";
+        result = await this.moveToComponent({ component: endingArea, speed: 0.4 });
+        if(!result) return result;
+        
+        this.addScore(5);
         return true;
     }
 

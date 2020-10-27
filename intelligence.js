@@ -21,6 +21,13 @@ module.exports = class Intelligence {
         this.app.map = new Map(this.app);
         this.app.map.init();
         this.app.logger.log("Map loaded");
+        
+        //Create robot
+        delete require.cache[require.resolve('./robots/robot_2020')]; //Delete require() cache
+        const Robot = require('./robots/robot_2020');
+        this.app.robot = new Robot(this.app);
+        await this.app.robot.init();
+        this.app.logger.log("Robot loaded");
 
         //Read the goals
         let goalsFile='./goals/goals_homologation';
@@ -31,13 +38,6 @@ module.exports = class Intelligence {
         this.app.goals = new Goals(this.app);
         this.app.goals.init();
         this.app.logger.log("Goals loaded");
-
-        //Create robot
-        delete require.cache[require.resolve('./robots/robot_2020')]; //Delete require() cache
-        const Robot = require('./robots/robot_2020');
-        this.app.robot = new Robot(this.app);
-        await this.app.robot.init();
-        this.app.logger.log("Robot loaded");
 
         this.send();
         this.updateInterval = setInterval(()=>this.updateMatchTime(),150);

@@ -237,6 +237,7 @@ module.exports = class Robot {
     async startFunnyAction(parameters){
         this.funnyActionTimeout = setTimeout(()=>{
             if(this.modules.arm) this.modules.arm.openFlag();
+            this.addScore(10);
         }, 99*1000);
         return true;
     }
@@ -386,13 +387,17 @@ module.exports = class Robot {
         if(this.disableColisions) return true;
         let collisionCount = 0;
         let slowdownCount = 0;
+        let angleA = utils.normAngle(this.movementAngle-this.collisionAngle/2);
+        let angleB = utils.normAngle(this.movementAngle+this.collisionAngle/2);
+        console.log("Detect between", angleA, angleB)
         for(let measure of this.modules.lidar.measures){
             //Check for collisions
-            let inCollisionRange = utils.angleInRange(
-                utils.normAngle(this.movementAngle-this.collisionAngle/2),
-                utils.normAngle(this.movementAngle+this.collisionAngle/2),
-                utils.normAngle(measure.a+this.angle)
-            );
+            let measureAngle = utils.normAngle(measure.a+this.angle);
+            //let inCollisionRange = (angleA<=measureAngle && measureAngle<=angleB)
+            let inCollisionRange = utils.angleInRange( angleA, angleB, measureAngle );
+            if(measure.d>0 && measure.d<this.collisionDistance){
+                console.log("angleInRange(", angleA, angleB, measureAngle, ") =", inCollisionRange)
+            }
             if(inCollisionRange && measure.d>0 && measure.d<this.collisionDistance){
                 collisionCount++
                 if(collisionCount>=3){

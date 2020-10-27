@@ -13,8 +13,11 @@ exports.normAngle = function(angle){
 }
 
 exports.angleInRange = function(startAngle, endAngle, angle){
-    if(endAngle > startAngle)  return startAngle <= angle && angle <= endAngle
-    else return (startAngle <= angle && angle <= 360) || (0 <= angle && angle <= endAngle)
+    
+    if(endAngle > startAngle)
+        return startAngle <= angle && angle <= endAngle
+    else
+        return (startAngle <= angle && angle <= 180) || (endAngle >= angle && angle >= -180)
 }
 
 exports.getLineAngle = function(x1,y1,x2,y2){
