@@ -146,7 +146,9 @@ void updateAsserv(){
 
   //Translation Speed
   double minSpeed = 0.05;
-  double slowDownDistance = 0.1;//m
+  if(runTargetPath && targetPathIndex>0 && targetPathIndex<targetPathSize-1)
+    minSpeed = 0.1;
+  double slowDownDistance = 0.08;//m
   double distFromStart = sqrt(pow(xPos - xStart,2) + pow(yPos - yStart,2)); // meters
   double distFromEnd = translationError;
   targetSpeed_mps = applySpeedRamp(distFromStart, distFromEnd, slowDownDistance, speedTarget, minSpeed);
