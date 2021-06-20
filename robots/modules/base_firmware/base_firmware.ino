@@ -1,20 +1,29 @@
-#include "BrushlessMotor.h" 
-
-#define MODE_I2C
+//#include "BrushlessMotor.h" 
+#include "SerialMotor.h" 
+//#define MODE_I2C
 #ifndef MODE_I2C
   #define MODE_SERIAL
   #define SERIAL_DEBUG
 #endif
 #include "comunication.h"
 
-const double wheelPerimeter = 186.5;//188.495559215;//mm = pi*d = pi*60
+const double wheelPerimeter = 186.5d;//188.495559215;//mm = pi*d = pi*60
+const double reductionFactor = 3.75d;
+#ifdef TEENSYDUINO
+const double wheelDistanceA = 125;//mm
+const double wheelDistanceB = 125;//mm
+const double wheelDistanceC = 125;//mm
+#else
 const double wheelDistanceA = 120;//mm
 const double wheelDistanceB = 125.4;//mm
 const double wheelDistanceC = 123;//mm
-
-BrushlessMotor motorA(0, wheelPerimeter, true);//9,10,11
-BrushlessMotor motorB(1, wheelPerimeter, true);//5,3,2
-BrushlessMotor motorC(2, wheelPerimeter, true);//8,7,6
+#endif
+//BrushlessMotor motorA(4,2,3, 39, A22, A21, wheelPerimeter, false);
+//BrushlessMotor motorB(7,5,6, 36, A19, A18, wheelPerimeter, false);
+//BrushlessMotor motorC(10,8,9,33, A16, A15, wheelPerimeter, false);
+SerialMotor motorA(&Serial3, wheelPerimeter/reductionFactor, false);
+SerialMotor motorB(&Serial4, wheelPerimeter/reductionFactor, false);
+SerialMotor motorC(&Serial2, wheelPerimeter/reductionFactor, false);
 
 const double motorA_angle = -60;//°
 const double motorB_angle = 180;//°
@@ -58,7 +67,6 @@ void setup()
   motorB.setSpeed(1);
   motorC.setSpeed(1);*/
 }
-//wheel perimeter 247mm
 
 //In meters, degrees, m/s and °/s
 double xStart = 0, yStart = 0, angleStart = 0;
@@ -209,7 +217,7 @@ void printCharts(){
 
   //Motor Speed
   Serial.print(motorB.getSpeed()*1000);Serial.print(" ");
-  Serial.print(0/*motorB.getPower()*1000*/);Serial.print(" ");
+  Serial.print(0);Serial.print(" ");
   //Serial.print(motorB.getSpeed()*1000);Serial.print(" ");
   //Serial.print(motorC.getSpeed()*1000);Serial.print(" ");
   Serial.print("\r\n");
@@ -491,6 +499,11 @@ void loop()
   //Read commands
   executeOrder();
 
+  //Spin motors
+  motorA.spin();
+  motorB.spin();
+  motorC.spin();
+
   unsigned long currMillis = millis();
   
   //Run position loop
@@ -506,9 +519,34 @@ void loop()
     lastControlMillis = currMillis;
     control();
   }
+  
+}
 
-  //Spin motors
+
+/*unsigned long lastPrintMillis = 0;
+void loop(){
+  motorA.setSpeed(0);
+  motorB.setSpeed(0);
+  motorC.setSpeed(0);
   motorA.spin();
   motorB.spin();
   motorC.spin();
-}
+  unsigned long now = millis();
+  if(now-lastPrintMillis> 100){
+    lastPrintMillis = now;
+    Serial.print(motorA.getAndResetDistanceDone()*1000.0d);
+    Serial.print(" ");
+    Serial.print(motorB.getAndResetDistanceDone()*1000.0d);
+    Serial.print(" ");
+    Serial.println(motorC.getAndResetDistanceDone()*1000.0d);
+  }
+}*/
+
+/*void loop(){
+  motorB.setSpeed(0.1);
+  //motorB.setSpeed(0.4);
+  //motorC.setSpeed(0.4);
+  while(1){
+    motorB.spin();
+  }
+}*/

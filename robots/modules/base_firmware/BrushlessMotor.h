@@ -2,13 +2,9 @@
 #define BrushlessMotor_h
 
 #include <Arduino.h>
-//#define BRUSHLESS_STEPCOUNT 30
-//#define BRUSHLESS_STEP_PER_REVOLUTION 210
-#define BRUSHLESS_STEPCOUNT 60
-#define BRUSHLESS_STEP_PER_REVOLUTION 420
-//#define BRUSHLESS_STEP_PER_REVOLUTION 420
-//#define BRUSHLESS_STEPCOUNT 120
-//#define BRUSHLESS_STEP_PER_REVOLUTION 840
+#include <SimpleFOC.h>
+#define BRUSHLESS_STEPCOUNT 30
+#define BRUSHLESS_STEP_PER_REVOLUTION 777
 
 
 #define BRUSHLESS_MIN_POWER 0.25
@@ -17,7 +13,7 @@
 class BrushlessMotor
 {
 public:
-  BrushlessMotor(int motorId=0, float wheelPerimeter=100, bool invert=false); //mm
+  BrushlessMotor(int pinA, int pinB, int pinC, int sensorPin, int currentSensA, int currentSensB, float wheelPerimeter=100, bool invert=false); //mm
   ~BrushlessMotor();
   
   void begin();
@@ -32,6 +28,10 @@ public:
 
 
 //private:
+  BLDCMotor motor;
+  BLDCDriver3PWM driver;
+  MagneticSensorAnalog sensor;
+  InlineCurrentSense current_sense;
   int m_motorId;
   uint8_t m_pinA;
   uint8_t m_pinB;
@@ -57,6 +57,9 @@ public:
   double m_oldSpeed = 0;
 
   double m_stepsDone = 0;
+  double m_angleDoneOffset = 0;
+
+  bool useFOC = true;
 };
 
 #endif // BrushlessMotor_h

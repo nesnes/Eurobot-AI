@@ -1,7 +1,13 @@
 #include "BrushlessMotor.h"
 
-BrushlessMotor::BrushlessMotor(int motorId, float wheelPerimeter, bool invert)
-	: m_motorId(motorId)
+BrushlessMotor::BrushlessMotor(int pinA, int pinB, int pinC, int sensorPin, int currentSensA, int currentSensB, float wheelPerimeter, bool invert)
+	: motor(11)
+  , driver(pinA, pinB, pinC)
+  , sensor(sensorPin, 2, 1023)
+  , current_sense(0.01, 50.0, currentSensA, currentSensB)
+  , m_pinA(pinA)
+  , m_pinB(pinB)
+  , m_pinC(pinC)
   , m_wheelPerimeter(wheelPerimeter) //mm
   , m_inverted(invert)
 {
@@ -13,72 +19,51 @@ BrushlessMotor::~BrushlessMotor(){
 }
   
 void BrushlessMotor::begin(){
-  /* https://playground.arduino.cc/Main/TimerPWMCheatsheet/
-   * For Arduino Mega: (tested on Arduino Mega 2560)
-  timer 0 (controls pin 13, 4) If you change TCCR0B, it affects millis() and delay().
-  timer 1 (controls pin 12, 11)
-  timer 2 (controls pin 10, 9)
-  timer 3 (controls pin 5, 3, 2)
-  timer 4 (controls pin 8, 7, 6)
-  TCCRnB, where 'n' is the number for the timer*/
+  if(useFOC) {
+    sensor.init();
+    motor.linkSensor(&sensor);
+  }
   
-  /*For Arduino pRO mINI:
-  timer 0 (controls pin 5, 6) If you change TCCR0B, it affects millis() and delay().
-  timer 1 (controls pin 9, 10)
-  timer 2 (controls pin 11, 3)
-  TCCRnB, where 'n' is the number for the timer*/
-  if(m_motorId == 0){
-    m_pinA = 9;
-    m_pinB = 10;
-    m_pinC = 11;
-    
-  	TCCR1B = TCCR1B & 0b11111000 | 0x01; // set PWM frequency @ 31250 Hz for Pins 9 and 10
-  	TCCR2B = TCCR2B & 0b11111000 | 0x01; // set PWM frequency @ 31250 Hz for Pins 11 and 3 (3 not used)
-  	ICR1 = 255 ; // 8 bit resolution, required?
-    //  ICR1 = 1023 ; // 10 bit resolution
+  driver.voltage_power_supply = 14;
+  driver.init();
+  motor.linkDriver(&driver);
+  current_sense.init();
+  motor.linkCurrentSense(&current_sense);
+
+   
+  if(useFOC){
+    motor.torque_controller = TorqueControlType::dc_current; 
+    motor.controller = MotionControlType::velocity;
   }
-  if(m_motorId == 1){
-    m_pinA = 5;
-    m_pinB = 3;
-    m_pinC = 2;
-    
-    TCCR3B = TCCR3B & 0b11111000 | 0x01; // set PWM frequency @ 31250 Hz for Pins 5, 3 and 2
-    ICR3 = 255 ; // 8 bit resolution, required?
-    //  ICR1 = 1023 ; // 10 bit resolution
+  else {
+    motor.controller = MotionControlType::velocity_openloop;
   }
-  if(m_motorId == 2){
-    m_pinA = 8;
-    m_pinB = 7;
-    m_pinC = 6;
-    
-    TCCR4B = TCCR4B & 0b11111000 | 0x01; // set PWM frequency @ 31250 Hz for Pins 8, 7 and 6
-    ICR4 = 255 ; // 8 bit resolution, required?
-    //  ICR1 = 1023 ; // 10 bit resolution
+  motor.PID_velocity.P = 0.2;
+  motor.PID_velocity.I = 20;
+  motor.PID_velocity.D = 0;
+  motor.LPF_velocity.Tf = 0.01;
+  
+  motor.voltage_limit = 14;
+  motor.current_limit = 1.3;
+  motor.velocity_limit = 100; // [rad/s]
+  // jerk control using voltage voltage ramp
+  // default value is 300 volts per sec  ~ 0.3V per millisecond
+  motor.PID_velocity.output_ramp = 1000;
+  
+  motor.init();
+  if(useFOC)
+  {
+    motor.initFOC();
   }
-
-
-	m_currentStepA = (int)(((float)(BRUSHLESS_STEPCOUNT)/3.0f)*0.0f);
-	m_currentStepB = (int)(((float)(BRUSHLESS_STEPCOUNT)/3.0f)*1.0f);
-	m_currentStepC = (int)(((float)(BRUSHLESS_STEPCOUNT)/3.0f)*2.0f);
-
-	for(int i=0;i<BRUSHLESS_STEPCOUNT;i++){
-		m_pwmSin[i] = 127.0f + 127.0f*sin( ((2.0f*PI)/(float)(BRUSHLESS_STEPCOUNT)) *(float)(i) );
-	}
-
-	pinMode(m_pinA, OUTPUT);
-	pinMode(m_pinB, OUTPUT);
-	pinMode(m_pinC, OUTPUT);
-
-  analogWrite(m_pinA, m_pwmSin[m_currentStepA]/20);
-  analogWrite(m_pinB, m_pwmSin[m_currentStepB]/20);
-  analogWrite(m_pinC, m_pwmSin[m_currentStepC]/20);
 }
 
 double BrushlessMotor::getAndResetDistanceDone(){
-  double stepsDone = m_stepsDone;
-  m_stepsDone = 0;
-  if(stepsDone==0) return 0;
-  double revolutions = (1.0d/double(BRUSHLESS_STEP_PER_REVOLUTION))*stepsDone;
+  double angleDone = motor.shaft_angle/**180.0/PI*/ - m_angleDoneOffset; //get
+  m_angleDoneOffset = motor.shaft_angle; //reset
+  //double stepsDone = m_stepsDone;
+  //m_stepsDone = 0;
+  //if(stepsDone==0) return 0;
+  double revolutions = angleDone/_2PI;// 360.0;
   double distance = (revolutions*m_wheelPerimeter)/1000.0d; //meters
   if(m_inverted) distance *= -1.0d;
   return distance;
@@ -100,12 +85,8 @@ float BrushlessMotor::getPower(){ // m/s
 void BrushlessMotor::computeSpeed(){
   //Acceleration
   double speedStep = 0.005*m_syncFactor;//0.001
-  //if(m_requestedSpeed==0) speedStep = 0.004*m_syncFactor;
-  //double speedStepAccel = 0.0001;//0.001
-  //double speedStep = (!m_inverted)?speedStepAccel:speedStepBreak;//0.001
   double absCurrSpeed = abs(m_currSpeed);
   double absRequestedSpeed = abs(m_requestedSpeed);
-  //if(absRequestedSpeed<absCurrSpeed) speedStep = (!m_inverted)?speedStepBreak:speedStepAccel;
   if(m_requestedSpeed == 0 && absCurrSpeed<=speedStep){
     m_currSpeed = 0;
     absCurrSpeed = 0;
@@ -116,24 +97,12 @@ void BrushlessMotor::computeSpeed(){
 
   //Power
   m_powerCount+=m_syncFactor;
-  /*if(m_powerCount==30){
-    m_powerCount=0;
-    float speedDiff = abs(abs(m_oldSpeed) - absCurrSpeed)*50;
-    m_oldSpeed = m_currSpeed;
-    m_power = speedDiff;
-  }*/
-  /*if(absRequestedSpeed != absCurrSpeed){
-    m_power = m_requestedSpeed;//fabs(absCurrSpeed - absRequestedSpeed)*100;
-  }
-  else m_power = BRUSHLESS_MIN_POWER;*/
   if(m_power>BRUSHLESS_MAX_POWER) m_power = BRUSHLESS_MAX_POWER;
   if(m_power<BRUSHLESS_MIN_POWER) m_power = BRUSHLESS_MIN_POWER;
-  //m_currSpeed = m_requestedSpeed;
   
   //Compute timers
   if(m_inverted) m_direction = m_currSpeed>0.0d?-1:1;
   else  m_direction = m_currSpeed>0.0d?1:-1;
-  //if(m_currSpeed==0) m_direction = 0;
   double revPerMeter = (absCurrSpeed*1000.0d)/m_wheelPerimeter; //speed*1000 -> m to mm
   double stepCount = double(BRUSHLESS_STEP_PER_REVOLUTION) * revPerMeter;
   if(stepCount>=1)
@@ -144,71 +113,13 @@ void BrushlessMotor::computeSpeed(){
 }
 
 void BrushlessMotor::spin(){
-  unsigned long currMicro = micros();
-  unsigned long diffMicro = currMicro - m_lastMicro;
-  if(currMicro < m_lastMicro){ //handle overflow (~every hours)
-    diffMicro = 0;
-  }
-
-  computeSpeed();
-  
-  if(m_currSleep == 0 || diffMicro < m_currSleep) return; //Nothing to do
-  m_lastMicro = currMicro;
-
-
-  m_currentStepA = m_currentStepA + m_direction;
-  if(m_currentStepA > BRUSHLESS_STEPCOUNT-1) m_currentStepA = 0;
-  if(m_currentStepA<0) m_currentStepA = BRUSHLESS_STEPCOUNT-1;
-   
-  m_currentStepB = m_currentStepB + m_direction;
-  if(m_currentStepB > BRUSHLESS_STEPCOUNT-1) m_currentStepB = 0;
-  if(m_currentStepB<0) m_currentStepB = BRUSHLESS_STEPCOUNT-1;
-   
-  m_currentStepC = m_currentStepC + m_direction;
-  if(m_currentStepC > BRUSHLESS_STEPCOUNT-1) m_currentStepC = 0;
-  if(m_currentStepC<0) m_currentStepC = BRUSHLESS_STEPCOUNT-1;
-
-  analogWrite(m_pinA, m_pwmSin[m_currentStepA]*m_power);
-  analogWrite(m_pinB, m_pwmSin[m_currentStepB]*m_power);
-  analogWrite(m_pinC, m_pwmSin[m_currentStepC]*m_power);
-  m_stepsDone += m_direction;
-}
-
-void BrushlessMotor::spinDegrees(float degrees)
-{
-  int sleep = 3000;//1500;//400
-  float currDegrees=0;
-  unsigned long now = micros();
-  
-	while((degrees>0 && currDegrees < degrees) || (degrees<=0 && currDegrees > degrees)){
-  
-		//if((now - lastMotorDelayTime) >  motorDelayActual){ // delay time passed, move one step 
-		int increment;
-		if (degrees>0) increment = 1;
-		else increment = -1;  
-    
-		m_currentStepA = m_currentStepA + increment;
-		if(m_currentStepA > BRUSHLESS_STEPCOUNT-1) m_currentStepA = 0;
-		if(m_currentStepA<0) m_currentStepA = BRUSHLESS_STEPCOUNT-1;
-		 
-		m_currentStepB = m_currentStepB + increment;
-		if(m_currentStepB > BRUSHLESS_STEPCOUNT-1) m_currentStepB = 0;
-		if(m_currentStepB<0) m_currentStepB = BRUSHLESS_STEPCOUNT-1;
-		 
-		m_currentStepC = m_currentStepC + increment;
-		if(m_currentStepC > BRUSHLESS_STEPCOUNT-1) m_currentStepC = 0;
-		if(m_currentStepC<0) m_currentStepC = BRUSHLESS_STEPCOUNT-1;
-	   
-		//lastMotorDelayTime = now;
-		//}  
-		analogWrite(m_pinA, m_pwmSin[m_currentStepA]/4);
-		analogWrite(m_pinB, m_pwmSin[m_currentStepB]/4);
-		analogWrite(m_pinC, m_pwmSin[m_currentStepC]/4);
-		if(sleep>0)
-			delayMicroseconds(sleep);
-    float degPerStep = 360.f/(float)(BRUSHLESS_STEP_PER_REVOLUTION);
-    currDegrees += (degrees>0)?degPerStep:-degPerStep;
-		//currDegrees += (degrees>0)?0.275:-0.275;
-    //currDegrees += (degrees>0)?1:-1;
-	}
+  //computeSpeed();
+  if(m_inverted) m_currSpeed = -m_requestedSpeed;
+  else m_currSpeed = m_requestedSpeed;
+  // convert speed from m/s to rad/s
+  //double absCurrSpeed = abs(m_currSpeed);
+  double revPerMeter = (m_currSpeed*1000.0d)/m_wheelPerimeter;
+  double radSpeed = revPerMeter*2.0*PI;
+  if(useFOC) motor.loopFOC();
+  motor.move(radSpeed);
 }
