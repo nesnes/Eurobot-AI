@@ -13,7 +13,7 @@ module.exports = class Robotlink {
         this.buffer = "";
         this.inputMessages = [];
         this.useAddressing = false;
-        if(process.platform=="linux") this.port = "/dev/arduino"; //Raspberry/Linux
+        if(process.platform=="linux") this.port = "/dev/robot"; //Raspberry/Linux
         if(process.platform=="darwin") this.port = "/dev/cu.usbmodem80144101"; //Mac
         if(process.platform=="win32") this.port = ""; //Windows
     }
