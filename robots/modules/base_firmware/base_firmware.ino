@@ -36,6 +36,37 @@ const double motorC_angle = 60;//°
 //----B---
 //--BACK--
 
+// Servos
+#include <Servo.h>
+#include <Ramp.h>  
+const int MIN_PULSE = 500;
+const int MAX_PULSE = 2500;
+
+const int SERVO_AC_A = 29;//29
+const int SERVO_AC_C = 2;//
+const int SERVO_AB_A = 6;//
+const int SERVO_AB_B = 5;//
+const int SERVO_BC_B = 4;//
+const int SERVO_BC_C = 3;//
+const int SERVO_FLAG = 20;
+Servo servoAC_A, servoAC_C;
+Servo servoAB_A, servoAB_B;
+Servo servoBC_B, servoBC_C;
+Servo servoFlag;
+ramp servoRampAC_A, servoRampAC_C;
+ramp servoRampAB_A, servoRampAB_B;
+ramp servoRampBC_B, servoRampBC_C;
+ramp servoRampFlag;
+
+const int NB_SERVO_ARM_M = 5;
+const int pinNumberServo_M[NB_SERVO_ARM_M] = {30,23,22,35,21};
+Servo servos_M[NB_SERVO_ARM_M];
+ramp servosRamp_M[NB_SERVO_ARM_M];
+const int pinNumberPump_A = 3;
+const int pinNumberPump_C = 3;
+int positionServo_M_DefaultOut[NB_SERVO_ARM_M] = {90,90,90,90,90};//Z 40 90 90 90 90 140 0
+int positionServo_M_Default[NB_SERVO_ARM_M] = {50,90,140,50,90};//Z 40 10 150 60 90 140 0
+
 typedef struct {
   float x=0;
   float y=0;
@@ -52,9 +83,44 @@ int targetPathIndex = 0;
 int targetPathSize = 0;
 bool runTargetPath = false;
 
+void setArmPose(int* pose, int duration)
+{
+  for(int i=0;i<NB_SERVO_ARM_M;i++){
+    servosRamp_M[i].go(pose[i], duration);
+  }
+}
+
 void setup()
 {
-  //Serial.begin(115200);
+  servoAC_A.attach(SERVO_AC_A, MIN_PULSE, MAX_PULSE);//SERVO_AC_A
+  servoAC_C.attach(SERVO_AC_C, MIN_PULSE, MAX_PULSE);
+  servoAB_A.attach(SERVO_AB_A, MIN_PULSE, MAX_PULSE);
+  servoAB_B.attach(SERVO_AB_B, MIN_PULSE, MAX_PULSE);
+  servoBC_B.attach(SERVO_BC_B, MIN_PULSE, MAX_PULSE);
+  servoBC_C.attach(SERVO_BC_C, MIN_PULSE, MAX_PULSE);
+  servoFlag.attach(SERVO_FLAG, MIN_PULSE, MAX_PULSE);
+  servoAC_A.write(90);
+  servoAC_C.write(90);
+  servoAB_A.write(90);
+  servoAB_B.write(90);
+  servoBC_B.write(90);
+  servoBC_C.write(90);
+  servoFlag.write(90);
+  servoRampAC_A.go(90,0);
+  servoRampAC_C.go(90,0);
+  servoRampAB_A.go(90,0);
+  servoRampAB_B.go(90,0);
+  servoRampBC_B.go(90,0);
+  servoRampBC_C.go(90,0);
+  servoRampFlag.go(90,0);
+  
+  // Setup Arm M
+  for(int i=0; i<NB_SERVO_ARM_M; i++){
+    servos_M[i].attach(pinNumberServo_M[i], MIN_PULSE, MAX_PULSE);
+    setArmPose(positionServo_M_DefaultOut, 0);
+  }
+  updateServos();
+  
   //Init motor
   motorA.begin();  
   motorB.begin();
@@ -212,11 +278,11 @@ void printCharts(){
   Serial.print(angleSpeedTarget);Serial.print(" ");
 
   //Position Speed
-  Serial.print(targetSpeed_mps*1000);Serial.print(" ");
-  Serial.print(speedTarget*1000);Serial.print(" ");
+  Serial.print(targetSpeed_mps);Serial.print(" ");
+  Serial.print(speedTarget);Serial.print(" ");
 
   //Motor Speed
-  Serial.print(motorB.getSpeed()*1000);Serial.print(" ");
+  Serial.print(motorA.getSpeed()*1000);Serial.print(" ");
   Serial.print(0);Serial.print(" ");
   //Serial.print(motorB.getSpeed()*1000);Serial.print(" ");
   //Serial.print(motorC.getSpeed()*1000);Serial.print(" ");
@@ -483,11 +549,50 @@ void executeOrder(){
       emergencyStop = false;
       runTargetPath = false;
     }
+    else if(strstr(comunication_InBuffer, "servo set ")){
+      sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
+      comunication_write();//async
+      char c1, c2, c3;
+      int angle=90, duration=0;
+      sscanf(comunication_InBuffer, "servo set %c%c%c %i %i", &c1, &c2, &c3, &angle, &duration);
+      if(c1=='A' && c2=='C' && c3=='A') servoRampAC_A.go(angle, duration);
+      if(c1=='A' && c2=='C' && c3=='C') servoRampAC_C.go(angle, duration);
+      if(c1=='A' && c2=='B' && c3=='A') servoRampAB_A.go(angle, duration);
+      if(c1=='A' && c2=='B' && c3=='B') servoRampAB_B.go(angle, duration);
+      if(c1=='B' && c2=='C' && c3=='B') servoRampBC_B.go(angle, duration);
+      if(c1=='B' && c2=='C' && c3=='C') servoRampBC_C.go(angle, duration);
+      if(c1=='F' && c2=='L' && c3=='A') servoRampFlag.go(angle, duration);
+    }
+    else if(strstr(comunication_InBuffer, "Z ")){
+      int a1=90,a2=90,a3=90,a4=90,a5=90,t=0;
+      sscanf(comunication_InBuffer, "Z %i %i %i %i %i %i",&a1,&a2,&a3,&a4,&a5,&t);
+      int pose[NB_SERVO_ARM_M];
+      pose[0]=a1;
+      pose[1]=a2;
+      pose[2]=a3;
+      pose[3]=a4;
+      pose[4]=a5;
+      sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
+      comunication_write();//async
+      setArmPose(pose, t);
+    }
     else{
       sprintf(comunication_OutBuffer,"ERROR");
       comunication_write();//async
     }
     comunication_cleanInputs();
+  }
+}
+
+void updateServos(){
+  servoAC_A.write(servoRampAC_A.update());
+  servoAC_C.write(servoRampAC_C.update());
+  servoAB_A.write(servoRampAB_A.update());
+  servoAB_B.write(servoRampAB_B.update());
+  servoBC_B.write(servoRampBC_B.update());
+  servoBC_C.write(servoRampBC_C.update());
+  for(int i=0;i<NB_SERVO_ARM_M;i++){
+    servos_M[i].write(servosRamp_M[i].update());
   }
 }
 
@@ -519,6 +624,7 @@ void loop()
     lastControlMillis = currMillis;
     control();
   }
+  updateServos();
   
 }
 

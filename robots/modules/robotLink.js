@@ -12,8 +12,9 @@ module.exports = class Robotlink {
         this.serial = null;
         this.buffer = "";
         this.inputMessages = [];
+        this.useAddressing = false;
         if(process.platform=="linux") this.port = "/dev/arduino"; //Raspberry/Linux
-        if(process.platform=="darwin") this.port = "/dev/cu.usbserial-001K395U"; //Mac
+        if(process.platform=="darwin") this.port = "/dev/cu.usbmodem80144101"; //Mac
         if(process.platform=="win32") this.port = ""; //Windows
     }
     
@@ -57,8 +58,10 @@ module.exports = class Robotlink {
     async sendMessage(address, message, timeout=1){
         //this.inputMessages.length = 0;
         //Send
-        let msgOut = "s "+address+" "+message+"\r\n";
-        //console.log(msgOut)
+        let msgOut = "";
+        if(this.useAddressing) msgOut += "s "+address+" ";
+        msgOut += message+"\r\n";
+        console.log(msgOut)
         this.serial.write(msgOut);
         //Wait for answer
         let sleep = 0.02;
@@ -69,10 +72,9 @@ module.exports = class Robotlink {
             for(let i=0;i<this.inputMessages.length;i++){
                 let msg = this.inputMessages[i];
                 let prefix = "r "+address+" ";
-                if(msg.startsWith(prefix)){
+                if(msg.startsWith(prefix) || !this.useAddressing){
                     this.inputMessages.splice(i,1);
-                    let result = msg.substring(prefix.length);
-                    //console.log("timeout", timeout)
+                    let result = this.useAddressing ? msg.substring(prefix.length) : msg;
                     if(result.includes("ERROR")) return false;
                     else return result;
                 }

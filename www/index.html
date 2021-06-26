@@ -249,6 +249,9 @@
                                                 <template v-if="param.type=='number'">
                                                     <input class="form-control" v-bind:type="param.type" v-bind:min="param.min" v-bind:max="param.max" v-model:value="param.value">
                                                 </template>
+                                                <template v-if="param.type=='text'">
+                                                    <input class="form-control" v-bind:type="param.type" v-model:value="param.value">
+                                                </template>
                                             </div>
                                         </li>
                                     </ul>

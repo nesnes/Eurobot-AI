@@ -27,8 +27,10 @@ module.exports = class Arm {
                     a5:{ legend:"wrist", type:"range", min:0, max:180, value:90, step:1 },
                     duration:{ type:"range", min:0, max:1000, value:0, step:1 }
                 },
-                setLeft: { angle:{ legend:"angle", type:"range", min:0, max:180, value:90, step:1 } },
-                setRight:{ angle:{ legend:"angle", type:"range", min:0, max:180, value:90, step:1 } },
+                setServo: { name:{ legend:"name", type:"text" },
+                            angle:{ legend:"angle", type:"range", min:0, max:180, value:90, step:1 },
+                            duration:{ type:"range", min:0, max:1000, value:0, step:1 }
+                },
                 setFlag:{ angle:{ legend:"angle", type:"range", min:0, max:180, value:90, step:1 } }
             }
         }
@@ -63,34 +65,23 @@ module.exports = class Arm {
         return result;
     }
 
-    async setLeft(params){
-        this.app.logger.log("set left");
-        let msg = "setLeft "+params.angle;
+    async setServo(params){
+        this.app.logger.log("set servo");
+        if(!("duration" in params)) params.duration = 0;
+        if(!("name" in params)) return "ERROR";
+        let msg = "servo set "+params.name+" "+params.angle+" "+params.duration;
         let result = true;
         if(this.app.robot.modules.robotLink)
             result =  await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
-        await utils.sleep(200);
-        return result;
-    }
-
-    async setRight(params){
-        this.app.logger.log("set right");
-        let msg = "setRight "+params.angle;
-        let result = true;
-        if(this.app.robot.modules.robotLink)
-            result =  await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
-        await utils.sleep(200);
+        await utils.sleep(params.duration);
         return result;
     }
 
     async setFlag(params){
         this.app.logger.log("set flag");
-        let msg = "setFlag "+params.angle;
-        let result = true;
-        if(this.app.robot.modules.robotLink)
-            result =  await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
-        await utils.sleep(200);
-        return result;
+        params.name = "FLA";
+        params.duration = 0;
+        return await this.setServo(params);
     }
     async openFlag(params){ return await this.setFlag({angle:5}); }
     async closeFlag(params){ return await this.setFlag({angle:25}); }
