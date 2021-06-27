@@ -3,7 +3,7 @@
 //#define MODE_I2C
 #ifndef MODE_I2C
   #define MODE_SERIAL
-  #define SERIAL_DEBUG
+  //#define SERIAL_DEBUG
 #endif
 #include "comunication.h"
 
@@ -62,8 +62,8 @@ const int NB_SERVO_ARM_M = 5;
 const int pinNumberServo_M[NB_SERVO_ARM_M] = {30,23,22,35,21};
 Servo servos_M[NB_SERVO_ARM_M];
 ramp servosRamp_M[NB_SERVO_ARM_M];
-const int pinNumberPump_A = 3;
-const int pinNumberPump_C = 3;
+const int pinNumberPump_L = 37;
+const int pinNumberPump_R = 36;
 int positionServo_M_DefaultOut[NB_SERVO_ARM_M] = {90,90,90,90,90};//Z 40 90 90 90 90 140 0
 int positionServo_M_Default[NB_SERVO_ARM_M] = {50,90,140,50,90};//Z 40 10 150 60 90 140 0
 
@@ -120,6 +120,12 @@ void setup()
     setArmPose(positionServo_M_DefaultOut, 0);
   }
   updateServos();
+
+  //Setup pumps
+  pinMode(pinNumberPump_L, OUTPUT);
+  pinMode(pinNumberPump_R, OUTPUT);
+  digitalWrite(pinNumberPump_L, LOW);
+  digitalWrite(pinNumberPump_R, LOW);
   
   //Init motor
   motorA.begin();  
@@ -575,6 +581,16 @@ void executeOrder(){
       sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
       comunication_write();//async
       setArmPose(pose, t);
+    }
+    else if(strstr(comunication_InBuffer, "pump set ")){
+      sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
+      comunication_write();//async
+      char c1, c2, c3;
+      int value=0;
+      sscanf(comunication_InBuffer, "pump set %c%c%c %i", &c1, &c2, &c3, &value);
+      value = value?1:0;
+      if(c1=='L' && c2=='E' && c3=='F') digitalWrite(pinNumberPump_L, value);
+      if(c1=='R' && c2=='I' && c3=='G') digitalWrite(pinNumberPump_R, value);
     }
     else{
       sprintf(comunication_OutBuffer,"ERROR");
