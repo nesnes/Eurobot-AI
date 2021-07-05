@@ -3,12 +3,12 @@
 //#define MODE_I2C
 #ifndef MODE_I2C
   #define MODE_SERIAL
-  //#define SERIAL_DEBUG
+  #define SERIAL_DEBUG
 #endif
 #include "comunication.h"
 
 const double wheelPerimeter = 186.5d;//188.495559215;//mm = pi*d = pi*60
-const double reductionFactor = 3.75d;
+const double reductionFactor = 3.75d;//3.75d
 #ifdef TEENSYDUINO
 const double wheelDistanceA = 125;//mm
 const double wheelDistanceB = 125;//mm
@@ -92,6 +92,7 @@ void setArmPose(int* pose, int duration)
 
 void setup()
 {
+  delay(2500);
   servoAC_A.attach(SERVO_AC_A, MIN_PULSE, MAX_PULSE);//SERVO_AC_A
   servoAC_C.attach(SERVO_AC_C, MIN_PULSE, MAX_PULSE);
   servoAB_A.attach(SERVO_AB_A, MIN_PULSE, MAX_PULSE);
@@ -99,20 +100,13 @@ void setup()
   servoBC_B.attach(SERVO_BC_B, MIN_PULSE, MAX_PULSE);
   servoBC_C.attach(SERVO_BC_C, MIN_PULSE, MAX_PULSE);
   servoFlag.attach(SERVO_FLAG, MIN_PULSE, MAX_PULSE);
-  servoAC_A.write(90);
-  servoAC_C.write(90);
-  servoAB_A.write(90);
-  servoAB_B.write(90);
-  servoBC_B.write(90);
-  servoBC_C.write(90);
-  servoFlag.write(90);
-  servoRampAC_A.go(90,0);
-  servoRampAC_C.go(90,0);
-  servoRampAB_A.go(90,0);
-  servoRampAB_B.go(90,0);
-  servoRampBC_B.go(90,0);
-  servoRampBC_C.go(90,0);
-  servoRampFlag.go(90,0);
+  servoRampAC_A.go(70,0);
+  servoRampAC_C.go(110,0);
+  servoRampAB_A.go(110,0);
+  servoRampAB_B.go(70,0);
+  servoRampBC_B.go(110,0);
+  servoRampBC_C.go(70,0);
+  servoRampFlag.go(27,0);
   
   // Setup Arm M
   for(int i=0; i<NB_SERVO_ARM_M; i++){
@@ -143,7 +137,7 @@ void setup()
 //In meters, degrees, m/s and °/s
 double xStart = 0, yStart = 0, angleStart = 0;
 double xPos = 0, yPos = 0, anglePos = 0;
-double xTarget = 0, yTarget = 0, angleTarget = 0, speedTarget = 5.5, angleSpeedTarget = 50;
+double xTarget = 0, yTarget = 0, angleTarget = 0, speedTarget = 3.5, angleSpeedTarget = 50;
 
 void updatePosition(){
   double distA = motorA.getAndResetDistanceDone();
@@ -183,13 +177,13 @@ double targetMovmentAngle = 0;
 double targetSpeed_mps = 0.0;// m/s
 double targetAngleSpeed_dps = 0;// °/s
 
-double targetAngleError = 1.0; //°
-double targetPosError = 0.005; //meters
+double targetAngleError = 2.5; //° 1.0
+double targetPosError = 0.01; //meters
 bool targetReached = true;
-int targetReachedCountTarget = 10;
+int targetReachedCountTarget = 5;
 int targetReachedCount = 0;
 
-double applySpeedRamp(double distFromStart, double distFromEnd, double rampDist, double speedTarget, double minSpeed){
+double applySpeedRamp(double distFromStart, double distFromEnd, double rampDist, double speedTarget, double minSpeed, double endSpeed){
   double speed = speedTarget;
   double errorSign = distFromEnd>0?1:-1;
   if(abs(distFromStart)<rampDist){ //speed up ramp
@@ -203,6 +197,20 @@ double applySpeedRamp(double distFromStart, double distFromEnd, double rampDist,
   else { //cruise speed
     speed = speedTarget;
   }
+  /*if(abs(distFromStart)<rampDist/4 and abs(distFromEnd)<rampDist/4){
+    speed = minSpeed;
+  }
+  else if(abs(distFromStart)<rampDist && abs(distFromStart) < abs(distFromEnd)){ //speed up ramp
+    float factor = 1.0/rampDist*abs(distFromStart);
+    speed = (speedTarget-minSpeed)*factor+minSpeed;
+  }
+  else if(abs(distFromEnd)<rampDist && abs(distFromEnd) < abs(distFromStart)){ //speed down ramp
+    float factor = 1.0/rampDist*abs(distFromEnd);
+    speed = (speedTarget-endSpeed)*factor+endSpeed;
+  }
+  else { //cruise speed
+    speed = speedTarget;
+  }*/
   //Bound speed
   if(abs(speed)>speedTarget) speed = speedTarget;
   if(abs(speed)<minSpeed) speed = minSpeed;
@@ -226,21 +234,25 @@ void updateAsserv(){
 
   //Translation Speed
   double minSpeed = 0.05;
+  double endSpeed = 0.01;
   if(runTargetPath && targetPathIndex>0 && targetPathIndex<targetPathSize-1)
-    minSpeed = 0.1;
-  double slowDownDistance = 0.08;//m
+    minSpeed = 0.08;
+  double slowDownDistance = 0.20;//m
   double distFromStart = sqrt(pow(xPos - xStart,2) + pow(yPos - yStart,2)); // meters
   double distFromEnd = translationError;
-  targetSpeed_mps = applySpeedRamp(distFromStart, distFromEnd, slowDownDistance, speedTarget, minSpeed);
+  //if(abs(translationError) < slowDownDistance/4) minSpeed /= 4;
+  targetSpeed_mps = applySpeedRamp(distFromStart, distFromEnd, slowDownDistance, speedTarget, minSpeed, endSpeed);
   
 
   //Rotation
-  double angleMinSpeed = 10;//deg/s
-  double slowDownAngle = 15;//deg
+  double angleMinSpeed = 2.0;//deg/s
+  double angleEndSpeed = 1.0;//deg/s
+  double slowDownAngle = 20;//deg
   double rotationError = angleDiff(angleTarget,anglePos);
   double rotationFromStart = angleDiff(angleStart,anglePos);
+  //if(abs(rotationError) < slowDownAngle/4) angleMinSpeed /= 4;
   
-  targetAngleSpeed_dps = applySpeedRamp(rotationFromStart, rotationError, slowDownAngle, angleSpeedTarget, angleMinSpeed);
+  targetAngleSpeed_dps = applySpeedRamp(rotationFromStart, rotationError, slowDownAngle, angleSpeedTarget, angleMinSpeed, angleEndSpeed);
   
   //double speedFromError = rotationError*5;
   /*if(rotationError>slowDownAngle) targetAngleSpeed_dps = angleSpeedTarget;
@@ -288,8 +300,8 @@ void printCharts(){
   Serial.print(speedTarget);Serial.print(" ");
 
   //Motor Speed
-  Serial.print(motorA.getSpeed()*1000);Serial.print(" ");
-  Serial.print(0);Serial.print(" ");
+  Serial.print(motorA.getRadSpeed());Serial.print(" ");
+  Serial.print(motorB.getRadSpeed());Serial.print(" ");
   //Serial.print(motorB.getSpeed()*1000);Serial.print(" ");
   //Serial.print(motorC.getSpeed()*1000);Serial.print(" ");
   Serial.print("\r\n");
@@ -363,9 +375,9 @@ void control(){
   
   //Serial.print(speedA*1000.0d);Serial.print("\t");Serial.print(arcLength*1000.0d);Serial.print("\n");
   
-  speedA += speedAngleA*1.25;
-  speedB += speedAngleB*1.25;
-  speedC += speedAngleC*1.25;
+  speedA += speedAngleA*0.25;//1.25
+  speedB += speedAngleB*0.25;
+  speedC += speedAngleC*0.25;
 
 
   //Serial.print(speedA*1000000.f);Serial.print("\t");Serial.print(speedB*1000000.f);Serial.print("\t");Serial.print(speedC*1000000.f);Serial.print("\n");
@@ -394,8 +406,8 @@ void control(){
   }
 }
 
-int positionFrequency = 200; //Hz
-int controlFrequency = 60; //Hz
+int positionFrequency = 150; //Hz
+int controlFrequency = 150; //Hz
 
 void executeOrder(){
   comunication_read();
@@ -562,10 +574,10 @@ void executeOrder(){
       int angle=90, duration=0;
       sscanf(comunication_InBuffer, "servo set %c%c%c %i %i", &c1, &c2, &c3, &angle, &duration);
       if(c1=='A' && c2=='C' && c3=='A') servoRampAC_A.go(angle, duration);
-      if(c1=='A' && c2=='C' && c3=='C') servoRampAC_C.go(angle, duration);
-      if(c1=='A' && c2=='B' && c3=='A') servoRampAB_A.go(angle, duration);
+      if(c1=='A' && c2=='C' && c3=='C') servoRampAC_C.go(180-angle, duration);
+      if(c1=='A' && c2=='B' && c3=='A') servoRampAB_A.go(180-angle, duration);
       if(c1=='A' && c2=='B' && c3=='B') servoRampAB_B.go(angle, duration);
-      if(c1=='B' && c2=='C' && c3=='B') servoRampBC_B.go(angle, duration);
+      if(c1=='B' && c2=='C' && c3=='B') servoRampBC_B.go(180-angle, duration);
       if(c1=='B' && c2=='C' && c3=='C') servoRampBC_C.go(angle, duration);
       if(c1=='F' && c2=='L' && c3=='A') servoRampFlag.go(angle, duration);
     }
@@ -607,6 +619,7 @@ void updateServos(){
   servoAB_B.write(servoRampAB_B.update());
   servoBC_B.write(servoRampBC_B.update());
   servoBC_C.write(servoRampBC_C.update());
+  servoFlag.write(servoRampFlag.update());
   for(int i=0;i<NB_SERVO_ARM_M;i++){
     servos_M[i].write(servosRamp_M[i].update());
   }

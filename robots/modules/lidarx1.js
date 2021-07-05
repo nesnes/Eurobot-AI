@@ -17,7 +17,7 @@ module.exports = class LidarX1 {
         this.measures = [];
         this.angleOffset = 180;
         this.lastSendTime = 0;
-        if(process.platform=="linux") this.port = "/dev/ydlidarx2"; //Raspberry/Linux
+        if(process.platform=="linux") this.port = "/dev/lidar"; //Raspberry/Linux
         if(process.platform=="darwin") this.port = "/dev/cu.usbserial-001K39BS"; //Mac
         if(process.platform=="win32") this.port = "COM4"; //Windows
     }

@@ -62,7 +62,7 @@ volatile boolean comunication_SendFlag = false;
   
   void sendSerial(){
     if(comunication_SendFlag){
-      Serial.print((char*)comunication_OutBuffer);
+      Serial.printf("%s\n",(char*)comunication_OutBuffer);
       comunication_SendFlag=false;
     }
   }
@@ -163,4 +163,3 @@ bool comunication_msgAvailable(){
     return comunication_msgAvailableFlag;
 }
 #endif //Comunication_h
-

@@ -9,13 +9,14 @@
 class SerialMotor
 {
 public:
-  SerialMotor(HardwareSerial* serial, float wheelPerimeter=100, bool invert=false); //mm
+  SerialMotor(HardwareSerial* serial, float wheelPerimeter=100, bool invert=false, bool debug=false); //mm
   ~SerialMotor();
   
   void begin();
 
   void setSpeed(double speed, double syncFactor=1); //speed: m/s, syncFactor: 0..1 slows speed variation to keep sync with other motors
   double getSpeed(); //m/s
+  double getRadSpeed(); //rad/s
   void spin();
   void spinDegrees(float degrees);
   double getAndResetDistanceDone();
@@ -26,10 +27,14 @@ public:
   HardwareSerial* serial_;
   
   bool m_inverted = false;
+  bool m_debug = false;
   int m_direction = 1; //1 or -1
   float m_wheelPerimeter = 100; //mm
   double m_currSpeed = 0;
   double m_requestedSpeed = 0;
+  double m_maxSpeed = 100;//rad/s
+  unsigned long int lastAccelTime = 0;
+  double m_maxAccel = 2.0;//rad/s^2 
   double m_syncFactor = 1;
   
   double m_oldSpeed = 0;

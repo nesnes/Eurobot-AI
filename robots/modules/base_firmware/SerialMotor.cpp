@@ -1,9 +1,10 @@
 #include "SerialMotor.h"
 
-SerialMotor::SerialMotor(HardwareSerial* serial, float wheelPerimeter, bool invert)
+SerialMotor::SerialMotor(HardwareSerial* serial, float wheelPerimeter, bool invert, bool debug)
 	: serial_(serial)
   , m_wheelPerimeter(wheelPerimeter) //mm
   , m_inverted(invert)
+  , m_debug(debug)
 {
 	
 }
@@ -14,6 +15,9 @@ SerialMotor::~SerialMotor(){
   
 void SerialMotor::begin(){
   serial_->begin(115200);
+  memset(serialBufferOut, '\0', SERIAL_MOTOR_BUFFER_SIZE);
+  sprintf(serialBufferOut,"E 1\n");
+  serial_->print((char*)serialBufferOut);
 }
 
 double SerialMotor::getAndResetDistanceDone(){
@@ -35,12 +39,26 @@ double SerialMotor::getAndResetDistanceDone(){
 }
 
 void SerialMotor::setSpeed(double speed, double syncFactor){ // m/s
+  if(isnan(speed)) speed = 0.0;
+  if(abs(speed) > m_maxSpeed) speed = speed>0.0?m_maxSpeed:-m_maxSpeed;
+  unsigned long int now = millis();
+  unsigned long int elapsed = now - lastAccelTime;
+  double maxDelta = elapsed / 1000.0 * m_maxAccel;
+  if(abs(speed - m_requestedSpeed) > maxDelta)
+    speed = speed>m_requestedSpeed ? m_requestedSpeed+maxDelta : m_requestedSpeed-maxDelta;
   m_requestedSpeed = speed;
   m_syncFactor = syncFactor;
+  lastAccelTime = now;
 }
 
 double SerialMotor::getSpeed(){ // m/s
   return m_currSpeed;  
+}
+
+double SerialMotor::getRadSpeed(){ // rad/s
+  double revPerMeter = (m_currSpeed*1000.0d)/m_wheelPerimeter;
+  double radSpeed = revPerMeter*_2XPI;
+  return radSpeed;
 }
 
 void SerialMotor::parseInput(){
@@ -65,26 +83,32 @@ void SerialMotor::parseInput(){
 void SerialMotor::spin(){
   unsigned long int now = millis();
 
-  if(now - lastTargetTime >= 15) { // Send speed target
-    if(m_inverted) m_currSpeed = -m_requestedSpeed;
-    else m_currSpeed = m_requestedSpeed;
+  if(now - lastTargetTime >= 5) { // Send speed target
+    double dir = 1.0;
+    if(m_inverted) dir = -1.0;
+    m_currSpeed = m_requestedSpeed * dir;
+    
     double revPerMeter = (m_currSpeed*1000.0d)/m_wheelPerimeter;
-    double radSpeed = revPerMeter*2.0*PI;  
+    double radSpeed = revPerMeter*_2XPI;  
     memset(serialBufferOut, '\0', SERIAL_MOTOR_BUFFER_SIZE);
-    sprintf(serialBufferOut,"T %f\r\n", radSpeed);
+    if(!isnan(radSpeed)) sprintf(serialBufferOut,"T %.3f\n", radSpeed);
+    else sprintf(serialBufferOut,"T 0\n", radSpeed);
     serial_->print((char*)serialBufferOut);
+    if(m_debug) Serial.print((char*)serialBufferOut);
     lastTargetTime = now;
   }
-  else if(now - lastAngleTime >= 15) {  // Send angle request
+  else if(now - lastAngleTime >= 5) {  // Send angle request
     memset(serialBufferOut, '\0', SERIAL_MOTOR_BUFFER_SIZE);
-    sprintf(serialBufferOut,"G\r\n");
+    sprintf(serialBufferOut,"G\n");
     serial_->print((char*)serialBufferOut);
+    if(m_debug) Serial.print((char*)serialBufferOut);
     lastAngleTime = now;
   }
-  else if(now - lastButtonTime >= 30) {  // Send button request
+  else if(now - lastButtonTime >= 50) {  // Send button request
     memset(serialBufferOut, '\0', SERIAL_MOTOR_BUFFER_SIZE);
-    sprintf(serialBufferOut,"B\r\n");
+    sprintf(serialBufferOut,"B\n");
     serial_->print((char*)serialBufferOut);
+    if(m_debug) Serial.print((char*)serialBufferOut);
     lastButtonTime = now;
   }
 
