@@ -1,5 +1,7 @@
 //#include "BrushlessMotor.h" 
 #include "SerialMotor.h" 
+#include "I2CMotor.h" 
+#include <Wire.h>
 //#define MODE_I2C
 #ifndef MODE_I2C
   #define MODE_SERIAL
@@ -7,8 +9,11 @@
 #endif
 #include "comunication.h"
 
+#define LED_PIN 13
+bool ledValue = true;
+
 const double wheelPerimeter = 186.5d;//188.495559215;//mm = pi*d = pi*60
-const double reductionFactor = 3.75d;
+const double reductionFactor = 3.75d;//3.75d
 #ifdef TEENSYDUINO
 const double wheelDistanceA = 125;//mm
 const double wheelDistanceB = 125;//mm
@@ -21,9 +26,15 @@ const double wheelDistanceC = 123;//mm
 //BrushlessMotor motorA(4,2,3, 39, A22, A21, wheelPerimeter, false);
 //BrushlessMotor motorB(7,5,6, 36, A19, A18, wheelPerimeter, false);
 //BrushlessMotor motorC(10,8,9,33, A16, A15, wheelPerimeter, false);
-SerialMotor motorA(&Serial3, wheelPerimeter/reductionFactor, false);
-SerialMotor motorB(&Serial4, wheelPerimeter/reductionFactor, false);
-SerialMotor motorC(&Serial2, wheelPerimeter/reductionFactor, false);
+
+//SerialMotor motorA(&Serial3, wheelPerimeter/reductionFactor, true, true);
+//SerialMotor motorB(&Serial4, wheelPerimeter/reductionFactor, true);
+//SerialMotor motorC(&Serial2, wheelPerimeter/reductionFactor, true);
+
+I2CMotor motorA(0x10, wheelPerimeter/reductionFactor, true);
+I2CMotor motorB(0x11, wheelPerimeter/reductionFactor, true);
+I2CMotor motorC(0x12, wheelPerimeter/reductionFactor, true);
+
 
 const double motorA_angle = -60;//°
 const double motorB_angle = 180;//°
@@ -92,6 +103,9 @@ void setArmPose(int* pose, int duration)
 
 void setup()
 {
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, 1);
+  delay(2500);
   servoAC_A.attach(SERVO_AC_A, MIN_PULSE, MAX_PULSE);//SERVO_AC_A
   servoAC_C.attach(SERVO_AC_C, MIN_PULSE, MAX_PULSE);
   servoAB_A.attach(SERVO_AB_A, MIN_PULSE, MAX_PULSE);
@@ -99,20 +113,13 @@ void setup()
   servoBC_B.attach(SERVO_BC_B, MIN_PULSE, MAX_PULSE);
   servoBC_C.attach(SERVO_BC_C, MIN_PULSE, MAX_PULSE);
   servoFlag.attach(SERVO_FLAG, MIN_PULSE, MAX_PULSE);
-  servoAC_A.write(90);
-  servoAC_C.write(90);
-  servoAB_A.write(90);
-  servoAB_B.write(90);
-  servoBC_B.write(90);
-  servoBC_C.write(90);
-  servoFlag.write(90);
-  servoRampAC_A.go(90,0);
-  servoRampAC_C.go(90,0);
-  servoRampAB_A.go(90,0);
-  servoRampAB_B.go(90,0);
-  servoRampBC_B.go(90,0);
-  servoRampBC_C.go(90,0);
-  servoRampFlag.go(90,0);
+  servoRampAC_A.go(70,0);
+  servoRampAC_C.go(110,0);
+  servoRampAB_A.go(110,0);
+  servoRampAB_B.go(70,0);
+  servoRampBC_B.go(110,0);
+  servoRampBC_C.go(70,0);
+  servoRampFlag.go(27,0);
   
   // Setup Arm M
   for(int i=0; i<NB_SERVO_ARM_M; i++){
@@ -128,6 +135,7 @@ void setup()
   digitalWrite(pinNumberPump_R, LOW);
   
   //Init motor
+  Wire.begin();
   motorA.begin();  
   motorB.begin();
   motorC.begin();
@@ -143,7 +151,7 @@ void setup()
 //In meters, degrees, m/s and °/s
 double xStart = 0, yStart = 0, angleStart = 0;
 double xPos = 0, yPos = 0, anglePos = 0;
-double xTarget = 0, yTarget = 0, angleTarget = 0, speedTarget = 5.5, angleSpeedTarget = 50;
+double xTarget = 0, yTarget = 0, angleTarget = 0, speedTarget = 3.5, angleSpeedTarget = 50;
 
 void updatePosition(){
   double distA = motorA.getAndResetDistanceDone();
@@ -183,7 +191,7 @@ double targetMovmentAngle = 0;
 double targetSpeed_mps = 0.0;// m/s
 double targetAngleSpeed_dps = 0;// °/s
 
-double targetAngleError = 1.0; //°
+double targetAngleError = 1.0; //° 1.0
 double targetPosError = 0.005; //meters
 bool targetReached = true;
 int targetReachedCountTarget = 10;
@@ -228,7 +236,7 @@ void updateAsserv(){
   double minSpeed = 0.05;
   if(runTargetPath && targetPathIndex>0 && targetPathIndex<targetPathSize-1)
     minSpeed = 0.1;
-  double slowDownDistance = 0.08;//m
+  double slowDownDistance = 0.20;//m
   double distFromStart = sqrt(pow(xPos - xStart,2) + pow(yPos - yStart,2)); // meters
   double distFromEnd = translationError;
   targetSpeed_mps = applySpeedRamp(distFromStart, distFromEnd, slowDownDistance, speedTarget, minSpeed);
@@ -236,24 +244,12 @@ void updateAsserv(){
 
   //Rotation
   double angleMinSpeed = 10;//deg/s
-  double slowDownAngle = 15;//deg
+  double slowDownAngle = 25;//deg
   double rotationError = angleDiff(angleTarget,anglePos);
   double rotationFromStart = angleDiff(angleStart,anglePos);
   
   targetAngleSpeed_dps = applySpeedRamp(rotationFromStart, rotationError, slowDownAngle, angleSpeedTarget, angleMinSpeed);
   
-  //double speedFromError = rotationError*5;
-  /*if(rotationError>slowDownAngle) targetAngleSpeed_dps = angleSpeedTarget;
-  else targetAngleSpeed_dps = (angleSpeedTarget/slowDownAngle)*rotationError;
-  if(abs(targetAngleSpeed_dps)>angleSpeedTarget)
-    targetAngleSpeed_dps = targetAngleSpeed_dps>0?angleSpeedTarget:-angleSpeedTarget;*/
-   //targetAngleSpeed_dps = 0;
-  //Limit speed variation rate
-  //if(abs(targetAngleSpeed_dps)<0.01 && abs(speedFromError)>0) targetAngleSpeed_dps=speedFromError>0?0.01:-0.01;
-  //if(targetAngleSpeed_dps*0.8<speedFromError) speedFromError = targetAngleSpeed_dps*0.0;
-  //if(targetAngleSpeed_dps*1.2>speedFromError) speedFromError = targetAngleSpeed_dps*1.2;
-  //targetAngleSpeed_dps = speedFromError;
-
   if(translationError>targetPosError || fabs(rotationError)>targetAngleError){
     targetReached = false;
     targetReachedCount=0;
@@ -284,12 +280,12 @@ void printCharts(){
   Serial.print(angleSpeedTarget);Serial.print(" ");
 
   //Position Speed
-  Serial.print(targetSpeed_mps);Serial.print(" ");
-  Serial.print(speedTarget);Serial.print(" ");
+  Serial.print(targetSpeed_mps*100.0);Serial.print(" ");
+  Serial.print(speedTarget*100.0);Serial.print(" ");
 
   //Motor Speed
-  Serial.print(motorA.getSpeed()*1000);Serial.print(" ");
-  Serial.print(0);Serial.print(" ");
+  Serial.print(motorA.getSpeed());Serial.print(" ");
+  Serial.print(motorB.getSpeed());Serial.print(" ");
   //Serial.print(motorB.getSpeed()*1000);Serial.print(" ");
   //Serial.print(motorC.getSpeed()*1000);Serial.print(" ");
   Serial.print("\r\n");
@@ -394,8 +390,8 @@ void control(){
   }
 }
 
-int positionFrequency = 200; //Hz
-int controlFrequency = 60; //Hz
+int positionFrequency = 100; //Hz
+int controlFrequency = 100; //Hz
 
 void executeOrder(){
   comunication_read();
@@ -562,10 +558,10 @@ void executeOrder(){
       int angle=90, duration=0;
       sscanf(comunication_InBuffer, "servo set %c%c%c %i %i", &c1, &c2, &c3, &angle, &duration);
       if(c1=='A' && c2=='C' && c3=='A') servoRampAC_A.go(angle, duration);
-      if(c1=='A' && c2=='C' && c3=='C') servoRampAC_C.go(angle, duration);
-      if(c1=='A' && c2=='B' && c3=='A') servoRampAB_A.go(angle, duration);
+      if(c1=='A' && c2=='C' && c3=='C') servoRampAC_C.go(180-angle, duration);
+      if(c1=='A' && c2=='B' && c3=='A') servoRampAB_A.go(180-angle, duration);
       if(c1=='A' && c2=='B' && c3=='B') servoRampAB_B.go(angle, duration);
-      if(c1=='B' && c2=='C' && c3=='B') servoRampBC_B.go(angle, duration);
+      if(c1=='B' && c2=='C' && c3=='B') servoRampBC_B.go(180-angle, duration);
       if(c1=='B' && c2=='C' && c3=='C') servoRampBC_C.go(angle, duration);
       if(c1=='F' && c2=='L' && c3=='A') servoRampFlag.go(angle, duration);
     }
@@ -607,6 +603,7 @@ void updateServos(){
   servoAB_B.write(servoRampAB_B.update());
   servoBC_B.write(servoRampBC_B.update());
   servoBC_C.write(servoRampBC_C.update());
+  servoFlag.write(servoRampFlag.update());
   for(int i=0;i<NB_SERVO_ARM_M;i++){
     servos_M[i].write(servosRamp_M[i].update());
   }
@@ -614,16 +611,17 @@ void updateServos(){
 
 unsigned long lastControlMillis = 0;
 unsigned long lastPositionMillis = 0;
+unsigned long lastLedTime = 0;
 float sinCounter = 0;
-void loop()
+/*void loop()
 {
   //Read commands
   executeOrder();
 
   //Spin motors
   motorA.spin();
-  motorB.spin();
-  motorC.spin();
+  //motorB.spin();
+  //motorC.spin();
 
   unsigned long currMillis = millis();
   
@@ -640,10 +638,17 @@ void loop()
     lastControlMillis = currMillis;
     control();
   }
-  updateServos();
   
-}
+  updateServos();
 
+  // blink led
+  if(currMillis - lastLedTime >= 500){
+    ledValue=!ledValue;
+    digitalWrite(LED_PIN, ledValue);
+    lastLedTime = currMillis;
+  }
+  
+}*/
 
 /*unsigned long lastPrintMillis = 0;
 void loop(){
@@ -672,3 +677,40 @@ void loop(){
     motorB.spin();
   }
 }*/
+
+void loop()
+{
+    executeOrder();
+    /*updatePosition();
+    control();
+    updateServos();*/
+    unsigned long currMillis = millis();
+  
+    //Run position loop
+    int positionMillis = 1000/positionFrequency;
+    if(currMillis - lastPositionMillis >= positionMillis){
+      lastPositionMillis = currMillis;
+      updatePosition();
+    }
+    
+    //Run control loop
+    int controlMillis = 1000/controlFrequency;
+    if(currMillis - lastControlMillis >= controlMillis){
+      lastControlMillis = currMillis;
+      control();
+    }
+    
+    updateServos();
+  
+    // blink led
+    if(currMillis - lastLedTime >= 500){
+      ledValue=!ledValue;
+      digitalWrite(LED_PIN, ledValue);
+      lastLedTime = currMillis;
+    }
+  
+    motorA.spin();
+    motorB.spin();
+    motorC.spin();
+    return;
+}

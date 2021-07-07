@@ -24,7 +24,7 @@ The project requires a fex dependencies to run properly (it's a npm project!). O
     - `sudo nano /etc/dphys-swapfile` and edit to `CONF_SWAPSIZE=2048`
     - `sudo dphys-swapfile setup`
     - `sudo dphys-swapfile swapon`
-- Install compilation requirments with `sudo apt install -y build-essential cmake libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev`
+- Install compilation and execution requirments with `sudo apt install -y build-essential cmake libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev mpg321`
 - INstal npm compilation helper `npm install -g node-gyp`
 - From the repositry root, install npm packages with `npm i` (This will be long, a few errors might appear, but unless its stops it's OK!)
 - A few packets need an extra compilation step, to do so, run:
