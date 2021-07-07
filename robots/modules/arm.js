@@ -39,24 +39,6 @@ module.exports = class Arm {
         }
     }
 
-    async enablePump(){
-        this.app.logger.log("enabling pump");
-        let result = true;
-        if(this.app.robot.modules.robotLink)
-            result = await this.app.robot.modules.robotLink.sendMessage(this.address, "pump on");
-        await utils.sleep(200);
-        return result;
-    }
-
-    async disablePump(){
-        this.app.logger.log("disabling pump");
-        let result = true;
-        if(this.app.robot.modules.robotLink)
-            result = await this.app.robot.modules.robotLink.sendMessage(this.address, "pump off");
-        await utils.sleep(200);
-        return result;
-    }
-
     async setPose(params){
         this.app.logger.log("set pose");
         let msg = "Z "+parseInt(""+params.a1)+" "+parseInt(""+params.a2)+" "+parseInt(""+params.a3)+" "+parseInt(""+params.a4)+" "+parseInt(""+params.a5)+" "+parseInt(""+params.duration);
@@ -108,7 +90,7 @@ module.exports = class Arm {
         params.duration = 0;
         return await this.setServo(params);
     }
-    async openFlag(params){ return await this.setFlag({angle:5}); }
+    async openFlag(params){ return await this.setFlag({angle:146}); }
     async closeFlag(params){ return await this.setFlag({angle:25}); }
 
     async close(){

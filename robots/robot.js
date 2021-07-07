@@ -24,8 +24,8 @@ module.exports = class Robot {
             blue:{x:0,y:0,angle:0},
             yellow:{x:0,y:0,angle:0}
         }
-        this.x = 0; // mm
-        this.y = 0; // mm
+        this.x = 1500; // mm
+        this.y = 1000; // mm
         this.angle = 0; // deg
         this.score = 0;
         this.variables = {};
@@ -101,6 +101,7 @@ module.exports = class Robot {
         if(this.funnyActionTimeout){clearTimeout(this.funnyActionTimeout); this.funnyActionTimeout=null;}
         if(this.modules.lidar) await this.modules.lidar.close();
         if(this.modules.robotLink) await this.modules.robotLink.close();
+        if(this.modules.controlPanel) await this.modules.controlPanel.close();
     }
 
     async initMatch(){
@@ -193,15 +194,20 @@ module.exports = class Robot {
     };
     
     async waitForStart(parameters){
-        this.setScore(0)
+        this.setScore(20)
         let matchStopped = false;
         await this.initMatch();
         if(!this.app.parameters.simulate && this.modules.controlPanel){
             let state = "waiting" // waiting / ready / go
+            let status = await this.modules.controlPanel.getColorStart();
+            if(this.app.map && this.app.map.teams)
+                this.team = this.app.map.teams[status.color];
+            await this.initMatch();
             //Wait for the starter to be positioned and pulled
             let changed = false;
             do {
-                let status = await this.modules.controlPanel.getColorStart();
+                status = await this.modules.controlPanel.getColorStart();
+                console.log("status", status, "state", state);
                 if(status){
                     if(state=="waiting" && !status.start){
                         state = "ready";

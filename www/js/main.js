@@ -1,7 +1,7 @@
 //UI objects
 var appParams = {
     simulate: true,
-    disableColisions: true
+    disableColisions: false
 }
 var map = {
     width: 0,
@@ -115,7 +115,8 @@ communication.client.on("message", function (topic, payload) {
         modules.modules = newModule;
     }
     else if(topic == "/lidar"){
-        var newLidar = JSON.parse(""+payload)
+        var newLidar = JSON.parse(""+payload);
+        console.log(newLidar);
         Object.assign(lidar, newLidar);
     }
     else if(topic == "/files"){

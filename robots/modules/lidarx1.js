@@ -17,15 +17,17 @@ module.exports = class LidarX1 {
         this.measures = [];
         this.angleOffset = 180;
         this.lastSendTime = 0;
-        if(process.platform=="linux") this.port = "/dev/ydlidarx2"; //Raspberry/Linux
+        if(process.platform=="linux") this.port = "/dev/lidar"; //Raspberry/Linux
         if(process.platform=="darwin") this.port = "/dev/cu.usbserial-001K39BS"; //Mac
         if(process.platform=="win32") this.port = "COM4"; //Windows
     }
     
     async init(){
         console.log("open Lidar serial", this.port)
+        this.app.logger.log("==> Open lidar at " + this.port);
         this.serial = new SerialPort(this.port, { baudRate: this.baudrate }, (err)=>{
             if(err) console.log(err)
+            else this.app.logger.log("==> Lidar connected");
         })
         this.serial.on('data', (data)=>{
             for(let d of data)  this.onData(d);
@@ -62,6 +64,7 @@ module.exports = class LidarX1 {
         for(let i=0;i<this.rawMeasures.length;i++){
             let remove = false;
             if(this.rawMeasures[i].d>this.maxDistance) remove = true;
+            if(this.rawMeasures[i].d <= 0) remove = true;
             if(!remove){
                 let rayAngle = this.rawMeasures[i].a + angle;
                 let x = this.rawMeasures[i].d;
@@ -111,8 +114,8 @@ module.exports = class LidarX1 {
         }
         //Insert new measures
         this.rawMeasures.push(...currentPacket.measures);
+        //this.measures = this.rawMeasures; //debug
         await this.removeMeasuresOutOfRange();
-        //console.log(this.rawMeasures.length);
         this.send();
     }
 
@@ -123,7 +126,6 @@ module.exports = class LidarX1 {
         let payload = {
             measures: this.measures
         }
-        //console.log(this.measures)
         this.app.mqttServer.publish({
             topic: '/lidar',
             payload: JSON.stringify(payload),

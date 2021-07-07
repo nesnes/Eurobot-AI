@@ -2,8 +2,8 @@
 delete require.cache[require.resolve('./robot')]; //Delete require() cache
 const Robot = require('./robot');
 
-delete require.cache[require.resolve('./modules/lidarx1')]; //Delete require() cache
-const Lidar = require('./modules/lidarx1');
+delete require.cache[require.resolve('./modules/lidarx2')]; //Delete require() cache
+const Lidar = require('./modules/lidarx2');
 
 //delete require.cache[require.resolve('./modules/lidarLocalisation')]; //Delete require() cache
 //const LidarLocalisation = require('./modules/LidarLocalisation');
@@ -68,18 +68,17 @@ module.exports = class Robot2020 extends Robot{
 
     async initMatch(){
         await super.initMatch();
-        if(this.modules.arm) await this.modules.arm.disablePump();
+        if(this.modules.arm) await this.modules.arm.disablePump({name:"LEF"});
+        if(this.modules.arm) await this.modules.arm.disablePump({name:"RIG"});
         if(this.modules.arm) await this.setArmDefault();
-        if(this.modules.arm) await this.modules.arm.setRight({angle:115});
-        if(this.modules.arm) await this.modules.arm.setLeft({angle:125});
+        if(this.modules.arm) await this.modules.arm.closeFlag();
     }
 
     async endMatch(){
         await super.endMatch();
-        if(this.modules.arm) await this.modules.arm.disablePump();
+        if(this.modules.arm) await this.modules.arm.disablePump({name:"LEF"});
+        if(this.modules.arm) await this.modules.arm.disablePump({name:"RIG"});
         //if(this.modules.arm) await this.setArmDefault();
-        if(this.modules.arm) await this.modules.arm.setLeft({angle:60});
-        if(this.modules.arm) await this.modules.arm.setRight({angle:60});
     }
 
     getDescription(){
@@ -105,25 +104,32 @@ module.exports = class Robot2020 extends Robot{
     }
 
     async activateLighthouse(parameters){
-        let buoysOnFront = this.variables.buoyStorageFrontGreen.value>0 || this.variables.buoyStorageFrontRed.value>0;
-        //Arm up
-        if(this.modules.arm) await this.modules.arm.setPose({ a1:50, a2:90, a3:140, a4:140, a5:175, duration:200 })
-        await utils.sleep(200);
-        if(this.modules.arm) await this.modules.arm.setPose({ a1:50, a2:20, a3:140, a4:140, a5:90, duration:200 })
-        await utils.sleep(200);
-        await this.moveForward({distance:75, speed:0.4});
-        //Arm swipe
-        if(this.modules.arm) await this.modules.arm.setPose({ a1:50, a2:160, a3:140, a4:140, a5:90, duration:200 })
+        let intermediatePose = { a1:90, a2:90, a3:50, a4:120, a5:130, duration:200 };
+        //let buoysOnFront = this.variables.buoyStorageFrontGreen.value>0 || this.variables.buoyStorageFrontRed.value>0;
+        // Prepare arm
+        if(this.modules.arm) await this.modules.arm.setPose(intermediatePose);
+        // Arm up
+        if(this.modules.arm) await this.modules.arm.setPose({ a1:30, a2:40, a3:55, a4:126, a5:90, duration:200 })
+        await utils.sleep(100);
+        // Move forward
+        //await this.moveForward({distance:75, speed:0.4});
+        await utils.sleep(1000); //todo remove by moveForward
+        // Arm swipe
+        if(this.modules.arm) await this.modules.arm.setPose({ a1:30, a2:140, a3:55, a4:126, a5:90, duration:200 })
         //Move back
-        if(buoysOnFront){
+        /*if(buoysOnFront){
             if(this.modules.arm) await this.modules.arm.setPose({ a1:90, a2:90, a3:90, a4:90, a5:90, duration:200 })
             await utils.sleep(200);
             await this.setArmClose({});
-        }
-        await this.moveBackward({distance:100, speed:0.4});
+        }*/
         this.addScore(10);
-        
-        if(!buoysOnFront) await this.setArmDefault({});
+        // Move backward
+        //await this.moveBackward({distance:100, speed:0.4});
+        await utils.sleep(1000); //todo remove by moveBackward
+        // Arm to default
+        if(this.modules.arm) await this.modules.arm.setPose(intermediatePose);
+        await utils.sleep(100);
+        await this.setArmDefault({});
         return true
     }
 
@@ -138,7 +144,7 @@ module.exports = class Robot2020 extends Robot{
 
     async readWeathervane(parameters){
         if(!this.modules.camera) return true;
-        let armLookPosition = { a1:170, a2:90, a3:50, a4:140, a5:25, duration:200 };
+        let armLookPosition = { a1:110, a2:90, a3:70, a4:55, a5:80, duration:200 };
         let tryBudget = 3;
         while(--tryBudget>=0){
             if(this.modules.arm) await this.modules.arm.setPose(armLookPosition);
@@ -149,11 +155,14 @@ module.exports = class Robot2020 extends Robot{
                 break;
             }
         }
+        if(this.modules.arm) await this.modules.arm.setPose({ a1:110, a2:90, a3:40, a4:180, a5:110, duration:300 })
+        this.setArmDefault({duration:100});
         this.send();
         return this.variables.endZone.value>0;
     }
 
     async grabBuoysBottom(parameters){
+        return false
         this.variables.buoyStorageSideB.value+=2;
         this.app.map.removeComponent(this.app.map.getComponent("buoyMiddleBottom", this.team));
         this.app.map.removeComponent(this.app.map.getComponent("buoyBottom", this.team));
@@ -162,6 +171,7 @@ module.exports = class Robot2020 extends Robot{
     }
 
     async grabBuoy(parameters){
+        return false
         let elemList = []
         let result = await this.openSideArms({sideRed:!!parameters.sideRed, sideGreen:!!parameters.sideGreen});
         if(!result) return result;
@@ -182,6 +192,7 @@ module.exports = class Robot2020 extends Robot{
     }
 
     async grabReaf(parameters){
+        return false
         this.variables.buoyStorageFrontGreen.value++;
         this.variables.buoyStorageFrontRed.value++;
         await utils.sleep(500);
@@ -208,6 +219,7 @@ module.exports = class Robot2020 extends Robot{
     }
 
     async depositBuoys(parameters){
+        return false;
         let fairway = this.app.map.getComponent(parameters.component, this.team)
         if(!fairway) return false;
         if(!("buoyCount" in fairway)) fairway.buoyCount = 0;
@@ -331,7 +343,9 @@ module.exports = class Robot2020 extends Robot{
 
     async setArmDefault(parameters){
         //if(this.modules.arm) await this.modules.arm.setPose({ a1:170, a2:90, a3:50, a4:140, a5:25, duration:200 })
-        if(this.modules.arm) await this.modules.arm.setPose({ a1:170, a2:90, a3:25, a4:120, a5:10, duration:500 })
+        let duration = 300;
+        if("duration" in parameters) duration = parameters.duration;
+        if(this.modules.arm) await this.modules.arm.setPose({ a1:110, a2:90, a3:10, a4:142, a5:130, duration:duration })
         return true;
     }
 
@@ -345,26 +359,28 @@ module.exports = class Robot2020 extends Robot{
     }
 
     async setArmWindsock(parameters){
+        return false;
         if(this.modules.arm) await this.modules.arm.setPose({ a1:150, a2:90, a3:140, a4:140, a5:175, duration:200 })
         return true;
     }
 
     async setArmPosition(parameters){
+        return false;
         if(this.modules.arm) await this.modules.arm.setPose(parameters)
         return true;
     }
 
     async openSideArms(parameters){
-        if(this.modules.arm && parameters.sideRed) await this.modules.arm.setLeft({angle:70})
-        if(this.modules.arm && parameters.sideGreen) await this.modules.arm.setRight({angle:70})
+        if(this.modules.arm && parameters.name)
+            await this.modules.arm.setServoLeft({name:parameters.name, angle:10})
         return true;
     }
 
     async closeSideArms(parameters){
-        if(this.modules.arm) await this.modules.arm.setLeft({angle:105})
-        if(this.modules.arm) await this.modules.arm.setRight({angle:105})
-        if(parameters.addBuoyStorageSideGreen) this.variables.buoyStorageSideGreen.value+=parameters.addBuoyStorageSideGreen===true?1:parameters.addBuoyStorageSideGreen;
-        if(parameters.addBuoyStorageSideRed) this.variables.buoyStorageSideRed.value+=parameters.addBuoyStorageSideRed===true?1:parameters.addBuoyStorageSideRed;
+        if(this.modules.arm && parameters.name)
+            await this.modules.arm.setServoLeft({name:parameters.name, angle:70})
+        //if(parameters.addBuoyStorageSideGreen) this.variables.buoyStorageSideGreen.value+=parameters.addBuoyStorageSideGreen===true?1:parameters.addBuoyStorageSideGreen;
+        //if(parameters.addBuoyStorageSideRed) this.variables.buoyStorageSideRed.value+=parameters.addBuoyStorageSideRed===true?1:parameters.addBuoyStorageSideRed;
         if(parameters.removeFromMap) parameters.removeFromMap.forEach((e)=>this.app.map.removeComponent(this.app.map.getComponent(e, this.team)))
         return true;
     }
@@ -382,6 +398,7 @@ module.exports = class Robot2020 extends Robot{
     }
 
     async detectAndGrabBuoy(parameters){
+        return false;
         if(!this.modules.camera) return true;
         //Grab
         let armCloseLookPosition = {a1:60, a2:95, a3:65, a4:75, a5:20, duration:200};
@@ -455,7 +472,7 @@ module.exports = class Robot2020 extends Robot{
         if(this.variables.endZone.value==0) return false;
         let result = true;
         
-        let armPose = { a1:125, a2:90, a3:140, a4:140, a5:90, duration:200 };
+        let armPose = { a1:90, a2:90, a3:90, a4:90, a5:90, duration:200 };
         if(this.modules.arm) result = await this.modules.arm.setPose(armPose);
         if(!result) return result;
         
@@ -463,7 +480,7 @@ module.exports = class Robot2020 extends Robot{
         result = await this.moveToComponent({ component: endingArea, speed: 0.4 });
         if(!result) return result;
         
-        this.addScore(5);
+        this.addScore(10);
         return true;
     }
 

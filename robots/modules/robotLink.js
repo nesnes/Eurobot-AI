@@ -64,7 +64,7 @@ module.exports = class Robotlink {
         console.log(msgOut)
         this.serial.write(msgOut);
         //Wait for answer
-        let sleep = 0.02;
+        let sleep = 0.005;
         while(timeout>0){
             timeout-=sleep;
             await utils.sleep(sleep*1000);
@@ -88,7 +88,6 @@ module.exports = class Robotlink {
         if(c=='\n' || c=='\r'){
             if(this.buffer.length){
                 this.inputMessages.push(this.buffer)
-                //console.log(this.buffer)
                 this.buffer = "";
             }
         }

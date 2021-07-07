@@ -128,7 +128,7 @@
                         </div>
                         <div class="col-md-4">
                             <button class="btn btn-success mx-1" v-if="!intelligence.running && !intelligence.hasBeenRun" v-on:click="runMatch()" v-bind:disabled="communication.client.connected === false">Run Match</button>                            
-                            <button class="btn btn-danger mx-1" v-if="intelligence.running"v-on:click="stopMatch()" v-bind:disabled="communication.client.connected === false">Stop Match</button>                            
+                            <button class="btn btn-danger mx-1" v-if="intelligence.running" v-on:click="stopMatch()" v-bind:disabled="communication.client.connected === false">Stop Match</button>                            
                         </div>
                         <div v-if="intelligence.currentTime>0 || communication.client.connected === false" class="col-md-4">
                             <span v-if="intelligence.currentTime>0" class="text-primary mx-2 font-weight-bold">{{intelligence.currentTime}}s</span>

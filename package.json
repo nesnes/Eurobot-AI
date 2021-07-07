@@ -26,6 +26,7 @@
     "opencv4nodejs": "^5.6.0",
     "pathfinding": "^0.4.18",
     "serialport": "^9.2.0",
-    "ws": "^7.2.5"
+    "ws": "^7.2.5",
+    "oled-disp": "file:oled-disp"
   }
 }
