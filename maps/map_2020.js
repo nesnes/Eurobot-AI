@@ -9,7 +9,7 @@ module.exports = class Map2020 extends Map{
         this.width = 3000
         this.height = 2000
         this.background =  ""//"/images/fond2020.png"
-        this.teams = ["blue","yellow"]
+        this.teams = ["yellow","blue"]
         this.components = [
 
             //Beacons
@@ -187,7 +187,8 @@ module.exports = class Map2020 extends Map{
                 type: "bottomPort",
                 team: "yellow",
                 isSolid: false,
-                shape: { type: "rectangle", x:1050, y:1700, width: 300,  height: 300, color: "yellow" }
+                shape: { type: "rectangle", x:1050, y:1700, width: 300,  height: 300, color: "yellow" },
+                access:{ x:1200, y:1450, angle:90 }
             },
 
 
@@ -247,30 +248,32 @@ module.exports = class Map2020 extends Map{
                 type: "windsockSide",
                 team: "blue",
                 isSolid: false,
-                shape: { type: "rectangle", x:200, y:2000, width: 60,  height: 60, color: "blue" },
-                access:{ x:150, y:1750, angle:90 }
+                shape: { type: "rectangle", x:130, y:2000, width: 60,  height: 60, color: "blue" },
+                access:{ x:160, y:1700, angle:90 }
             },
             {
                 name: "Windsock Middle Blue",
                 type: "windsockMiddle",
                 team: "blue",
                 isSolid: false,
-                shape: { type: "rectangle", x:605, y:2000, width: 60,  height: 60, color: "blue" },
-                access:{ x:555, y:1750, angle:90 }
+                shape: { type: "rectangle", x:540, y:2000, width: 60,  height: 60, color: "blue" },
+                access:{ x:570, y:1700, angle:90 }
             },
             {
                 name: "Windsock Side Yellow",
                 type: "windsockSide",
                 team: "yellow",
                 isSolid: false,
-                shape: { type: "rectangle", x:2740, y:2000, width: 60,  height: 60, color: "yellow" }
+                shape: { type: "rectangle", x:2810, y:2000, width: 60,  height: 60, color: "yellow" },
+                access:{ x:2840, y:1700, angle:90 }
             },
             {
                 name: "Windsock Middle Yellow",
                 type: "windsockMiddle",
                 team: "yellow",
                 isSolid: false,
-                shape: { type: "rectangle", x:2335, y:2000, width: 60,  height: 60, color: "yellow" }
+                shape: { type: "rectangle", x:2410, y:2000, width: 60,  height: 60, color: "yellow" },
+                access:{ x:2440, y:1700, angle:90 }
             },
 
             //Weathervane
@@ -312,32 +315,33 @@ module.exports = class Map2020 extends Map{
             //Reefs
             {
                 name: "Reef Blue",
-                type: "teamReaf",
+                type: "teamReef",
                 team: "blue",
                 isSolid: true,
                 shape: { type: "rectangle", x:-134, y:1390, width: 134,  height: 420, color: "blue" }
             },
             {
                 name: "Reef Yellow",
-                type: "teamReaf",
+                type: "teamReef",
                 team: "yellow",
                 isSolid: true,
                 shape: { type: "rectangle", x:3000, y:1390, width: 134,  height: 420, color: "yellow" }
             },
             {
                 name: "Shared Reef Blue",
-                type: "sharedReaf",
+                type: "sharedReef",
                 team: "blue",
                 isSolid: true,
                 shape: { type: "rectangle", x:640, y:-134, width: 420,  height: 134, color: "grey" },
-                access:{ x:810, y:200, angle:-90 }
+                access:{ x:810, y:350, angle:-90 }
             },
             {
                 name: "Shared Reef Yellow",
-                type: "sharedReaf",
+                type: "sharedReef",
                 team: "yellow",
                 isSolid: true,
-                shape: { type: "rectangle", x:1940, y:-134, width: 420,  height: 134, color: "grey" }
+                shape: { type: "rectangle", x:1940, y:-134, width: 420,  height: 134, color: "grey" },
+                access:{ x:2190, y:350, angle:-90 }
             },
 
             //Buoys Starting North
@@ -347,14 +351,15 @@ module.exports = class Map2020 extends Map{
                 team: "blue",
                 isSolid: false,
                 shape: { type: "circle", x:300, y:400, radius: 36, color: "red" },
-                access:{ x:280, y:700, angle:112 }
+                access:{ x:350, y:550, angle:70 }
             },
             {
                 name: "Buoy Starting North Yellow",
                 type: "buoyStartingNorth",
                 team: "yellow",
                 isSolid: false,
-                shape: { type: "circle", x:2700, y:400, radius: 36, color: "green" }
+                shape: { type: "circle", x:2700, y:400, radius: 36, color: "green" },
+                access:{ x:2650, y:550, angle:110 }
             },
             {
                 name: "Buoy Starting Fairway North Blue",
@@ -377,14 +382,16 @@ module.exports = class Map2020 extends Map{
                 type: "buoyStartingSouth",
                 team: "blue",
                 isSolid: false,
-                shape: { type: "circle", x:300, y:1200, radius: 36, color: "green" }
+                shape: { type: "circle", x:300, y:1200, radius: 36, color: "green" },
+                access:{ x:600, y:1350, angle:-135 }
             },
             {
                 name: "Buoy Starting South Yellow",
                 type: "buoyStartingSouth",
                 team: "yellow",
                 isSolid: false,
-                shape: { type: "circle", x:2700, y:1200, radius: 36, color: "red" }
+                shape: { type: "circle", x:2700, y:1200, radius: 36, color: "red" },
+                access:{ x:2400, y:1350, angle:-45 }
             },
             {
                 name: "Buoy Starting Fairway South Blue",
@@ -468,7 +475,7 @@ module.exports = class Map2020 extends Map{
                 team: "blue",
                 isSolid: false,
                 shape: { type: "circle", x:670, y:100, radius: 36, color: "red" },
-                access:{ x:770, y:300, angle:90 }
+                access:{ x:500, y:170, angle:-120 }
             },
             {
                 name: "Buoy Top Yellow",
@@ -476,7 +483,7 @@ module.exports = class Map2020 extends Map{
                 team: "yellow",
                 isSolid: false,
                 shape: { type: "circle", x:2330, y:100, radius: 36, color: "green" },
-                access:{ x:2230, y:300, angle:90 }
+                access:{ x:2500, y:170, angle:-60 }
             },
 
             //Buoys Middle Top
@@ -486,7 +493,7 @@ module.exports = class Map2020 extends Map{
                 team: "blue",
                 isSolid: false,
                 shape: { type: "circle", x:950, y:400, radius: 36, color: "green" },
-                access:{ x:750, y:325, angle:180 }
+                access:{ x:1000, y:320, angle:-120 }
             },
             {
                 name: "Buoy Middle Top Yellow",
@@ -494,7 +501,7 @@ module.exports = class Map2020 extends Map{
                 team: "yellow",
                 isSolid: false,
                 shape: { type: "circle", x:2050, y:400, radius: 36, color: "red" },
-                access:{ x:2250, y:325, angle:0 }
+                access:{ x:2000, y:320, angle:-60 }
             },
 
             //Buoys Middle bottom
@@ -504,7 +511,7 @@ module.exports = class Map2020 extends Map{
                 team: "blue",
                 isSolid: false,
                 shape: { type: "circle", x:1100, y:800, radius: 36, color: "red" },
-                access:{ x:900, y:875, angle:180 }
+                access:{ x:800, y:875, angle:0 }
             },
             {
                 name: "Buoy Middle Bottom Yellow",
@@ -512,7 +519,7 @@ module.exports = class Map2020 extends Map{
                 team: "yellow",
                 isSolid: false,
                 shape: { type: "circle", x:1900, y:800, radius: 36, color: "green" },
-                access:{ x:2100, y:875, angle:0 }
+                access:{ x:2200, y:875, angle:180 }
             },
 
             //Buoys bottom
@@ -521,14 +528,17 @@ module.exports = class Map2020 extends Map{
                 type: "buoyBottom",
                 team: "blue",
                 isSolid: false,
-                shape: { type: "circle", x:1270, y:1200, radius: 36, color: "green" }
+                shape: { type: "circle", x:1270, y:1200, radius: 36, color: "green" },
+                access:{ x:1280, y:1000, angle:60 }
+                
             },
             {
                 name: "Buoy Bottom Yellow",
                 type: "buoyBottom",
                 team: "yellow",
                 isSolid: false,
-                shape: { type: "circle", x:1730, y:1200, radius: 36, color: "red" }
+                shape: { type: "circle", x:1730, y:1200, radius: 36, color: "red" },
+                access:{ x:1720, y:1000, angle:120 }
             },
 
         ]

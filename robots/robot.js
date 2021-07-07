@@ -105,6 +105,7 @@ module.exports = class Robot {
     }
 
     async initMatch(){
+        this.setScore(0);
         if(this.startPosition[this.team]){
             this.x = this.startPosition[this.team].x;
             this.y = this.startPosition[this.team].y;
@@ -243,8 +244,25 @@ module.exports = class Robot {
     async startFunnyAction(parameters){
         this.funnyActionTimeout = setTimeout(()=>{
             if(this.modules.arm) this.modules.arm.openFlag();
+            
+            if(this.modules.arm) this.modules.arm.disablePump({name:"LEF"});
+            if(this.modules.arm) this.modules.arm.disablePump({name:"RIG"});
+            if(this.modules.arm) this.openSideArms({name:"ACA", wait:false});
+            if(this.modules.arm) this.openSideArms({name:"ACC", wait:false});
+            if(this.modules.arm) this.openSideArms({name:"ABA", wait:false});
+            if(this.modules.arm) this.openSideArms({name:"ABB", wait:false});
+            if(this.modules.arm) this.openSideArms({name:"BCB", wait:false});
+            if(this.modules.arm) this.openSideArms({name:"BCC", wait:false});
             this.addScore(10);
         }, 99*1000);
+        return true;
+    }
+    
+    async setVariable(parameters){
+        if(("name" in parameters) && (parameters.name in this.variables)){
+            this.variables[parameters.name].value = parameters.value;
+        }
+        this.send();
         return true;
     }
 
@@ -300,7 +318,7 @@ module.exports = class Robot {
         return false
     }
 
-    async moveSidway(parameters){
+    async moveSideway(parameters){
         let angle = parameters.side=="left"?-90:90;
         angle = utils.normAngle(angle+this.angle);
         return await this.moveAtAngle({
@@ -319,6 +337,26 @@ module.exports = class Robot {
             speed:parameters.speed
         });
     }
+    
+    
+
+    async moveRepositionning(parameters){
+        if(! ("axis" in parameters)) return false;
+        if(! ("value" in parameters)) return false;
+        let status = await this.moveAtAngle({
+            angle: this.angle,
+            distance: parameters.distance,
+            endAngle: this.angle,
+            speed:parameters.speed
+        });
+        if(parameters.axis == "x") this.x = parameters.value;
+        if(parameters.axis == "y") this.y = parameters.value;
+        console.log("reposition", this.x, this.y, this.angle, parameters)
+        if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle});
+        if(this.modules.base) await this._updatePositionAndMoveStatus();
+        return true;
+    }
+    
     async moveBackward(parameters){
         return await this.moveAtAngle({
             angle: utils.normAngle(this.angle+180),
@@ -339,6 +377,7 @@ module.exports = class Robot {
     }
 
     async moveAtAngle(parameters){
+        console.log("move angle from", this.x, this.y, "at", parameters.angle)
         let angle = parameters.angle;
         let rayAngleRad = utils.normAngle(angle)*(Math.PI/180);
         let raySin = Math.sin(rayAngleRad);
@@ -349,6 +388,7 @@ module.exports = class Robot {
         let y2 = y1*rayCos + x1*raySin;
         x2 += this.x;
         y2 += this.y;
+        console.log("move angle to", x2, y2, "at", this.angle)
         return await this.moveToPosition({
             x:x2,
             y:y2,

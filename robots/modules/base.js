@@ -104,7 +104,6 @@ module.exports = class Base {
     }
 
     async supportXY(){
-        let result = false;
         if(this.xySupported !== null) return this.xySupported;
         if(this.app.robot.modules.robotLink){
             var support = await this.app.robot.modules.robotLink.sendMessage(this.address, "support XY");
@@ -115,6 +114,7 @@ module.exports = class Base {
     }
 
     async supportPath(){
+        return false;
         let result = false;
         if(this.pathSupported !== null) return this.pathSupported;
         if(this.app.robot.modules.robotLink){

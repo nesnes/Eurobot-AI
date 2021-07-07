@@ -14,6 +14,7 @@ const Arm = require('./modules/arm');
 delete require.cache[require.resolve('./modules/camera')]; //Delete require() cache
 const Camera = require('./modules/camera');
 
+
 const utils = require("../utils")
 
 module.exports = class Robot2020 extends Robot{
@@ -22,10 +23,18 @@ module.exports = class Robot2020 extends Robot{
         this.name = "Robot Nesnes TDS"
         this.radius = 140;
         this.startPosition = {
-            blue:{x:265,y:650,angle:0},
-            yellow:{x:2735,y:650,angle:180}
+            //blue:{x:265,y:650,angle:0},
+            //yellow:{x:2735,y:650,angle:180}
+            blue:{x:101,y:642,angle:60},
+            yellow:{x:2899,y:642,angle:120}
         }
         this.variables = {
+            buoyACA: { value: 0,  max: 1 },
+            buoyACC: { value: 0,  max: 1 },
+            buoyABA: { value: 0,  max: 1 },
+            buoyABB: { value: 0,  max: 1 },
+            buoyBCB: { value: 0,  max: 1 },
+            buoyBCC: { value: 0,  max: 1 },
             buoyStorageFrontGreen: { value: 0,  max: 1 },
             buoyStorageFrontRed: { value: 0,  max: 1 },
             buoyStorageSideGreen: { value: 0,  max: 2 },
@@ -70,26 +79,42 @@ module.exports = class Robot2020 extends Robot{
         await super.initMatch();
         if(this.modules.arm) await this.modules.arm.disablePump({name:"LEF"});
         if(this.modules.arm) await this.modules.arm.disablePump({name:"RIG"});
-        if(this.modules.arm) await this.setArmDefault();
+        if(this.modules.arm) await this.setArmDefault({});
         if(this.modules.arm) await this.modules.arm.closeFlag();
+        if(this.modules.arm) await this.modules.arm.setServo({name:"BCB", angle: 115});
+        if(this.modules.arm) await this.modules.arm.setServo({name:"BCC", angle: 115});
+        if(this.modules.arm) await this.modules.arm.setServo({name:"ABA", angle: 115});
+        if(this.modules.arm) await this.modules.arm.setServo({name:"ABB", angle: 115});
+        if(this.modules.arm) await this.modules.arm.setServo({name:"ACA", angle: 115});
+        if(this.modules.arm) await this.modules.arm.setServo({name:"ACC", angle: 115});
     }
 
     async endMatch(){
         await super.endMatch();
-        if(this.modules.arm) await this.modules.arm.disablePump({name:"LEF"});
-        if(this.modules.arm) await this.modules.arm.disablePump({name:"RIG"});
-        //if(this.modules.arm) await this.setArmDefault();
+        //if(this.modules.arm) await this.setArmDefault({});
     }
 
     getDescription(){
         return {
             functions:{
+                dance: {},
                 detectAndGrabBuoy: {},
                 setPosDebug: {},
                 activateLighthouse: {},
                 readWeathervane: {},
                 setArmDefault: {},
                 setArmWindsock: {},
+                setArmReef: {},
+                setArmReefLift: {},
+                setArmReefDeposit: {},
+                setArmWindsockPrepare:{},
+                setArmWindsockActive:{},
+                setArmWindsockActive:{},
+                moveAtAngle:{
+                    angle:{ legend:"angle (deg)", type:"number", min:-180, max:180, value:0 },
+                    distance:{ legend:"distance (m)", type:"number", min:-1000, max:1000, value:150 },
+                    speed:{ legend:"speed (m/s)", type:"range", min: -1.5, max: 1.5, value:0.5, step:0.1 }
+                }
             }
         }
     }
@@ -112,8 +137,8 @@ module.exports = class Robot2020 extends Robot{
         if(this.modules.arm) await this.modules.arm.setPose({ a1:30, a2:40, a3:55, a4:126, a5:90, duration:200 })
         await utils.sleep(100);
         // Move forward
-        //await this.moveForward({distance:75, speed:0.4});
-        await utils.sleep(1000); //todo remove by moveForward
+        await this.moveForward({distance:75, speed:0.4});
+        //await utils.sleep(1000); //todo remove by moveForward
         // Arm swipe
         if(this.modules.arm) await this.modules.arm.setPose({ a1:30, a2:140, a3:55, a4:126, a5:90, duration:200 })
         //Move back
@@ -122,10 +147,10 @@ module.exports = class Robot2020 extends Robot{
             await utils.sleep(200);
             await this.setArmClose({});
         }*/
-        this.addScore(10);
+        this.addScore(15);
         // Move backward
-        //await this.moveBackward({distance:100, speed:0.4});
-        await utils.sleep(1000); //todo remove by moveBackward
+        await this.moveBackward({distance:100, speed:0.4});
+        //await utils.sleep(1000); //todo remove by moveBackward
         // Arm to default
         if(this.modules.arm) await this.modules.arm.setPose(intermediatePose);
         await utils.sleep(100);
@@ -145,7 +170,7 @@ module.exports = class Robot2020 extends Robot{
     async readWeathervane(parameters){
         if(!this.modules.camera) return true;
         let armLookPosition = { a1:110, a2:90, a3:70, a4:55, a5:80, duration:200 };
-        let tryBudget = 3;
+        let tryBudget = 1;
         while(--tryBudget>=0){
             if(this.modules.arm) await this.modules.arm.setPose(armLookPosition);
             await utils.sleep(400);
@@ -156,7 +181,7 @@ module.exports = class Robot2020 extends Robot{
             }
         }
         if(this.modules.arm) await this.modules.arm.setPose({ a1:110, a2:90, a3:40, a4:180, a5:110, duration:300 })
-        this.setArmDefault({duration:100});
+        this.setArmDefault({duration:100, wait:false});
         this.send();
         return this.variables.endZone.value>0;
     }
@@ -269,7 +294,7 @@ module.exports = class Robot2020 extends Robot{
             if(handleFrontRed && !handleFrontGreen) angleDiff = 160;
             if(handleFrontGreen && !handleFrontRed) angleDiff = -160;
             await this.rotateToAngle({angle:utils.normAngle(this.angle+angleDiff), speed:0.4})
-            await this.setArmDefault();
+            await this.setArmDefault({});
             let armPosCenter_Up = { a1:70, a2:95, a3:100, a4:40, a5:116, duration:200 };
             let armPosReleaseGreen_Up = { a1:70, a2:30, a3:157, a4:40, a5:116, duration:200 };
             let armPosReleaseGreen_Down = { a1:90, a2:30, a3:157, a4:40, a5:116, duration:200 };
@@ -297,7 +322,7 @@ module.exports = class Robot2020 extends Robot{
                     await utils.sleep(100);
                     await this.setArmClose({});
                 }
-                else await this.setArmDefault();
+                else await this.setArmDefault({});
             }
             let armPosReleaseRed_Up = { a1:70, a2:160, a3:157, a4:40, a5:116, duration:200 };
             let armPosReleaseRed_Down = { a1:90, a2:160, a3:157, a4:40, a5:116, duration:200 };
@@ -325,7 +350,7 @@ module.exports = class Robot2020 extends Robot{
                     await utils.sleep(100);
                     await this.setArmClose({});
                 }
-                else await this.setArmDefault();
+                else await this.setArmDefault({});
             }
             if(handleFrontGreen && handleFrontRed){
                 //Score
@@ -344,7 +369,7 @@ module.exports = class Robot2020 extends Robot{
     async setArmDefault(parameters){
         //if(this.modules.arm) await this.modules.arm.setPose({ a1:170, a2:90, a3:50, a4:140, a5:25, duration:200 })
         let duration = 300;
-        if("duration" in parameters) duration = parameters.duration;
+        if(parameters && ("duration" in parameters)) duration = parameters.duration;
         if(this.modules.arm) await this.modules.arm.setPose({ a1:110, a2:90, a3:10, a4:142, a5:130, duration:duration })
         return true;
     }
@@ -358,9 +383,46 @@ module.exports = class Robot2020 extends Robot{
         return true;
     }
 
-    async setArmWindsock(parameters){
-        return false;
-        if(this.modules.arm) await this.modules.arm.setPose({ a1:150, a2:90, a3:140, a4:140, a5:175, duration:200 })
+    async setArmWindsockPrepare(parameters){
+        let pos = { a1:100, a2:125, a3:140, a4:40, a5:90, duration:200 };
+        if(this.team=="blue") pos.a2 = 55;
+        if(this.team=="yellow") pos.a2 = 125;
+        if(this.modules.arm) await this.modules.arm.setPose(pos)
+        return true;
+    }
+
+    async setArmWindsockReady(parameters){
+        let pos = { a1:100, a2:90, a3:140, a4:40, a5:90, duration:200 };
+        if(this.modules.arm) await this.modules.arm.setPose(pos)
+        return true;
+    }
+
+    async setArmWindsockActive(parameters){
+        let posDown = { a1:100, a2:90, a3:140, a4:70, a5:90, duration:200, wait: true };
+        if(this.modules.arm) await this.modules.arm.setPose(posDown)
+        
+        let posUp = { a1:100, a2:90, a3:140, a4:40, a5:90, duration:200, wait: true };
+        if(this.modules.arm) await this.modules.arm.setPose(posUp)
+        
+        if(this.team=="blue") posUp.a2 = 120;
+        if(this.team=="yellow") posUp.a2 = 70;
+        if(this.modules.arm) await this.modules.arm.setPose(posUp)
+        return true;
+        
+    }
+
+    async setArmReef(parameters){
+        if(this.modules.arm) await this.modules.arm.setPose({ a1:97, a2:90, a3:145, a4:55, a5:75, duration:200 })
+        return true;
+    }
+
+    async setArmReefLift(parameters){
+        if(this.modules.arm) await this.modules.arm.setPose({ a1:97, a2:90, a3:120, a4:30, a5:75, duration:400 })
+        return true;
+    }
+
+    async setArmReefDeposit(parameters){
+        if(this.modules.arm) await this.modules.arm.setPose({ a1:110, a2:90, a3:140, a4:70, a5:52, duration:500 })
         return true;
     }
 
@@ -370,18 +432,40 @@ module.exports = class Robot2020 extends Robot{
         return true;
     }
 
+    async enablePump(parameters){
+        if(this.modules.arm) await this.modules.arm.enablePump(parameters);
+        return true;
+    }
+
+    async disablePump(parameters){
+        if(this.modules.arm) await this.modules.arm.disablePump(parameters);
+        return true;
+    }
+    
+    async delay(parameters){
+        await utils.sleep(parameters.duration);
+        return true;
+    }
+
     async openSideArms(parameters){
+        let wait = true;
+        if("wait" in parameters) wait = parameters.wait;
         if(this.modules.arm && parameters.name)
-            await this.modules.arm.setServoLeft({name:parameters.name, angle:10})
+            await this.modules.arm.setServo({name:parameters.name, angle:10, duration: 300, wait: wait})
         return true;
     }
 
     async closeSideArms(parameters){
         if(this.modules.arm && parameters.name)
-            await this.modules.arm.setServoLeft({name:parameters.name, angle:70})
+            await this.modules.arm.setServo({name:parameters.name, angle:75, wait:false})
         //if(parameters.addBuoyStorageSideGreen) this.variables.buoyStorageSideGreen.value+=parameters.addBuoyStorageSideGreen===true?1:parameters.addBuoyStorageSideGreen;
         //if(parameters.addBuoyStorageSideRed) this.variables.buoyStorageSideRed.value+=parameters.addBuoyStorageSideRed===true?1:parameters.addBuoyStorageSideRed;
         if(parameters.removeFromMap) parameters.removeFromMap.forEach((e)=>this.app.map.removeComponent(this.app.map.getComponent(e, this.team)))
+        return true;
+    }
+    
+    async removeFromMap(parameters){
+        if(parameters.list) parameters.list.forEach((e)=>this.app.map.removeComponent(this.app.map.getComponent(e, this.team)))
         return true;
     }
 
@@ -480,8 +564,78 @@ module.exports = class Robot2020 extends Robot{
         result = await this.moveToComponent({ component: endingArea, speed: 0.4 });
         if(!result) return result;
         
-        this.addScore(10);
+        this.addScore(20);
         return true;
+    }
+    
+    async dance(parameters){
+        await this.modules.base.enableManual();
+        await this.modules.base.enableMove();
+        
+        let side = true;
+        for(let i = 0;i<4;i++){
+            let repetitions = 9;
+            if(i==0) repetitions = 8;
+            for(var t=0; t<repetitions;t++)
+            {
+                side = !side;
+                await this.modules.arm.setServo({name:"ACA", angle: side?110:80});
+                await this.modules.arm.setServo({name:"ACC", angle: side?110:80});
+                await this.modules.arm.setServo({name:"ABA", angle: side?110:80});
+                await this.modules.arm.setServo({name:"ABB", angle: side?110:80});
+                await this.modules.arm.setServo({name:"BCB", angle: side?110:80});
+                await this.modules.arm.setServo({name:"BCC", angle: side?110:80});
+                if(t>repetitions-3){
+                    await utils.sleep(240);
+                }
+                else await utils.sleep(480);
+                if(i==2 && t==0){
+                    await this.modules.base.moveManual({
+                    moveAngle: side?90:-90,
+                    moveSpeed: 0.3,
+                    angleSpeed: side?45:-45
+                });
+                }
+            }
+        }
+        await this.modules.base.moveManual({
+            moveAngle: 0,
+            moveSpeed: 0,
+            angleSpeed: 0
+        });
+        await utils.sleep(3000);
+        
+        let armPose = { a1:90, a2:60, a3:90, a4:90, a5:90, duration:200 };
+        for(let i = 0;i<5;i++){
+            let repetitions = 9;
+            if(i==0) repetitions = 8;
+            for(var t=0; t<repetitions;t++)
+            {
+                side = !side;
+                armPose.a1 = side?20:110;
+                armPose.a2 = side?80:110;
+                armPose.a3 = side?80:110;
+                armPose.a4 = side?80:110;
+                await this.modules.arm.setPose(armPose);
+                await this.modules.base.moveManual({
+                    moveAngle: side?90:-90,
+                    moveSpeed: 0.4,
+                    angleSpeed: side?45:-45
+                });
+                /*if(t>repetitions-3){
+                    await utils.sleep(480);
+                }
+                else*/ await utils.sleep(450);
+            }
+        }
+        await this.modules.base.moveManual({
+            moveAngle: 0,
+            moveSpeed: 0,
+            angleSpeed: 0
+        });
+        
+        
     }
 
 }
+

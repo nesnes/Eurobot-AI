@@ -74,13 +74,15 @@ module.exports = class Arm {
 
     async setServo(params){
         this.app.logger.log("servo set");
+        let wait = true;
         if(!("duration" in params)) params.duration = 0;
+        if(("wait" in params)) wait = params.wait;
         if(!("name" in params)) return "ERROR";
         let msg = "servo set "+params.name+" "+params.angle+" "+params.duration;
         let result = true;
         if(this.app.robot.modules.robotLink)
             result =  await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
-        await utils.sleep(params.duration);
+        if(wait) await utils.sleep(params.duration);
         return result;
     }
 

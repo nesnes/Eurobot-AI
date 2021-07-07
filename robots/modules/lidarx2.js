@@ -17,6 +17,7 @@ module.exports = class LidarX2 {
         this.measures = [];
         this.angleOffset = 180;
         this.lastSendTime = 0;
+        this.rejectedAngles = [{from:290, to:315}]
         if(process.platform=="linux") this.port = "/dev/ydlidarx2"; //Raspberry/Linux
         if(process.platform=="darwin") this.port = ""; //Mac
         if(process.platform=="win32") this.port = "COM4"; //Windows
@@ -76,6 +77,11 @@ module.exports = class LidarX2 {
                 y2 += robotY;
                 if(!(this.borderMargin<=x2&&x2<=this.app.map.width-this.borderMargin
                 && this.borderMargin<=y2&&y2<=this.app.map.height-this.borderMargin))
+                    remove = true;
+            }
+            // apply rejection angles
+            for(let range of this.rejectedAngles) {
+                if( range.from <= this.rawMeasures[i].a && this.rawMeasures[i].a <= range.to)
                     remove = true;
             }
             if(!remove){

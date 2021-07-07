@@ -31,6 +31,7 @@ module.exports = class Intelligence {
 
         //Read the goals
         let goalsFile='./goals/goals_homologation';
+        //let goalsFile='./goals/goals_test'; // this is dance!
         //let goalsFile='./goals/goals_2020';
         //let goalsFile='./goals/goals_2020';
         delete require.cache[require.resolve(goalsFile)]; //Delete require() cache
