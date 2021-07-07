@@ -1,16 +1,49 @@
-#ifndef SerialMotor_h
-#define SerialMotor_h
+#ifndef I2CMotor_h
+#define I2CMotor_h
 
 #include <Arduino.h>
+#include <Wire.h>
+#include <WirePacker.h>
+#include <WireSlaveRequest.h>
 
 #define SERIAL_MOTOR_BUFFER_SIZE 30
 #define _2XPI 6.28318530718d
 
-class SerialMotor
+template <typename T> int I2C_writeAnything (WirePacker& packer, const T& value)
+  {
+    const byte * p = (const byte*) &value;
+    unsigned int i;
+    for (i = 0; i < sizeof value; i++)
+          packer.write(*p++);
+    return i;
+  }  // end of I2C_writeAnything
+
+template <typename T> int I2C_readAnything(WireSlaveRequest& slaveReq, T& value)
+  {
+    byte * p = (byte*) &value;
+    unsigned int i;
+    for (i = 0; i < sizeof value; i++)
+          *p++ = slaveReq.read();
+    return i;
+  }
+template <typename T> int I2C_singleWriteAnything (WirePacker& packer, const T& value) {
+  int size = sizeof value;
+  byte vals[size];
+  const byte* p = (const byte*) &value;
+  unsigned int i;
+  for (i = 0; i < sizeof value; i++) {
+    vals[i] = *p++;
+  }
+  
+  packer.write(vals, size);
+  return i;
+}
+  
+class I2CMotor
 {
 public:
-  SerialMotor(HardwareSerial* serial, float wheelPerimeter=100, bool invert=false, bool debug=false); //mm
-  ~SerialMotor();
+  I2CMotor(int address, float wheelPerimeter=100, bool invert=false, bool debug=false); //mm
+  ~I2CMotor();
   
   void begin();
 
@@ -24,7 +57,7 @@ public:
 
 //private:
   void parseInput();
-  HardwareSerial* serial_;
+  int m_address;
   
   bool m_inverted = false;
   bool m_debug = false;
@@ -50,7 +83,6 @@ public:
   unsigned long int lastTargetTime = 0;
   unsigned long int lastAngleTime = 0;
   unsigned long int lastButtonTime = 0;
-  unsigned long int lastMemoryTime = 0;
 };
 
-#endif // BrushlessMotor_h
+#endif

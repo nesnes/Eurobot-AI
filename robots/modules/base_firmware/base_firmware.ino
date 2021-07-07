@@ -1,11 +1,16 @@
 //#include "BrushlessMotor.h" 
 #include "SerialMotor.h" 
+#include "I2CMotor.h" 
+#include <Wire.h>
 //#define MODE_I2C
 #ifndef MODE_I2C
   #define MODE_SERIAL
-  #define SERIAL_DEBUG
+  //#define SERIAL_DEBUG
 #endif
 #include "comunication.h"
+
+#define LED_PIN 13
+bool ledValue = true;
 
 const double wheelPerimeter = 186.5d;//188.495559215;//mm = pi*d = pi*60
 const double reductionFactor = 3.75d;//3.75d
@@ -21,9 +26,15 @@ const double wheelDistanceC = 123;//mm
 //BrushlessMotor motorA(4,2,3, 39, A22, A21, wheelPerimeter, false);
 //BrushlessMotor motorB(7,5,6, 36, A19, A18, wheelPerimeter, false);
 //BrushlessMotor motorC(10,8,9,33, A16, A15, wheelPerimeter, false);
-SerialMotor motorA(&Serial3, wheelPerimeter/reductionFactor, false);
-SerialMotor motorB(&Serial4, wheelPerimeter/reductionFactor, false);
-SerialMotor motorC(&Serial2, wheelPerimeter/reductionFactor, false);
+
+//SerialMotor motorA(&Serial3, wheelPerimeter/reductionFactor, true, true);
+//SerialMotor motorB(&Serial4, wheelPerimeter/reductionFactor, true);
+//SerialMotor motorC(&Serial2, wheelPerimeter/reductionFactor, true);
+
+I2CMotor motorA(0x10, wheelPerimeter/reductionFactor, true);
+I2CMotor motorB(0x11, wheelPerimeter/reductionFactor, true);
+I2CMotor motorC(0x12, wheelPerimeter/reductionFactor, true);
+
 
 const double motorA_angle = -60;//°
 const double motorB_angle = 180;//°
@@ -92,6 +103,8 @@ void setArmPose(int* pose, int duration)
 
 void setup()
 {
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, 1);
   delay(2500);
   servoAC_A.attach(SERVO_AC_A, MIN_PULSE, MAX_PULSE);//SERVO_AC_A
   servoAC_C.attach(SERVO_AC_C, MIN_PULSE, MAX_PULSE);
@@ -122,6 +135,7 @@ void setup()
   digitalWrite(pinNumberPump_R, LOW);
   
   //Init motor
+  Wire.begin();
   motorA.begin();  
   motorB.begin();
   motorC.begin();
@@ -177,13 +191,13 @@ double targetMovmentAngle = 0;
 double targetSpeed_mps = 0.0;// m/s
 double targetAngleSpeed_dps = 0;// °/s
 
-double targetAngleError = 2.5; //° 1.0
-double targetPosError = 0.01; //meters
+double targetAngleError = 1.0; //° 1.0
+double targetPosError = 0.005; //meters
 bool targetReached = true;
-int targetReachedCountTarget = 5;
+int targetReachedCountTarget = 10;
 int targetReachedCount = 0;
 
-double applySpeedRamp(double distFromStart, double distFromEnd, double rampDist, double speedTarget, double minSpeed, double endSpeed){
+double applySpeedRamp(double distFromStart, double distFromEnd, double rampDist, double speedTarget, double minSpeed){
   double speed = speedTarget;
   double errorSign = distFromEnd>0?1:-1;
   if(abs(distFromStart)<rampDist){ //speed up ramp
@@ -197,20 +211,6 @@ double applySpeedRamp(double distFromStart, double distFromEnd, double rampDist,
   else { //cruise speed
     speed = speedTarget;
   }
-  /*if(abs(distFromStart)<rampDist/4 and abs(distFromEnd)<rampDist/4){
-    speed = minSpeed;
-  }
-  else if(abs(distFromStart)<rampDist && abs(distFromStart) < abs(distFromEnd)){ //speed up ramp
-    float factor = 1.0/rampDist*abs(distFromStart);
-    speed = (speedTarget-minSpeed)*factor+minSpeed;
-  }
-  else if(abs(distFromEnd)<rampDist && abs(distFromEnd) < abs(distFromStart)){ //speed down ramp
-    float factor = 1.0/rampDist*abs(distFromEnd);
-    speed = (speedTarget-endSpeed)*factor+endSpeed;
-  }
-  else { //cruise speed
-    speed = speedTarget;
-  }*/
   //Bound speed
   if(abs(speed)>speedTarget) speed = speedTarget;
   if(abs(speed)<minSpeed) speed = minSpeed;
@@ -234,38 +234,22 @@ void updateAsserv(){
 
   //Translation Speed
   double minSpeed = 0.05;
-  double endSpeed = 0.01;
   if(runTargetPath && targetPathIndex>0 && targetPathIndex<targetPathSize-1)
-    minSpeed = 0.08;
+    minSpeed = 0.1;
   double slowDownDistance = 0.20;//m
   double distFromStart = sqrt(pow(xPos - xStart,2) + pow(yPos - yStart,2)); // meters
   double distFromEnd = translationError;
-  //if(abs(translationError) < slowDownDistance/4) minSpeed /= 4;
-  targetSpeed_mps = applySpeedRamp(distFromStart, distFromEnd, slowDownDistance, speedTarget, minSpeed, endSpeed);
+  targetSpeed_mps = applySpeedRamp(distFromStart, distFromEnd, slowDownDistance, speedTarget, minSpeed);
   
 
   //Rotation
-  double angleMinSpeed = 2.0;//deg/s
-  double angleEndSpeed = 1.0;//deg/s
-  double slowDownAngle = 20;//deg
+  double angleMinSpeed = 10;//deg/s
+  double slowDownAngle = 25;//deg
   double rotationError = angleDiff(angleTarget,anglePos);
   double rotationFromStart = angleDiff(angleStart,anglePos);
-  //if(abs(rotationError) < slowDownAngle/4) angleMinSpeed /= 4;
   
-  targetAngleSpeed_dps = applySpeedRamp(rotationFromStart, rotationError, slowDownAngle, angleSpeedTarget, angleMinSpeed, angleEndSpeed);
+  targetAngleSpeed_dps = applySpeedRamp(rotationFromStart, rotationError, slowDownAngle, angleSpeedTarget, angleMinSpeed);
   
-  //double speedFromError = rotationError*5;
-  /*if(rotationError>slowDownAngle) targetAngleSpeed_dps = angleSpeedTarget;
-  else targetAngleSpeed_dps = (angleSpeedTarget/slowDownAngle)*rotationError;
-  if(abs(targetAngleSpeed_dps)>angleSpeedTarget)
-    targetAngleSpeed_dps = targetAngleSpeed_dps>0?angleSpeedTarget:-angleSpeedTarget;*/
-   //targetAngleSpeed_dps = 0;
-  //Limit speed variation rate
-  //if(abs(targetAngleSpeed_dps)<0.01 && abs(speedFromError)>0) targetAngleSpeed_dps=speedFromError>0?0.01:-0.01;
-  //if(targetAngleSpeed_dps*0.8<speedFromError) speedFromError = targetAngleSpeed_dps*0.0;
-  //if(targetAngleSpeed_dps*1.2>speedFromError) speedFromError = targetAngleSpeed_dps*1.2;
-  //targetAngleSpeed_dps = speedFromError;
-
   if(translationError>targetPosError || fabs(rotationError)>targetAngleError){
     targetReached = false;
     targetReachedCount=0;
@@ -296,12 +280,12 @@ void printCharts(){
   Serial.print(angleSpeedTarget);Serial.print(" ");
 
   //Position Speed
-  Serial.print(targetSpeed_mps);Serial.print(" ");
-  Serial.print(speedTarget);Serial.print(" ");
+  Serial.print(targetSpeed_mps*100.0);Serial.print(" ");
+  Serial.print(speedTarget*100.0);Serial.print(" ");
 
   //Motor Speed
-  Serial.print(motorA.getRadSpeed());Serial.print(" ");
-  Serial.print(motorB.getRadSpeed());Serial.print(" ");
+  Serial.print(motorA.getSpeed());Serial.print(" ");
+  Serial.print(motorB.getSpeed());Serial.print(" ");
   //Serial.print(motorB.getSpeed()*1000);Serial.print(" ");
   //Serial.print(motorC.getSpeed()*1000);Serial.print(" ");
   Serial.print("\r\n");
@@ -375,9 +359,9 @@ void control(){
   
   //Serial.print(speedA*1000.0d);Serial.print("\t");Serial.print(arcLength*1000.0d);Serial.print("\n");
   
-  speedA += speedAngleA*0.25;//1.25
-  speedB += speedAngleB*0.25;
-  speedC += speedAngleC*0.25;
+  speedA += speedAngleA*1.25;
+  speedB += speedAngleB*1.25;
+  speedC += speedAngleC*1.25;
 
 
   //Serial.print(speedA*1000000.f);Serial.print("\t");Serial.print(speedB*1000000.f);Serial.print("\t");Serial.print(speedC*1000000.f);Serial.print("\n");
@@ -406,8 +390,8 @@ void control(){
   }
 }
 
-int positionFrequency = 150; //Hz
-int controlFrequency = 150; //Hz
+int positionFrequency = 100; //Hz
+int controlFrequency = 100; //Hz
 
 void executeOrder(){
   comunication_read();
@@ -627,16 +611,17 @@ void updateServos(){
 
 unsigned long lastControlMillis = 0;
 unsigned long lastPositionMillis = 0;
+unsigned long lastLedTime = 0;
 float sinCounter = 0;
-void loop()
+/*void loop()
 {
   //Read commands
   executeOrder();
 
   //Spin motors
   motorA.spin();
-  motorB.spin();
-  motorC.spin();
+  //motorB.spin();
+  //motorC.spin();
 
   unsigned long currMillis = millis();
   
@@ -653,10 +638,17 @@ void loop()
     lastControlMillis = currMillis;
     control();
   }
-  updateServos();
   
-}
+  updateServos();
 
+  // blink led
+  if(currMillis - lastLedTime >= 500){
+    ledValue=!ledValue;
+    digitalWrite(LED_PIN, ledValue);
+    lastLedTime = currMillis;
+  }
+  
+}*/
 
 /*unsigned long lastPrintMillis = 0;
 void loop(){
@@ -685,3 +677,40 @@ void loop(){
     motorB.spin();
   }
 }*/
+
+void loop()
+{
+    executeOrder();
+    /*updatePosition();
+    control();
+    updateServos();*/
+    unsigned long currMillis = millis();
+  
+    //Run position loop
+    int positionMillis = 1000/positionFrequency;
+    if(currMillis - lastPositionMillis >= positionMillis){
+      lastPositionMillis = currMillis;
+      updatePosition();
+    }
+    
+    //Run control loop
+    int controlMillis = 1000/controlFrequency;
+    if(currMillis - lastControlMillis >= controlMillis){
+      lastControlMillis = currMillis;
+      control();
+    }
+    
+    updateServos();
+  
+    // blink led
+    if(currMillis - lastLedTime >= 500){
+      ledValue=!ledValue;
+      digitalWrite(LED_PIN, ledValue);
+      lastLedTime = currMillis;
+    }
+  
+    motorA.spin();
+    motorB.spin();
+    motorC.spin();
+    return;
+}
