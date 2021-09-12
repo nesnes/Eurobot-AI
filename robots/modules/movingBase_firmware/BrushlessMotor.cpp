@@ -11,28 +11,24 @@ BrushlessMotor::BrushlessMotor(int pinA, int pinB, int pinC, float wheelPerimete
 }
 
 BrushlessMotor::~BrushlessMotor(){
-  
+	
 }
   
 void BrushlessMotor::begin(){
   m_currentStepA = (int)(((float)(BRUSHLESS_STEPCOUNT)/3.0f)*0.0f);
   m_currentStepB = (int)(((float)(BRUSHLESS_STEPCOUNT)/3.0f)*1.0f);
   m_currentStepC = (int)(((float)(BRUSHLESS_STEPCOUNT)/3.0f)*2.0f);
-
   for(int i=0;i<BRUSHLESS_STEPCOUNT;i++){
     m_pwmSin[i] = 0.5f + 0.5f*sin( ((2.0f*PI)/(float)(BRUSHLESS_STEPCOUNT)) *(float)(i) );
-    /*Serial.print(i);
-    Serial.print("=");
-    Serial.println(m_pwmSin[i]);*/
   }
-
   m_resolutionMaxValue = 1023;
-  ledcSetup(0, 25000, 10);
-  ledcSetup(1, 25000, 10);
-  ledcSetup(2, 25000, 10);
-  ledcAttachPin(m_pinA, 0);
-  ledcAttachPin(m_pinB, 1);
-  ledcAttachPin(m_pinC, 2);
+  pinMode(m_pinA, OUTPUT);
+  pinMode(m_pinB, OUTPUT);
+  pinMode(m_pinC, OUTPUT);
+  analogWriteFrequency(m_pinA, 146484);
+  analogWriteFrequency(m_pinB, 146484);
+  analogWriteFrequency(m_pinC, 146484);
+  analogWriteResolution(10);
 }
 
 double BrushlessMotor::getAndResetDistanceDone(){
@@ -44,11 +40,6 @@ double BrushlessMotor::getAndResetDistanceDone(){
   if(m_inverted) distance *= -1.0d;
   m_totalDist += distance;
   return distance;
-}
-
-float BrushlessMotor::getTotalDistanceDone(){
-  getAndResetDistanceDone();
-  return m_totalDist;
 }
 
 void BrushlessMotor::setSpeed(double speed){ // m/s
@@ -136,9 +127,9 @@ void BrushlessMotor::spin(){
   unsigned int duty_b = _constrain(dc_b*m_resolutionMaxValue, 0, m_resolutionMaxValue);
   unsigned int duty_c = _constrain(dc_c*m_resolutionMaxValue, 0, m_resolutionMaxValue);
 
-  ledcWrite(0, duty_a);
-  ledcWrite(1, duty_b);
-  ledcWrite(2, duty_c);
+  analogWrite(m_pinA, duty_a);
+  analogWrite(m_pinB, duty_b);
+  analogWrite(m_pinC, duty_c);
 
   if(m_outputInitialized) m_stepsDone += m_direction;
   else m_outputInitialized = true;

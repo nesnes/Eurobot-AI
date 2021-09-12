@@ -1,6 +1,4 @@
-//#include "BrushlessMotor.h" 
-#include "SerialMotor.h" 
-#include "I2CMotor.h" 
+#include "BrushlessMotor.h" 
 #include <Wire.h>
 //#define MODE_I2C
 #ifndef MODE_I2C
@@ -23,17 +21,17 @@ const double wheelDistanceA = 120;//mm
 const double wheelDistanceB = 125.4;//mm
 const double wheelDistanceC = 123;//mm
 #endif
-//BrushlessMotor motorA(4,2,3, 39, A22, A21, wheelPerimeter, false);
-//BrushlessMotor motorB(7,5,6, 36, A19, A18, wheelPerimeter, false);
-//BrushlessMotor motorC(10,8,9,33, A16, A15, wheelPerimeter, false);
+BrushlessMotor motorA(10,11,12, wheelPerimeter, false);
+BrushlessMotor motorB(7,8,9, wheelPerimeter, false);
+BrushlessMotor motorC(4,5,6, wheelPerimeter, false);
 
 //SerialMotor motorA(&Serial3, wheelPerimeter/reductionFactor, true, true);
 //SerialMotor motorB(&Serial4, wheelPerimeter/reductionFactor, true);
 //SerialMotor motorC(&Serial2, wheelPerimeter/reductionFactor, true);
 
-I2CMotor motorA(0x10, wheelPerimeter/reductionFactor, true);
-I2CMotor motorB(0x11, wheelPerimeter/reductionFactor, true);
-I2CMotor motorC(0x12, wheelPerimeter/reductionFactor, true);
+//I2CMotor motorA(0x10, wheelPerimeter/reductionFactor, true);
+//I2CMotor motorB(0x11, wheelPerimeter/reductionFactor, true);
+//I2CMotor motorC(0x12, wheelPerimeter/reductionFactor, true);
 
 
 const double motorA_angle = -60;//°
@@ -53,13 +51,13 @@ const double motorC_angle = 60;//°
 const int MIN_PULSE = 500;
 const int MAX_PULSE = 2500;
 
-const int SERVO_AC_A = 29;//29
-const int SERVO_AC_C = 2;//
-const int SERVO_AB_A = 6;//
-const int SERVO_AB_B = 5;//
-const int SERVO_BC_B = 4;//
-const int SERVO_BC_C = 3;//
-const int SERVO_FLAG = 20;
+const int SERVO_AC_A = 17;
+const int SERVO_AC_C = 23;
+const int SERVO_AB_A = 20;
+const int SERVO_AB_B = 16;
+const int SERVO_BC_B = 15;
+const int SERVO_BC_C = 13;
+const int SERVO_FLAG = 14;
 Servo servoAC_A, servoAC_C;
 Servo servoAB_A, servoAB_B;
 Servo servoBC_B, servoBC_C;
@@ -70,11 +68,11 @@ ramp servoRampBC_B, servoRampBC_C;
 ramp servoRampFlag;
 
 const int NB_SERVO_ARM_M = 5;
-const int pinNumberServo_M[NB_SERVO_ARM_M] = {30,23,22,35,21};
+const int pinNumberServo_M[NB_SERVO_ARM_M] = {0,24,28,1,32};
 Servo servos_M[NB_SERVO_ARM_M];
 ramp servosRamp_M[NB_SERVO_ARM_M];
-const int pinNumberPump_L = 37;
-const int pinNumberPump_R = 36;
+const int pinNumberPump_L = 22;
+const int pinNumberPump_R = 21;
 int positionServo_M_DefaultOut[NB_SERVO_ARM_M] = {90,90,90,90,90};//Z 40 90 90 90 90 140 0
 int positionServo_M_Default[NB_SERVO_ARM_M] = {50,90,140,50,90};//Z 40 10 150 60 90 140 0
 
@@ -191,26 +189,35 @@ double targetMovmentAngle = 0;
 double targetSpeed_mps = 0.0;// m/s
 double targetAngleSpeed_dps = 0;// °/s
 
-double targetAngleError = 1.0; //° 1.0
-double targetPosError = 0.005; //meters
+double targetAngleError = 1.5; //° 1.0
+double targetPosError = 0.015; //meters 0.005
 bool targetReached = true;
 int targetReachedCountTarget = 10;
 int targetReachedCount = 0;
 
+float nearTranslationError = 0.05;//meters
+float nearAngleError = 5;//degrees
+bool nearTarget = false;
+
 double applySpeedRamp(double distFromStart, double distFromEnd, double rampDist, double speedTarget, double minSpeed){
   double speed = speedTarget;
   double errorSign = distFromEnd>0?1:-1;
-  if(abs(distFromStart)<rampDist){ //speed up ramp
-    float factor = 1.0/rampDist*abs(distFromStart);
-    speed = speedTarget*factor;
+  double startRampDist = rampDist/4;
+  double endRampDist = rampDist;
+
+  if(abs(distFromStart) < startRampDist or abs(distFromEnd) < endRampDist)
+  {
+    if(abs(distFromStart) < abs(distFromEnd)){
+      speed = minSpeed + (speedTarget - minSpeed) * 1.0/startRampDist*abs(distFromStart);
+    }
+    else {
+      speed = minSpeed + (speedTarget - minSpeed) * 1.0/endRampDist*abs(distFromEnd);
+    }
   }
-  else if(abs(distFromEnd)<rampDist){ //speed down ramp
-    float factor = 1.0/rampDist*abs(distFromEnd);
-    speed = speedTarget*factor;
-  }
-  else { //cruise speed
+  else {
     speed = speedTarget;
   }
+  
   //Bound speed
   if(abs(speed)>speedTarget) speed = speedTarget;
   if(abs(speed)<minSpeed) speed = minSpeed;
@@ -249,6 +256,8 @@ void updateAsserv(){
   double rotationFromStart = angleDiff(angleStart,anglePos);
   
   targetAngleSpeed_dps = applySpeedRamp(rotationFromStart, rotationError, slowDownAngle, angleSpeedTarget, angleMinSpeed);
+
+  nearTarget = (!runTargetPath and translationError <= nearTranslationError and fabs(rotationError) <= nearAngleError);
   
   if(translationError>targetPosError || fabs(rotationError)>targetAngleError){
     targetReached = false;
@@ -291,7 +300,7 @@ void printCharts(){
   Serial.print("\r\n");
 }
 
-float nextPathTranslationError = 0.03;//meters
+float nextPathTranslationError = 0.05;//meters 0.03
 float nextPathRotationError = 5;//degrees
 void updatePath(){
   if(!runTargetPath || targetReached) return;
@@ -366,22 +375,12 @@ void control(){
 
   //Serial.print(speedA*1000000.f);Serial.print("\t");Serial.print(speedB*1000000.f);Serial.print("\t");Serial.print(speedC*1000000.f);Serial.print("\n");
   //Serial.print(motorA.m_currSleep);Serial.print("\t");Serial.print(motorB.m_currSleep==0);Serial.print("\t");Serial.print(motorC.m_currSleep);Serial.print("\n");
-
-  //Compute Sync Factor -> so motors slows their Acceleration based on the max-accelerating one
-  double syncFactorA=1, syncFactorB=1, syncFactorC=1;
-  double speedDiffA = abs(speedA - motorA.getSpeed());
-  double speedDiffB = abs(speedB - motorB.getSpeed());
-  double speedDiffC = abs(speedC - motorC.getSpeed());
-  double speedDiffMax = max(speedDiffA,max(speedDiffB,speedDiffC));
-  syncFactorA = 1;//speedDiffA/speedDiffMax;
-  syncFactorB = 1;//speedDiffB/speedDiffMax;
-  syncFactorC = 1;//speedDiffC/speedDiffMax;
   
   //Drive motors
   if(!emergencyStop && movementEnabled){
-    motorA.setSpeed(speedA, syncFactorA);
-    motorB.setSpeed(speedB, syncFactorB);
-    motorC.setSpeed(speedC, syncFactorC);
+    motorA.setSpeed(speedA);
+    motorB.setSpeed(speedB);
+    motorC.setSpeed(speedC);
   }
   else{
     motorA.setSpeed(0);
@@ -438,8 +437,8 @@ void executeOrder(){
     else if(strstr(comunication_InBuffer, "move XY ")){
       sprintf(comunication_OutBuffer,"move OK");
       comunication_write();//async
-      int i_x_pos=0, i_y_pos=0, i_angle=0, i_speed_pos=1;
-      sscanf(comunication_InBuffer, "move XY %i %i %i %i", &i_y_pos, &i_x_pos, &i_angle, &i_speed_pos);
+      int i_x_pos=0, i_y_pos=0, i_angle=0, i_speed_pos=1, i_near_dist=0, i_near_angle=0;
+      sscanf(comunication_InBuffer, "move XY %i %i %i %i %i %i", &i_y_pos, &i_x_pos, &i_angle, &i_speed_pos, &i_near_dist, &i_near_angle);
       xStart = xPos;
       yStart = yPos;
       angleStart = anglePos;
@@ -448,6 +447,9 @@ void executeOrder(){
       angleTarget = (float)(i_angle);
       speedTarget = (float)(i_speed_pos)/10.0f;
       angleSpeedTarget = speedTarget * 180.f;
+      nearTranslationError = (float)(i_near_dist)/1000.0f;
+      nearAngleError = (float)(i_near_angle);
+      nearTarget = false;
       targetReached = false;
       emergencyStop = false;
       targetReached = false;
@@ -483,6 +485,7 @@ void executeOrder(){
         xStart = xPos;
         yStart = yPos;
         angleStart = anglePos;
+        nearTarget = false;
         targetReached = false;
         runTargetPath = true;
         emergencyStop = false;
@@ -496,7 +499,8 @@ void executeOrder(){
       comunication_write();//async
     }
     else if(strstr(comunication_InBuffer, "status get")){
-      sprintf(comunication_OutBuffer,"%s %i %i %i %i %i", (targetReached?"end":"run"), (int)(yPos*1000.0f), (int)(xPos*1000.0f), (int)(anglePos), (int)(targetSpeed_mps*10), targetPathIndex);
+      const char* status = targetReached?"end":nearTarget?"near":"run";
+      sprintf(comunication_OutBuffer,"%s %i %i %i %i %i", status, (int)(yPos*1000.0f), (int)(xPos*1000.0f), (int)(anglePos), (int)(targetSpeed_mps*10), targetPathIndex);
       comunication_write();//async
     }
     else if(strstr(comunication_InBuffer, "speed get")){
@@ -670,20 +674,19 @@ void loop(){
 }*/
 
 /*void loop(){
+  motorA.setSpeed(0.1);
   motorB.setSpeed(0.1);
-  //motorB.setSpeed(0.4);
-  //motorC.setSpeed(0.4);
+  motorC.setSpeed(0.1);
   while(1){
+    motorA.spin();
     motorB.spin();
+    motorC.spin();
   }
 }*/
 
 void loop()
 {
     executeOrder();
-    /*updatePosition();
-    control();
-    updateServos();*/
     unsigned long currMillis = millis();
   
     //Run position loop
