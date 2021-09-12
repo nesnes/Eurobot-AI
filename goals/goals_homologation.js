@@ -6,6 +6,8 @@ module.exports = class GoalsTest extends Goals{
     constructor(app) {
         super(app);
         this.defaultSpeed=0.3; //m/s
+        this.defaultNearDist=50;//mm
+        this.defaultNearAngle=5;//°
 
         this.list = [
 
@@ -47,7 +49,7 @@ module.exports = class GoalsTest extends Goals{
                     {
                         name: "Move",
                         method: "moveToComponent",
-                        parameters:{ component: "buoyStartingNorth", speed: 0.2 }
+                        parameters:{ component: "buoyStartingNorth", speed: 0.2, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     },
                     //remove
                     { name:"updateMap", method: "removeFromMap", parameters:{ list:["buoyStartingNorth", "buoyStartingFairwayNorth"] } },
@@ -113,12 +115,12 @@ module.exports = class GoalsTest extends Goals{
                     {
                         name: "Move",
                         method: "moveToComponent",
-                        parameters:{ component: "buoyTop", speed: this.defaultSpeed }
+                        parameters:{ component: "buoyTop", speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     },
                     {
                         name: "Move",
                         method: "moveToComponent",
-                        parameters:{ component: "buoyMiddleTop", speed: this.defaultSpeed }
+                        parameters:{ component: "buoyMiddleTop", speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     },
                     //remove
                     { name:"updateMap", method: "removeFromMap", parameters:{ list:["buoyTop", "buoyMiddleTop"] } },
@@ -148,7 +150,7 @@ module.exports = class GoalsTest extends Goals{
                     {
                         name: "Move",
                         method: "moveToComponent",
-                        parameters:{ component: "weathervane", speed: this.defaultSpeed }
+                        parameters:{ component: "weathervane", speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     },
                     {
                         name: "Read",
@@ -171,15 +173,15 @@ module.exports = class GoalsTest extends Goals{
                     {
                         name: "Move",
                         method: "moveToComponent",
-                        parameters:{ component: "buoyMiddleBottom", speed: this.defaultSpeed }
+                        parameters:{ component: "buoyMiddleBottom", speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     },
-                    { name: "forward",  method: "moveForward", parameters:{ distance:200, speed: this.defaultSpeed } },
+                    { name: "forward",  method: "moveForward", parameters:{ distance:200, speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle } },
                     {
                         name: "Move",
                         method: "moveToComponent",
-                        parameters:{ component: "buoyBottom", speed: this.defaultSpeed }
+                        parameters:{ component: "buoyBottom", speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     },
-                    { name: "forward",  method: "moveForward", parameters:{ distance:200, speed: this.defaultSpeed } },
+                    { name: "forward",  method: "moveForward", parameters:{ distance:200, speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle } },
                     //remove
                     { name:"updateMap", method: "removeFromMap", parameters:{ list:["buoyMiddleBottom","buoyBottom"] } },
                     //close
@@ -210,7 +212,7 @@ module.exports = class GoalsTest extends Goals{
                     {
                         name: "Move",
                         method: "moveToComponent",
-                        parameters:{ component: "bottomPort", speed: this.defaultSpeed }
+                        parameters:{ component: "bottomPort", speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     },
                     //open
                     { name: "Open arm", method: "openSideArms", parameters:{ name:"ACA", wait:false } },
@@ -269,7 +271,7 @@ module.exports = class GoalsTest extends Goals{
                     {
                         name: "Move",
                         method: "moveToComponent",
-                        parameters:{ component: "startingArea", speed: this.defaultSpeed }
+                        parameters:{ component: "startingArea", speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     },
                     //open
                     { name: "Open arm", method: "openSideArms", parameters:{ name:"ACA", wait:false } },
@@ -367,7 +369,7 @@ module.exports = class GoalsTest extends Goals{
                     {
                         name: "Move",
                         method: "moveToComponent",
-                        parameters:{ component: "weathervane2", speed: this.defaultSpeed }
+                        parameters:{ component: "weathervane2", speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     },
                     {
                         name: "Read",
@@ -387,7 +389,7 @@ module.exports = class GoalsTest extends Goals{
                 },                
                 executionCount: 1,
                 actions: [
-                    { name: "Move",  method: "moveToComponent",  parameters:{ component: "windsockSide", speed: 0.2 } },
+                    { name: "Move",  method: "moveToComponent",  parameters:{ component: "windsockSide", speed: 0.2, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle } },
                     //reposition
                     { team: "blue", name: "rotate",  method: "rotateToAngle", parameters:{ angle:180, speed: this.defaultSpeed } },
                     { team: "yellow", name: "rotate",  method: "rotateToAngle", parameters:{ angle:0, speed: this.defaultSpeed } },
@@ -425,7 +427,7 @@ module.exports = class GoalsTest extends Goals{
                     {
                         name: "Move",
                         method: "moveToComponent",
-                        parameters:{ component: "windsockMiddle", speed: 0.2 }
+                        parameters:{ component: "windsockMiddle", speed: 0.2, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     },
                     { name: "prepare", method: "setArmWindsockPrepare" },
                     { name: "forward",  method: "moveForward", parameters:{ distance:120, speed: this.defaultSpeed } },
@@ -451,7 +453,7 @@ module.exports = class GoalsTest extends Goals{
                     {
                         name: "Move",
                         method: "moveToComponent",
-                        parameters:{ component: "buoyStartingSouth", speed: this.defaultSpeed }
+                        parameters:{ component: "buoyStartingSouth", speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     },
                     //open
                     { name: "Open arm", method: "openSideArms", parameters:{ name:"ACA", wait:false } },
@@ -486,7 +488,7 @@ module.exports = class GoalsTest extends Goals{
                     {
                         name: "Move",
                         method: "moveToComponent",
-                        parameters:{ component: "startingArea", speed: this.defaultSpeed }
+                        parameters:{ component: "startingArea", speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     },
                     {
                         name: "orientRobot",

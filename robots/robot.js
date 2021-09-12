@@ -27,6 +27,7 @@ module.exports = class Robot {
         this.x = 1500; // mm
         this.y = 1000; // mm
         this.angle = 0; // deg
+        this.lastTarget = {x:0, y:0, angle:0};
         this.score = 0;
         this.variables = {};
         //this.color = "";
@@ -110,6 +111,9 @@ module.exports = class Robot {
             this.x = this.startPosition[this.team].x;
             this.y = this.startPosition[this.team].y;
             this.angle = this.startPosition[this.team].angle;
+            this.lastTarget.x = this.x;
+            this.lastTarget.y = this.y;
+            this.lastTarget.angle = this.angle;
             if(this.modules.base) await this.modules.base.enableMove();
             if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle});
             if(this.modules.base) await this._updatePositionAndMoveStatus();
@@ -281,7 +285,9 @@ module.exports = class Robot {
                 x:component.access.x,
                 y:component.access.y,
                 angle:component.access.angle,
-                speed:parameters.speed
+                speed:parameters.speed,
+                nearDist:parameters.nearDist||0,
+                nearAngle:parameters.nearAngle||0
             });
         }
         this.send();
@@ -310,7 +316,7 @@ module.exports = class Robot {
             let i=1;
             for(let p of path){
                 let angle = startAngle-(dangle*(i++/(path.length)))
-                paramPath.push({x:p[0], y:p[1], angle:angle, speed:parameters.speed});
+                paramPath.push({x:p[0], y:p[1], angle:angle, speed:parameters.speed, nearDist:parameters.nearDist, nearAngle:parameters.nearAngle});
             }
             return await this.moveAlongPath({path:paramPath})
             //return await this._performPath(path, parameters.x, parameters.y, parameters.angle, parameters.speed)
@@ -320,21 +326,25 @@ module.exports = class Robot {
 
     async moveSideway(parameters){
         let angle = parameters.side=="left"?-90:90;
-        angle = utils.normAngle(angle+this.angle);
+        angle = utils.normAngle(angle+this.lastTarget.angle);
         return await this.moveAtAngle({
             angle: angle,
             distance: parameters.distance,
-            endAngle: ("angle" in parameters)?parameters.angle:this.angle,
-            speed:parameters.speed
+            endAngle: ("angle" in parameters)?parameters.angle:this.lastTarget.angle,
+            speed: parameters.speed,
+            nearDist: parameters.nearDist,
+            nearAngle: parameters.nearAngle
         });
     }
 
     async moveForward(parameters){
         return await this.moveAtAngle({
-            angle: this.angle,
+            angle: this.lastTarget.angle,
             distance: parameters.distance,
-            endAngle: ("angle" in parameters)?parameters.angle:this.angle,
-            speed:parameters.speed
+            endAngle: ("angle" in parameters)?parameters.angle:this.lastTarget.angle,
+            speed:parameters.speed,
+            nearDist: parameters.nearDist,
+            nearAngle: parameters.nearAngle
         });
     }
     
@@ -344,14 +354,17 @@ module.exports = class Robot {
         if(! ("axis" in parameters)) return false;
         if(! ("value" in parameters)) return false;
         let status = await this.moveAtAngle({
-            angle: this.angle,
+            angle: this.lastTarget.angle,
             distance: parameters.distance,
-            endAngle: this.angle,
-            speed:parameters.speed
+            endAngle: this.lastTarget.angle,
+            speed: parameters.speed
         });
         if(parameters.axis == "x") this.x = parameters.value;
         if(parameters.axis == "y") this.y = parameters.value;
         console.log("reposition", this.x, this.y, this.angle, parameters)
+        this.lastTarget.x = this.x;
+        this.lastTarget.y = this.y;
+        this.lastTarget.angle = this.angle;
         if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle});
         if(this.modules.base) await this._updatePositionAndMoveStatus();
         return true;
@@ -359,10 +372,12 @@ module.exports = class Robot {
     
     async moveBackward(parameters){
         return await this.moveAtAngle({
-            angle: utils.normAngle(this.angle+180),
+            angle: utils.normAngle(this.lastTarget.angle+180),
             distance: parameters.distance,
-            endAngle: ("angle" in parameters)?parameters.angle:this.angle,
-            speed:parameters.speed
+            endAngle: ("angle" in parameters)?parameters.angle:this.lastTarget.angle,
+            speed:parameters.speed,
+            nearDist: parameters.nearDist,
+            nearAngle: parameters.nearAngle
         });
     }
 
@@ -372,7 +387,9 @@ module.exports = class Robot {
             angle: angle,
             distance: 0,
             endAngle: angle,
-            speed:parameters.speed
+            speed:parameters.speed,
+            nearDist: 0,
+            nearAngle: parameters.nearAngle
         });
     }
 
@@ -386,15 +403,20 @@ module.exports = class Robot {
         let y1 = 0;
         let x2 = x1*rayCos - y1*raySin;
         let y2 = y1*rayCos + x1*raySin;
-        x2 += this.x;
-        y2 += this.y;
-        console.log("move angle to", x2, y2, "at", this.angle)
+        x2 += this.lastTarget.x;
+        y2 += this.lastTarget.y;
+        let endAngle = ("endAngle" in parameters)?parameters.endAngle:this.lastTarget.angle;
+        console.log("move angle to", x2, y2, "at", endAngle)
+        this.lastTarget.x = x2;
+        this.lastTarget.y = y2;
+        this.lastTarget.angle = endAngle;
         return await this.moveToPosition({
             x:x2,
             y:y2,
-            angle: ("endAngle" in parameters)?parameters.endAngle:this.angle,
+            angle: endAngle,
             speed:parameters.speed,
-            preventPathFinding: true
+            preventPathFinding: true,
+            nearAngle: parameters.nearAngle
         });
     }
 
@@ -521,12 +543,12 @@ module.exports = class Robot {
         return moveStatus;
     }
 
-    async _performMovement(x, y, angle, speed){
+    async _performMovement(x, y, angle, speed, nearDist=0, nearAngle=0){
         let moveSpeed = this.slowdown?0.1:speed;
         let sleep = 100;
         let success = true;
         let moveStatus = "";
-        this.app.logger.log(`-> move coordinates ${x} ${y} ${angle} ${speed}`);
+        this.app.logger.log(`-> move coordinates ${x} ${y} ${angle} ${speed}, near ${nearDist} ${nearAngle}`);
 
         //Update position and check obstacles
         await this._updatePositionAndMoveStatus();
@@ -536,18 +558,20 @@ module.exports = class Robot {
             return true;
         }
 
+        
+        this.lastTarget.x = x;
+        this.lastTarget.y = y;
+        this.lastTarget.angle = angle;
         //Start the move
-        success = success && !!await this.modules.base.moveXY({x:x, y:y, angle:angle, speed:speed})
+        success = success && !!await this.modules.base.moveXY({x:x, y:y, angle:angle, speed:speed, nearDist:nearDist, nearAngle:nearAngle})
         do{
             await utils.sleep(sleep);
             if(this.app.intelligence.hasBeenRun && this.app.intelligence.isMatchFinished()) success = false;
             moveSpeed = this.slowdown?0.1:speed;
             if(!this.isMovementPossible(x,y)) success = false;
             moveStatus = await this._updatePositionAndMoveStatus();
-            //console.log(success, moveStatus, moveSpeed)
-        } while(success && moveStatus && moveStatus.includes("run"))
+        } while(success && moveStatus && moveStatus.includes("run")) // "near" and "end" status will stop the loop (but not the robot)
         if(!success) this.modules.base.break();
-        //this._updatePosition(x,y,angle, true);
         this.send();
         return success;
     }
@@ -581,10 +605,15 @@ module.exports = class Robot {
             //Not path support on base, run sections one by one
             for(let i=0;i<path.length;i++){
                 this.app.logger.log(`-> move path ${i+1}/${path.length}`);
-                success = success && await this._performMovement(path[i].x, path[i].y, path[i].angle, path[i].speed)
+                success = success && await this._performMovement(path[i].x, path[i].y, path[i].angle, path[i].speed, path[i].nearDist, path[i].nearAngle)
+                
                 if(!success) break
             }
         }
+        let lastIdx = path.length - 1;
+        this.lastTarget.x = path[lastIdx].x;
+        this.lastTarget.y = path[lastIdx].y;
+        this.lastTarget.angle = path[lastIdx].angle;
         //if(success) this._updatePosition(x,y,angle, true);
         this.send();
         return success

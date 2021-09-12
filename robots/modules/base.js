@@ -26,10 +26,12 @@ module.exports = class Base {
                 },
                 getStatus: {},
                 moveXY:{
-                    x:{ legend:"x (m)", type:"number", min:0, max:3000, value:1500 },
-                    y:{ legend:"y (m)", type:"number", min:0, max:2000, value:1000 },
+                    x:{ legend:"x (mm)", type:"number", min:0, max:3000, value:1500 },
+                    y:{ legend:"y (mm)", type:"number", min:0, max:2000, value:1000 },
                     angle:{ legend:"angle (°)", type:"number", min:-180, max:180, value:0 },
-                    speed:{ legend:"speed (m/s)", type:"range", min: 0, max: 1.5, value:0.5, step:0.1 }
+                    speed:{ legend:"speed (m/s)", type:"range", min: 0, max: 1.5, value:0.5, step:0.1 },
+                    nearDist:{ legend:"near distance (mm)", type:"number", min: 0, max: 1000, value:0 },
+                    nearAngle:{ legend:"near angle (°)", type:"number", min:0, max:180, value:0 }
                 },
                 getSpeed: {},
                 break: {},
@@ -69,7 +71,7 @@ module.exports = class Base {
             let response = await this.app.robot.modules.robotLink.sendMessage(this.address, "status get");
             if(!response) return false;
             let posArray = response.split(" ");
-            if(posArray.length == 6 && ["run","end"].includes(posArray[0])){
+            if(posArray.length == 6 && ["run","near","end"].includes(posArray[0])){
                 return {status: posArray[0], x: parseInt(posArray[1]), y: parseInt(posArray[2]), angle: parseInt(posArray[3]), speed: parseInt(posArray[4])/10, pathIndex: parseInt(posArray[5])}
             }
             return response;
@@ -77,7 +79,15 @@ module.exports = class Base {
     }
 
     async moveXY(params){
-        let msg = "move XY "+Math.round(params.x)+" "+Math.round(params.y)+" "+Math.round(params.angle)+" "+Math.round(parseFloat(""+params.speed)*10);
+        let nearDist = params.nearDist||0;//mm
+        let nearAngle = params.nearAngle||0;//°
+        let msg = "move XY "
+            +Math.round(params.x)
+            +" "+Math.round(params.y)
+            +" "+Math.round(params.angle)
+            +" "+Math.round(parseFloat(""+params.speed)*10)
+            +" "+Math.round(nearDist)
+            +" "+Math.round(nearAngle);
         if(this.app.robot.modules.robotLink)
             return await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
     }
@@ -125,7 +135,7 @@ module.exports = class Base {
         return result;
     }
 
-    async movePath(params){ //{path:[{x:0,y:0,angle:0,speed:0}]}
+    async movePath(params){ //{path:[{x:0,y:0,angle:0,speed:0,nearDist:0,nearAngle:0}]}
         if(!params.path) return false;
         let result = true;
         for(let i=0;result && i<params.path.length;i++){
@@ -133,7 +143,13 @@ module.exports = class Base {
             let action = i==0?0:1;
             if(i==params.path.length-1) action=2;
             if(i==0 && action==2) action=3;
-            let msg = "path set "+action+" "+Math.round(point.x)+" "+Math.round(point.y)+" "+Math.round(point.angle)+" "+Math.round(parseFloat(""+point.speed)*10);
+            let msg = "path set "+action
+            +" "+Math.round(point.x)
+            +" "+Math.round(point.y)
+            +" "+Math.round(point.angle)
+            +" "+Math.round(parseFloat(""+point.speed)*10)
+            //+" "+Math.round(point.nearDist||0)
+            //+" "+Math.round(point.nearAngle||0); // need to be implemented in base firmware for paths
             if(this.app.robot.modules.robotLink){
                 result = await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
                 console.log(msg, result)
