@@ -12,13 +12,13 @@ module.exports = class LidarLD06 {
         this.serial = null;
         this.packet = null;
         this.borderMargin = 100;
-        this.maxDistance = 600;
+        this.maxDistance = 3200;
         this.rawMeasures = [];
         this.measures = [];
-        this.angleOffset = 180;
+        this.angleOffset = 0;
         this.lastSendTime = 0;
         if(process.platform=="linux") this.port = "/dev/ydlidarx2"; //Raspberry/Linux
-        if(process.platform=="darwin") this.port = ""; //Mac
+        if(process.platform=="darwin") this.port = "/dev/cu.usbserial-A9QG4MTI"; //Mac
         if(process.platform=="win32") this.port = "COM5"; //Windows
         this.crcTable  = [
             0x00, 0x4d, 0x9a, 0xd7, 0x79, 0x34, 0xe3,
@@ -89,8 +89,6 @@ module.exports = class LidarLD06 {
                 let rayAngle = this.rawMeasures[i].a + angle;
                 let x = this.rawMeasures[i].d;
                 let y = 0;
-                /*if(rayAngle>360) rayAngle-=360;
-                if(rayAngle<-360) rayAngle+=360;*/
                 let rayAngleRad = rayAngle*(Math.PI/180);
                 let raySin = Math.sin(rayAngleRad);
                 let rayCos = Math.cos(rayAngleRad);
@@ -104,8 +102,6 @@ module.exports = class LidarLD06 {
             }
             if(!remove){
                 this.measures.push(this.rawMeasures[i])
-                //this.measures.splice(i,1);
-                //i--;
             }
         }
     }
@@ -137,13 +133,12 @@ module.exports = class LidarLD06 {
         //Insert new measures
         this.rawMeasures.push(...currentPacket.measures);
         await this.removeMeasuresOutOfRange();
-        //console.log(this.rawMeasures.length);
         this.send();
     }
 
     send(force=false){
         let now = new Date().getTime();
-        if(!force && now - this.lastSendTime < 100) return;//send max every 100ms
+        if(!force && now - this.lastSendTime < 333) return;//send max every 333ms
         this.lastSendTime = now;
         let payload = {
             measures: this.measures
@@ -228,8 +223,9 @@ module.exports = class LidarLD06 {
                 let step = diff / (this.packet.ls - 1);
                 this.packet.endAngle =  this.packet.endAngle%360;
                 for(let i=0;i<this.packet.measures.length; i++){
-                    this.packet.measures[i].a = this.packet.startAngle + step * i;
+                    this.packet.measures[i].a = this.packet.startAngle + step * i + this.angleOffset;
                     if(this.packet.measures[i].a>360) this.packet.measures[i].a -= 360;
+                    if(this.packet.measures[i].a<0) this.packet.measures[i].a += 360;
                 }
                 this.packet.state++;
                 return;
@@ -249,19 +245,15 @@ module.exports = class LidarLD06 {
                 // CRC
                 this.packet.crc = d;
                 let crc = 0;
-                for(let i=0;i<this.packet.raw.length;i++) {
+                for(let i=0;i<this.packet.raw.length-1;i++) {
                     crc = this.crcTable[(crc ^ this.packet.raw[i]) & 0xff];
                 }
                 if(crc != this.packet.crc){
                     //console.log(`Bad lidar crc ${crc} != ${this.packet.crc}`)
-                    //console.log(this.packet.raw);
                     this.packet = null;
                     return;
                 }
 
-
-                //console.log(`From ${this.packet.startAngle} to ${this.packet.endAngle} at speed ${this.packet.speed} and timestamp ${this.packet.timestamp}`)
-                
                 this.packet.startAngle+=this.angleOffset;
                 this.packet.endAngle+=this.angleOffset;
                 if(this.packet.startAngle>360) this.packet.startAngle -=360;
