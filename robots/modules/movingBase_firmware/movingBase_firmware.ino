@@ -243,7 +243,7 @@ void updateAsserv(){
   double minSpeed = 0.05;
   if(runTargetPath && targetPathIndex>0 && targetPathIndex<targetPathSize-1)
     minSpeed = 0.1;
-  double slowDownDistance = 0.20;//m
+  double slowDownDistance = 0.45;//m 0.20
   double distFromStart = sqrt(pow(xPos - xStart,2) + pow(yPos - yStart,2)); // meters
   double distFromEnd = translationError;
   targetSpeed_mps = applySpeedRamp(distFromStart, distFromEnd, slowDownDistance, speedTarget, minSpeed);
@@ -251,7 +251,7 @@ void updateAsserv(){
 
   //Rotation
   double angleMinSpeed = 10;//deg/s
-  double slowDownAngle = 25;//deg
+  double slowDownAngle = 50;//deg 25
   double rotationError = angleDiff(angleTarget,anglePos);
   double rotationFromStart = angleDiff(angleStart,anglePos);
   
