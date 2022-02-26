@@ -37,11 +37,12 @@ var images = {
 var files = {
     list: []
 }
-/*var lidarLocalisation = {
+var lidarLocalisation = {
     x: 0,
     y: 0,
-    angle: 0
-}*/
+    angle: 0,
+    features: []
+}
 var intelligence = {
     currentTime: 0
 }
@@ -65,7 +66,7 @@ communication.client.subscribe("/robot");
 communication.client.subscribe("/robot/modules");
 communication.client.subscribe("/lidar");
 communication.client.subscribe("/images");
-//communication.client.subscribe("/lidar/localisation");
+communication.client.subscribe("/lidar/localisation");
 
 communication.client.on("connect", function (){
     if(!initialized){
@@ -116,7 +117,7 @@ communication.client.on("message", function (topic, payload) {
     }
     else if(topic == "/lidar"){
         var newLidar = JSON.parse(""+payload);
-        console.log(newLidar);
+        //console.log(newLidar);
         Object.assign(lidar, newLidar);
     }
     else if(topic == "/files"){
@@ -142,10 +143,11 @@ communication.client.on("message", function (topic, payload) {
             }
         }
     }
-    /*else if(topic == "/lidar/localisation"){
+    else if(topic == "/lidar/localisation"){
         var newLidarLocalisation = JSON.parse(""+payload)
+        console.log(newLidarLocalisation);
         Object.assign(lidarLocalisation, newLidarLocalisation);
-    }*/
+    }
 })
 
 //Vue.js
@@ -162,7 +164,7 @@ var app = new Vue({
         lidar: lidar,
         images: images,
         files: files,
-        //lidarLocalisation: lidarLocalisation,
+        lidarLocalisation: lidarLocalisation,
         modules: modules,
         communication: communication,
         appParams: appParams
@@ -173,6 +175,19 @@ var app = new Vue({
         if(!joystick){
             joystick = new JoyStick('joyDiv');
             setInterval(updateJoystick, 300);
+        }
+    },
+    methods: {
+        lidarStyle (measure) {
+            function map_range(value, low1, high1, low2, high2) {
+                return low2 + (high2 - low2) * (value - low1) / (high1 - low1);
+            };
+            if(measure.c == undefined){
+                return `stroke-width:2;opacity: 0.8;stroke:grey;`;
+            } else {
+                let value = map_range(measure.c, 230, 255,0,255);
+                return `stroke-width:3;opacity: 0.8;stroke:rgb(${value},${255-value},127);`;
+            }
         }
     }
 })

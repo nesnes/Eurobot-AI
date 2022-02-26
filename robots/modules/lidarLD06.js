@@ -19,6 +19,7 @@ module.exports = class LidarLD06 {
         this.lastSendTime = 0;
         if(process.platform=="linux") this.port = "/dev/ydlidarx2"; //Raspberry/Linux
         if(process.platform=="darwin") this.port = "/dev/cu.usbserial-A9QG4MTI"; //Mac
+        //if(process.platform=="darwin") this.port = "/dev/cu.usbserial-001K39BS"; //Mac
         if(process.platform=="win32") this.port = "COM5"; //Windows
         this.crcTable  = [
             0x00, 0x4d, 0x9a, 0xd7, 0x79, 0x34, 0xe3,
@@ -100,7 +101,7 @@ module.exports = class LidarLD06 {
                 && this.borderMargin<=y2&&y2<=this.app.map.height-this.borderMargin))
                     remove = true;
             }
-            if(!remove){
+            if(true || !remove){
                 this.measures.push(this.rawMeasures[i])
             }
         }

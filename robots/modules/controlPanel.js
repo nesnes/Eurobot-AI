@@ -19,7 +19,7 @@ module.exports = class ControlPanel {
         process.on("exit",()=>{w.kill();})
         this.worker = w;
         this.worker.on("message",msg=>{ this.onWorkerMessage(msg); })
-        this.worker.on("error",(e)=>{console.log("controlPanelWorker error", e)});
+        this.worker.on("error",(e)=>{console.log("controlPanelWorker process reported an error. Could happen if simulation a robot, not blocking.", e)});
         setTimeout(()=>{this.setColors();}, 1000);
         //this.send();
     }

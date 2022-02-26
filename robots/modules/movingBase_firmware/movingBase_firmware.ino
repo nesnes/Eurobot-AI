@@ -1,4 +1,6 @@
 #include "BrushlessMotor.h" 
+//#include "SerialMotor.h" 
+//#include "I2CMotor.h" 
 #include <Wire.h>
 //#define MODE_I2C
 #ifndef MODE_I2C
@@ -38,12 +40,12 @@ const double motorA_angle = -60;//°
 const double motorB_angle = 180;//°
 const double motorC_angle = 60;//°
 
-//--FRONT-
-//-A-----C
-//---\-/--
-//----|---
-//----B---
-//--BACK--
+//--FRONT---Y----
+//-A-----C--^----
+//---\-/----|----
+//----|-----|----
+//----B-----o-->X
+//--BACK---------
 
 // Servos
 #include <Servo.h>
@@ -139,11 +141,7 @@ void setup()
   motorC.begin();
 
   //Init communication
-  comunication_begin(7);//I2C address 7
-
-  /*motorA.setSpeed(1);
-  motorB.setSpeed(1);
-  motorC.setSpeed(1);*/
+  comunication_begin(7);//I2C address 7 (not used, we're in serial mode for now)
 }
 
 //In meters, degrees, m/s and °/s
@@ -164,7 +162,7 @@ void updatePosition(){
   double yB = cos((motorB_angle+anglePos+90.0d)*DEG_TO_RAD)*distB;
   double yC = cos((motorC_angle+anglePos+90.0d)*DEG_TO_RAD)*distC;
 
-  xPos += (xA+xB+xC)*0.635;
+  xPos += (xA+xB+xC)*0.635; // 0.635 is a magic number that we need to achieve real-scale positioning, but we have no idea why. "shrug"
   yPos += (yA+yB+yC)*0.635;
 
   double angleDoneA = (distA*360)/(2.0d*PI*(wheelDistanceA/1000.0d));
@@ -225,7 +223,7 @@ double applySpeedRamp(double distFromStart, double distFromEnd, double rampDist,
   return speed;
 }
 
-//Y is forward, X is right side (motor C side)
+//Y is forward, X is right side
 void updateAsserv(){
   //Translation
   double xDiff = xTarget - xPos;
@@ -243,7 +241,7 @@ void updateAsserv(){
   double minSpeed = 0.05;
   if(runTargetPath && targetPathIndex>0 && targetPathIndex<targetPathSize-1)
     minSpeed = 0.1;
-  double slowDownDistance = 0.45;//m 0.20
+  double slowDownDistance = 0.20;//m
   double distFromStart = sqrt(pow(xPos - xStart,2) + pow(yPos - yStart,2)); // meters
   double distFromEnd = translationError;
   targetSpeed_mps = applySpeedRamp(distFromStart, distFromEnd, slowDownDistance, speedTarget, minSpeed);
@@ -251,7 +249,7 @@ void updateAsserv(){
 
   //Rotation
   double angleMinSpeed = 10;//deg/s
-  double slowDownAngle = 50;//deg 25
+  double slowDownAngle = 25;//deg
   double rotationError = angleDiff(angleTarget,anglePos);
   double rotationFromStart = angleDiff(angleStart,anglePos);
   
@@ -332,13 +330,6 @@ bool movementEnabled = false;
 bool emergencyStop = false;
 bool manualMode = false;
 void control(){
-  //Update position
-  //updatePosition();
-  //Serial.print("Position\t");Serial.print(xPos);Serial.print("\t");Serial.print(yPos);Serial.print("\t");Serial.print(anglePos);Serial.print("\n");
-
-  //double daTargetDistance = sqrt(pow(xpos - xTarget,2) + pow(ypos - yTarget,2)); // meters
-  //double daTargetAngle = angleDiff(angleTarget,angle);
-
   //Update target from path
   if(runTargetPath) updatePath();
   
@@ -617,63 +608,8 @@ unsigned long lastControlMillis = 0;
 unsigned long lastPositionMillis = 0;
 unsigned long lastLedTime = 0;
 float sinCounter = 0;
-/*void loop()
-{
-  //Read commands
-  executeOrder();
 
-  //Spin motors
-  motorA.spin();
-  //motorB.spin();
-  //motorC.spin();
-
-  unsigned long currMillis = millis();
-  
-  //Run position loop
-  int positionMillis = 1000/positionFrequency;
-  if(currMillis - lastPositionMillis >= positionMillis){
-    lastPositionMillis = currMillis;
-    updatePosition();
-  }
-  
-  //Run control loop
-  int controlMillis = 1000/controlFrequency;
-  if(currMillis - lastControlMillis >= controlMillis){
-    lastControlMillis = currMillis;
-    control();
-  }
-  
-  updateServos();
-
-  // blink led
-  if(currMillis - lastLedTime >= 500){
-    ledValue=!ledValue;
-    digitalWrite(LED_PIN, ledValue);
-    lastLedTime = currMillis;
-  }
-  
-}*/
-
-/*unsigned long lastPrintMillis = 0;
-void loop(){
-  motorA.setSpeed(0);
-  motorB.setSpeed(0);
-  motorC.setSpeed(0);
-  motorA.spin();
-  motorB.spin();
-  motorC.spin();
-  unsigned long now = millis();
-  if(now-lastPrintMillis> 100){
-    lastPrintMillis = now;
-    Serial.print(motorA.getAndResetDistanceDone()*1000.0d);
-    Serial.print(" ");
-    Serial.print(motorB.getAndResetDistanceDone()*1000.0d);
-    Serial.print(" ");
-    Serial.println(motorC.getAndResetDistanceDone()*1000.0d);
-  }
-}*/
-
-/*void loop(){
+/*void loop(){ // Motor test loop
   motorA.setSpeed(0.1);
   motorB.setSpeed(0.1);
   motorC.setSpeed(0.1);
@@ -717,3 +653,30 @@ void loop()
     motorC.spin();
     return;
 }
+
+
+
+/* Test PWM extender
+ * 
+ * #include <Arduino.h>
+
+#define USE_PCA9685_SERVO_EXPANDER
+#include "ServoEasing.hpp"
+ServoEasing ServoExt_0(PCA9685_DEFAULT_ADDRESS, &Wire); // If you use more than one PCA9685 you probably must modify MAX_EASING_SERVOS at line 88 in ServoEasing.h
+ServoEasing ServoExt_1(PCA9685_DEFAULT_ADDRESS, &Wire); 
+
+void setup() {
+    Wire.begin();
+    Wire.beginTransmission(PCA9685_DEFAULT_ADDRESS);
+    ServoExt_0.attach(0, 90);
+    ServoExt_1.attach(1, 90);
+}
+void loop() {
+    ServoExt_0.write(90);
+    ServoExt_1.write(90);
+    delay(1000);
+    ServoExt_0.write(0);
+    ServoExt_1.write(0);
+    delay(1000);
+}
+ */
