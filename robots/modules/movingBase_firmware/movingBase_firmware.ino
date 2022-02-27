@@ -28,7 +28,7 @@ void loop() {
   if (updatePos.check())  // Run position loop
     updatePosition();
 
-  if (updatePos.check())  // Run control loop
+  if (updateControl.check())  // Run control loop
     control();
 
   updateServos();
