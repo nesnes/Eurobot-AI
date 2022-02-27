@@ -2,6 +2,12 @@
 #define Comunication_h
 
 #include <Wire.h>
+//#define MODE_I2C
+#ifndef MODE_I2C
+#define MODE_SERIAL
+//#define SERIAL_DEBUG
+#endif
+
 // Packet: ['startbyte','m','e','s','s','a','g','e','checksum','endbyte']
 #define COMUNICATION_START_BYTE '^'
 #define COMUNICATION_END_BYTE '\n'
