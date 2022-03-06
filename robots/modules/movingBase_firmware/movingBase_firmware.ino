@@ -1,6 +1,7 @@
 #include "comunication.h"
 #include "actuators.h"
 #include "moving.h"
+#include "ServoEasing.hpp"
 #include <Metro.h>    //Include Metro library
 
 int positionFrequency = 100; //Hz
@@ -16,10 +17,10 @@ bool ledValue = true;
 void setup() {
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);
+  comunication_begin(7);// Init communication I2C address 7 (not used, we're in serial mode for now)
   delay(2500);
   initActuators();      // Init servo and pumps
   initMotors();         // Init brushless motors
-  comunication_begin(7);// Init communication I2C address 7 (not used, we're in serial mode for now)
 }
 
 void loop() {
@@ -280,29 +281,48 @@ void executeOrder() {
       emergencyStop = false;
       runTargetPath = false;
     }
-    else if (strstr(comunication_InBuffer, "servo set ")) {
+    else if (strstr(comunication_InBuffer, "S ")) { // set servo by name
       sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
       comunication_write();//async
-      char c1, c2, c3;
-      int angle = 90, duration = 0;
-      sscanf(comunication_InBuffer, "servo set %c%c%c %i %i", &c1, &c2, &c3, &angle, &duration);
-      if (c1 == 'A' && c2 == 'C' && c3 == 'A') setServo(AC_A, angle, duration);
-      if (c1 == 'A' && c2 == 'C' && c3 == 'C') setServo(AC_C, 180 - angle, duration);
-      if (c1 == 'A' && c2 == 'B' && c3 == 'A') setServo(AB_A, 180 - angle, duration);
-      if (c1 == 'A' && c2 == 'B' && c3 == 'B') setServo(AB_B, angle, duration);
-      if (c1 == 'B' && c2 == 'C' && c3 == 'B') setServo(BC_B, 180 - angle, duration);
-      if (c1 == 'B' && c2 == 'C' && c3 == 'C') setServo(BC_C, angle, duration);
-      if (c1 == 'F' && c2 == 'L' && c3 == 'A') setServo(Flag, angle, duration);
+      char c[4]{'\0'};
+      int value = 90, duration = 0;
+      sscanf(comunication_InBuffer, "S %c%c%c %i %i", &c[0], &c[1], &c[2], &value, &duration);
+      setActuator(c, value, duration);
     }
-    else if (strstr(comunication_InBuffer, "Z ")) {
-      int a1 = 90, a2 = 90, a3 = 90, a4 = 90, a5 = 90, t = 0;
-      sscanf(comunication_InBuffer, "Z %i %i %i %i %i %i", &a1, &a2, &a3, &a4, &a5, &t);
-      int pose[] = { a1, a2, a3, a4, a5};
+    else if (strstr(comunication_InBuffer, "s ")) { // set servo by id
       sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
       comunication_write();//async
-      setArmPose(pose, t);
+      int id=-1, value = 90, duration = 0;
+      sscanf(comunication_InBuffer, "s %i %i %i", &id, &value, &duration);
+      setActuator(id, value, duration);
     }
-    else if (strstr(comunication_InBuffer, "pump set ")) {
+    else if (strstr(comunication_InBuffer, "Z ")) { //set servo group by name
+      sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
+      comunication_write();//async
+      char c[4]{'\0'};
+      int v[ACTUATOR_MAX_ARRAY_SIZE];
+      int  t = 0;
+      int matches = sscanf(comunication_InBuffer, "Z %c%c%c %i %i %i %i %i %i %i %i %i %i %i",  &c[0], &c[1], &c[2], &t, &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]);
+      Vector<int> values;
+      matches -= 4; // length of group name and duration(t)
+      for(int i=0;i<matches && i<ACTUATOR_MAX_ARRAY_SIZE;i++) {
+        values.push_back(v[i]);
+      }
+      setActuatorGroup(c, values, t);
+    }
+    else if (strstr(comunication_InBuffer, "z ")) { //set servo group by id
+      sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
+      comunication_write();//async
+      int v[ACTUATOR_MAX_ARRAY_SIZE], t = 0, id = -1;
+      int matches = sscanf(comunication_InBuffer, "z %i %i %i %i %i %i %i %i %i %i %i %i",  &id, &t, &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]);
+      Vector<int> values;
+      matches -= 2; // length of id and duration(t)
+      for(int i=0;i<matches && i<ACTUATOR_MAX_ARRAY_SIZE;i++) {
+        values.push_back(v[i]);
+      }
+      setActuatorGroup(id, values, t);
+    }
+    /*else if (strstr(comunication_InBuffer, "pump set ")) {
       sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
       comunication_write();//async
       char c1, c2, c3;
@@ -311,7 +331,7 @@ void executeOrder() {
       value = value ? 1 : 0;
       if (c1 == 'L' && c2 == 'E' && c3 == 'F') setPump(L, value);
       if (c1 == 'R' && c2 == 'I' && c3 == 'G') setPump(R, value);
-    }
+    }*/
     else {
       sprintf(comunication_OutBuffer, "ERROR");
       comunication_write();//async

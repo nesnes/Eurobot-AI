@@ -1,83 +1,85 @@
 #include "actuators.h"
 
-const int MIN_PULSE = 500;
-const int MAX_PULSE = 2500;
+Vector <Actuator*> actuators{
+  new ActuatorOnPCA9685(0,  "AC0", 0,  65), // AC shoulder
+  new ActuatorOnPCA9685(1,  "AC1", 1,  10), // AC elbow
+  new ActuatorOnPCA9685(2,  "AC2", 2,  90), // AC wrist
+  new ActuatorOnPCA9685(3,  "ACP", 3,  0, 0, 2500),  // AC pump
+  new ActuatorOnPCA9685(12, "ACM", 12, 0, 0, 2500),  // AC motor
+  new ActuatorOnPCA9685(4,  "AB0", 4,  65), // AB shoulder
+  new ActuatorOnPCA9685(5,  "AB1", 5,  10), // AB elbow
+  new ActuatorOnPCA9685(6,  "AB2", 6,  90), // AB wrist
+  new ActuatorOnPCA9685(7,  "ABP", 7,  0, 0, 2500),  // AB pump
+  new ActuatorOnPCA9685(8,  "BC0", 8,  65), // BC shoulder
+  new ActuatorOnPCA9685(9,  "BC1", 9,  10), // BC elbow
+  new ActuatorOnPCA9685(10, "BC2", 10, 90), // BC wrist
+  new ActuatorOnPCA9685(11, "BCP", 11, 0, 0, 2500)   // BC pump
+};
 
-// Servos "alone"
+Vector<ActuatorGroup*> actuatorGroups{
+  new ActuatorGroup(0, "ACG", actuators, {"AC0", "AC1", "AC2"}),
+  new ActuatorGroup(1, "ABG", actuators, {"AB0", "AB1", "AB2"}),
+  new ActuatorGroup(2, "BCG", actuators, {"BC0", "BC1", "BC2"})
+};
 
-const uint8_t SERVO_AC_A = 17;
-const uint8_t SERVO_AC_C = 23;
-const uint8_t SERVO_AB_A = 20;
-const uint8_t SERVO_AB_B = 16;
-const uint8_t SERVO_BC_B = 15;
-const uint8_t SERVO_BC_C = 13;
-const uint8_t SERVO_FLAG = 14;
-const uint8_t SERVO_PINS[NB_SERVOS] = {SERVO_AC_A, SERVO_AC_C, SERVO_AB_A, SERVO_AB_B, SERVO_BC_B, SERVO_BC_C, SERVO_FLAG};
-
-const int SERVO_AC_A_DEFAULT = 70;
-const int SERVO_AC_C_DEFAULT = 110;
-const int SERVO_AB_A_DEFAULT = 110;
-const int SERVO_AB_B_DEFAULT = 70;
-const int SERVO_BC_B_DEFAULT = 110;
-const int SERVO_BC_C_DEFAULT = 70;
-const int SERVO_FLAGS_DEFAULT = 27;
-const int SERVO_DEFAULTS[NB_SERVOS] = {SERVO_AC_A_DEFAULT, SERVO_AC_C_DEFAULT, SERVO_AB_A_DEFAULT, SERVO_AB_B_DEFAULT, SERVO_BC_B_DEFAULT, SERVO_BC_C_DEFAULT, SERVO_FLAGS_DEFAULT};
-
-Servo servos[NB_SERVOS];
-ramp servoRamps[NB_SERVOS];
-
-// Servos Arm
-const int NB_SERVO_ARM_M = 5;
-const int pinNumberServo_M[NB_SERVO_ARM_M] = {0, 24, 28, 1, 32};
-Servo servos_M[NB_SERVO_ARM_M];
-ramp servosRamp_M[NB_SERVO_ARM_M];
-int positionServo_M_DefaultOut[NB_SERVO_ARM_M] = {90, 90, 90, 90, 90};//Z 40 90 90 90 90 140 0
-int positionServo_M_Default[NB_SERVO_ARM_M] = {50, 90, 140, 50, 90};//Z 40 10 150 60 90 140 0
-
-// Pumps
-const int pinNumberPump_L = 22;
-const int pinNumberPump_R = 21;
-const int pinNumberPumps[NB_PUMPS] = {pinNumberPump_L, pinNumberPump_R};
 
 void initActuators() {
-  // Setup Servos
-  for (uint8_t i = 0; i < NB_SERVOS; i++) {
-    servos[i].attach(SERVO_PINS[i], MIN_PULSE, MAX_PULSE);
-    servoRamps[i].go(SERVO_DEFAULTS[i], 0);
-  }
-
-  // Setup Arm M
-  for (uint8_t i = 0; i < NB_SERVO_ARM_M; i++) {
-    servos_M[i].attach(pinNumberServo_M[i], MIN_PULSE, MAX_PULSE);
-    setArmPose(positionServo_M_DefaultOut, 0);
-  }
-
-  updateServos();
-
-  //Setup pumps
-  for (uint8_t i = 0; i < NB_PUMPS; i++) {
-    pinMode(pinNumberPumps[i], OUTPUT);
-    setPump(i, LOW);
-  }
-}
-
-void setArmPose(int* pose, int duration) {
-  for (uint8_t i = 0; i < NB_SERVO_ARM_M; i++)
-    servosRamp_M[i].go(pose[i], duration);
+  
 }
 
 void updateServos() {
-  for (uint8_t i = 0; i < NB_SERVOS; i++)
-    servos[i].write(servoRamps[i].update());
-
-  for (uint8_t i = 0; i < NB_SERVO_ARM_M; i++)
-    servos_M[i].write(servosRamp_M[i].update());
+  for (size_t i=0;i<actuators.size();i++) {
+    actuators.at(i)->update();
+  }
 }
 
-void setServo(uint8_t servo, int angle, int duration) {
-  servoRamps[servo].go(angle, duration);
+Actuator* getActuator(const char* name) {
+  for (size_t i=0;i<actuators.size();i++) {
+    if(strcmp(name, actuators.at(i)->name) == 0) return actuators.at(i);
+  }
+  return nullptr;
+}
+Actuator* getActuator(const int id) {
+  for (size_t i=0;i<actuators.size();i++) {
+    if(id == actuators.at(i)->id) return actuators.at(i);
+  }
+  return nullptr;
 }
 
-void setPump(uint8_t pump, bool state) {
-  digitalWrite(pinNumberPumps[pump], state);
+void setActuator(const char* name, const int value, const int duration) {
+   setActuator(getActuator(name), value, duration);
+}
+void setActuator(const int id, const int value, const int duration) {
+   setActuator(getActuator(id), value, duration);
+}
+void setActuator(Actuator* actuator, const int value, const int duration) {
+   if(actuator == nullptr) return;
+   actuator->move(value, duration);
+}
+
+ActuatorGroup* getActuatorGroup(const char* name) {
+  for (size_t i=0;i<actuatorGroups.size();i++) {
+    if(strcmp(name, actuatorGroups.at(i)->name) == 0) return actuatorGroups.at(i);
+  }
+  return nullptr;
+}
+ActuatorGroup* getActuatorGroup(const int id) {
+  for (size_t i=0;i<actuatorGroups.size();i++) {
+    if(id == actuatorGroups.at(i)->id) return actuatorGroups.at(i);
+  }
+  return nullptr;
+}
+
+void setActuatorGroup(const char* name, const Vector<int> values, const int duration) {
+   setActuatorGroup(getActuatorGroup(name), values, duration);
+}
+void setActuatorGroup(const int id, const Vector<int> values, const int duration) {
+   setActuatorGroup(getActuatorGroup(id), values, duration);
+}
+void setActuatorGroup(ActuatorGroup* group, const Vector<int> values, const int duration) {
+   if(group == nullptr) return;
+   if(group->elements.size() != values.size()) return;
+   for (size_t i=0;i<group->elements.size();i++) {
+     group->elements.at(i)->move(values.at(i), duration);
+   }
 }
