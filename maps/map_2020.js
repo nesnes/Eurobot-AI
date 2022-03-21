@@ -72,7 +72,7 @@ module.exports = class Map2020 extends Map{
                 team: "blue",
                 isSolid: true,
                 shape: { type: "rectangle", x:0, y:-222, width: 450,  height: 200, color: "blue" },
-                access:{ x:200, y:250, angle:-90 }
+                access:{ x:225, y:350, angle:-90 }
             },
             {
                 name: "Lighthouse Yellow",
@@ -80,7 +80,7 @@ module.exports = class Map2020 extends Map{
                 team: "yellow",
                 isSolid: true,
                 shape: { type: "rectangle", x:2550, y:-222, width: 450,  height: 200, color: "yellow" },
-                access:{ x:2800, y:250, angle:-90 }
+                access:{ x:2775, y:350, angle:-90 }
             },
 
 
@@ -144,7 +144,7 @@ module.exports = class Map2020 extends Map{
                 team: "blue",
                 isSolid: false,
                 shape: { type: "rectangle", x:0, y:210, width: 290,  height: 290, color: "DarkSlateGrey" },
-                access:{ x:175, y:675, angle:-90 }
+                access:{ x:175, y:610, angle:-90 }
             },
             {
                 name: "Ending Area North",
@@ -152,7 +152,7 @@ module.exports = class Map2020 extends Map{
                 team: "yellow",
                 isSolid: false,
                 shape: { type: "rectangle", x:2710, y:210, width: 290,  height: 290, color: "DarkSlateGrey" },
-                access:{ x:2825, y:675, angle:-90 }
+                access:{ x:2825, y:610, angle:-90 }
             },
             
             //Ending areas South
@@ -162,7 +162,7 @@ module.exports = class Map2020 extends Map{
                 team: "blue",
                 isSolid: false,
                 shape: { type: "rectangle", x:0, y:1100, width: 290,  height: 290, color: "LightSteelBlue" },
-                access:{ x:175, y:950, angle:90 }
+                access:{ x:175, y:995, angle:90 }
             },
             {
                 name: "Ending Area South",
@@ -170,7 +170,7 @@ module.exports = class Map2020 extends Map{
                 team: "yellow",
                 isSolid: false,
                 shape: { type: "rectangle", x:2710, y:1100, width: 290,  height: 290, color: "LightSteelBlue" },
-                access:{ x:2825, y:950, angle:90 }
+                access:{ x:2825, y:995, angle:90 }
             },
             
             //Bottom Ports
@@ -180,7 +180,7 @@ module.exports = class Map2020 extends Map{
                 team: "blue",
                 isSolid: false,
                 shape: { type: "rectangle", x:1650, y:1700, width: 300,  height: 300, color: "blue" },
-                access:{ x:1800, y:1450, angle:90 }
+                access:{ x:1810, y:1450, angle:90 }
             },
             {
                 name: "Bottom Port Yellow",
@@ -188,7 +188,7 @@ module.exports = class Map2020 extends Map{
                 team: "yellow",
                 isSolid: false,
                 shape: { type: "rectangle", x:1050, y:1700, width: 300,  height: 300, color: "yellow" },
-                access:{ x:1200, y:1450, angle:90 }
+                access:{ x:1190, y:1450, angle:90 }
             },
 
 
@@ -283,7 +283,7 @@ module.exports = class Map2020 extends Map{
                 team: "blue",
                 isSolid: true,
                 shape: { type: "rectangle", x:1350, y:0, width: 300,  height: 30, color: "black" },
-                access:{ x:1000, y:500, angle:-45 }
+                access:{ x:1000, y:600, angle:-45 }
             },
             {
                 name: "Weathervane yellow",
@@ -291,7 +291,7 @@ module.exports = class Map2020 extends Map{
                 team: "yellow",
                 isSolid: true,
                 shape: { type: "rectangle", x:1350, y:0, width: 300,  height: 30, color: "black" },
-                access:{ x:2000, y:500, angle:-135 }
+                access:{ x:2000, y:600, angle:-135 }
             },
 
             //Weathervane  2
@@ -301,7 +301,7 @@ module.exports = class Map2020 extends Map{
                 team: "blue",
                 isSolid: true,
                 shape: { type: "rectangle", x:1350, y:0, width: 300,  height: 30, color: "black" },
-                access:{ x:1250, y:500, angle:-60 }
+                access:{ x:1250, y:600, angle:-60 }
             },
             {
                 name: "Weathervane 2 yellow",
@@ -309,7 +309,7 @@ module.exports = class Map2020 extends Map{
                 team: "yellow",
                 isSolid: true,
                 shape: { type: "rectangle", x:1350, y:0, width: 300,  height: 30, color: "black" },
-                access:{ x:1750, y:500, angle:-120 }
+                access:{ x:1750, y:600, angle:-120 }
             },
 
             //Reefs
@@ -383,7 +383,7 @@ module.exports = class Map2020 extends Map{
                 team: "blue",
                 isSolid: false,
                 shape: { type: "circle", x:300, y:1200, radius: 36, color: "green" },
-                access:{ x:600, y:1350, angle:-135 }
+                access:{ x:550, y:1450, angle:-125 }
             },
             {
                 name: "Buoy Starting South Yellow",
@@ -391,7 +391,7 @@ module.exports = class Map2020 extends Map{
                 team: "yellow",
                 isSolid: false,
                 shape: { type: "circle", x:2700, y:1200, radius: 36, color: "red" },
-                access:{ x:2400, y:1350, angle:-45 }
+                access:{ x:2450, y:1450, angle:-55 }
             },
             {
                 name: "Buoy Starting Fairway South Blue",

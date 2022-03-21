@@ -5,7 +5,8 @@ const Goals = require('./goals');
 module.exports = class GoalsTest extends Goals{
     constructor(app) {
         super(app);
-        this.defaultSpeed=0.3; //m/s
+        this.defaultSpeed=0.6; //m/s 0.3
+        this.moveSpeed = 0.4; //m/s 0.2
         this.defaultNearDist=50;//mm
         this.defaultNearAngle=5;//°
 
@@ -49,7 +50,7 @@ module.exports = class GoalsTest extends Goals{
                     {
                         name: "Move",
                         method: "moveToComponent",
-                        parameters:{ component: "buoyStartingNorth", speed: 0.2, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
+                        parameters:{ component: "buoyStartingNorth", speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     },
                     //remove
                     { name:"updateMap", method: "removeFromMap", parameters:{ list:["buoyStartingNorth", "buoyStartingFairwayNorth"] } },
@@ -71,8 +72,9 @@ module.exports = class GoalsTest extends Goals{
                 }, 
                 executionCount: 1,
                 actions: [
-                    { name: "forward",  method: "moveAtAngle", parameters:{ angle:-150, distance:850, speed: 0.5 } },
-                    
+                    { team: "yellow", name: "forward",  method: "moveAtAngle", parameters:{ angle:-150, distance:850, speed: 0.5 } },
+                    { team: "blue", name: "forward",  method: "moveAtAngle", parameters:{ angle:-30, distance:850, speed: 0.5 } },
+                   
                 ]
             },*/
             
@@ -86,7 +88,7 @@ module.exports = class GoalsTest extends Goals{
                     {
                         name: "Move",
                         method: "moveToComponent",
-                        parameters:{ component: "lighthouse", speed: 0.2 }
+                        parameters:{ component: "lighthouse", speed: this.moveSpeed }
                     },
                     {
                         name: "Activate",
@@ -389,17 +391,17 @@ module.exports = class GoalsTest extends Goals{
                 },                
                 executionCount: 1,
                 actions: [
-                    { name: "Move",  method: "moveToComponent",  parameters:{ component: "windsockSide", speed: 0.2, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle } },
+                    { name: "Move",  method: "moveToComponent",  parameters:{ component: "windsockSide", speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle } },
                     //reposition
                     { team: "blue", name: "rotate",  method: "rotateToAngle", parameters:{ angle:180, speed: this.defaultSpeed } },
                     { team: "yellow", name: "rotate",  method: "rotateToAngle", parameters:{ angle:0, speed: this.defaultSpeed } },
                     
-                    { team: "blue", name: "reposition X",  method: "moveRepositionning", parameters:{ axis:"x", value: 100, distance:200, speed: 0.2 } },
-                    { team: "yellow", name: "reposition X",  method: "moveRepositionning", parameters:{ axis:"x", value: 2900, distance:200, speed: 0.2 } },
+                    { team: "blue", name: "reposition X",  method: "moveRepositionning", parameters:{ axis:"x", value: 100, distance:200, speed: this.moveSpeed } },
+                    { team: "yellow", name: "reposition X",  method: "moveRepositionning", parameters:{ axis:"x", value: 2900, distance:200, speed: this.moveSpeed } },
                     { name: "backward",  method: "moveBackward", parameters:{ distance:350, angle: 90, speed: this.defaultSpeed } },
-                    { name: "reposition Y",  method: "moveRepositionning", parameters:{ axis:"y", value: 1900, distance:350, speed: 0.2 } },
+                    { name: "reposition Y",  method: "moveRepositionning", parameters:{ axis:"y", value: 1900, distance:350, speed: this.moveSpeed } },
                     { name: "backward",  method: "moveBackward", parameters:{ distance:350, speed: this.defaultSpeed } },
-                    { name: "Move",  method: "moveToComponent",  parameters:{ component: "windsockSide", speed: 0.2 } },
+                    { name: "Move",  method: "moveToComponent",  parameters:{ component: "windsockSide", speed: this.moveSpeed } },
                     
                     { name: "prepare", method: "setArmWindsockPrepare" },
                     { name: "forward",  method: "moveForward", parameters:{ distance:130, speed: this.defaultSpeed } },
@@ -408,7 +410,7 @@ module.exports = class GoalsTest extends Goals{
                     { team: "blue", name: "side",  method: "moveSideway", parameters:{ side:"left", distance:150, speed: 0.07 } },
                     { name: "active", method: "setArmWindsockActive" },
                     { name: "validate", method: "validateWindsock" },
-                    { name: "backward",  method: "moveBackward", parameters:{ distance:75, speed: this.defaultSpeed } },
+                    { name: "backward",  method: "moveBackward", parameters:{ distance:125, speed: this.defaultSpeed } },
                     { name: "default", method: "setArmDefault" },
                 ]
             },
@@ -418,7 +420,7 @@ module.exports = class GoalsTest extends Goals{
                 condition: ()=>{
                     if(this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-15*1000)
                     {
-                        return this.app.robot.variables.buoyACA.value == 0 && this.app.robot.variables.buoyACC.value == 0
+                        return this.app.robot.variables.windsocks.value>0 && this.app.robot.variables.buoyACA.value == 0 && this.app.robot.variables.buoyACC.value == 0
                     }
                     return false;
                 },                
@@ -427,7 +429,7 @@ module.exports = class GoalsTest extends Goals{
                     {
                         name: "Move",
                         method: "moveToComponent",
-                        parameters:{ component: "windsockMiddle", speed: 0.2, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
+                        parameters:{ component: "windsockMiddle", speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     },
                     { name: "prepare", method: "setArmWindsockPrepare" },
                     { name: "forward",  method: "moveForward", parameters:{ distance:120, speed: this.defaultSpeed } },
@@ -436,7 +438,7 @@ module.exports = class GoalsTest extends Goals{
                     { team:"blue", name: "side",  method: "moveSideway", parameters:{ side:"left", distance:150, speed: 0.07 } },
                     { name: "active", method: "setArmWindsockActive" },
                     { name: "validate", method: "validateWindsock" },
-                    { name: "backward",  method: "moveBackward", parameters:{ distance:75, speed: this.defaultSpeed } },
+                    { name: "backward",  method: "moveBackward", parameters:{ distance:150, speed: this.defaultSpeed } },
                     { name: "default", method: "setArmDefault" }
                 ]
             },
@@ -445,7 +447,7 @@ module.exports = class GoalsTest extends Goals{
             {
                 name: "Buoys end",
                 condition: ()=>{
-                    return this.app.robot.variables.buoyACA.value == 0 && this.app.robot.variables.buoyACC.value == 0;
+                    return this.app.robot.variables.windsocks.value>0 && this.app.robot.variables.buoyACA.value == 0 && this.app.robot.variables.buoyACC.value == 0;
                 }, 
                 executionCount: 1,
                 actions: [
@@ -459,7 +461,7 @@ module.exports = class GoalsTest extends Goals{
                     { name: "Open arm", method: "openSideArms", parameters:{ name:"ACA", wait:false } },
                     { name: "Open arm", method: "openSideArms", parameters:{ name:"ACC", wait:false } },
                     
-                    { name: "forward",  method: "moveForward", parameters:{ distance:300, speed: 0.4 } },
+                    { name: "forward",  method: "moveForward", parameters:{ distance:375, speed: 0.4 } },
                     { name: "Close arm", method: "closeSideArms", parameters:{ name:"ACA", wait:false } },
                     { name: "Close arm", method: "closeSideArms", parameters:{ name:"ACC", wait:false } },
                     //{ name: "backward",  method: "moveBackward", parameters:{ distance:400, speed: 0.4 } },
@@ -488,7 +490,7 @@ module.exports = class GoalsTest extends Goals{
                     {
                         name: "Move",
                         method: "moveToComponent",
-                        parameters:{ component: "startingArea", speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
+                        parameters:{ component: "startingArea", speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     },
                     {
                         name: "orientRobot",

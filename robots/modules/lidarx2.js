@@ -17,7 +17,7 @@ module.exports = class LidarX2 {
         this.measures = [];
         this.angleOffset = 180;
         this.lastSendTime = 0;
-        this.rejectedAngles = [{from:290, to:315}]
+        this.rejectedAngles = [{from:280, to:325}, {from:50, to:70}]
         if(process.platform=="linux") this.port = "/dev/ydlidarx2"; //Raspberry/Linux
         if(process.platform=="darwin") this.port = ""; //Mac
         if(process.platform=="win32") this.port = "COM4"; //Windows

@@ -19,7 +19,7 @@ module.exports = class Robot {
         this.name = "";
         this.team = "";
         if(this.app.map && this.app.map.teams && this.app.map.teams[0])
-            this.team = this.app.map.teams[0];
+            this.team = this.app.map.teams[1];
         this.startPosition = {
             blue:{x:0,y:0,angle:0},
             yellow:{x:0,y:0,angle:0}
@@ -458,6 +458,7 @@ module.exports = class Robot {
         let angleA = utils.normAngle(this.movementAngle-this.collisionAngle/2);
         let angleB = utils.normAngle(this.movementAngle+this.collisionAngle/2);
         console.log("Detect between", angleA, angleB)
+        let lastCollisionAngle = 0;
         for(let measure of this.modules.lidar.measures){
             //Check for collisions
             let measureAngle = utils.normAngle(measure.a+this.angle);
@@ -467,8 +468,10 @@ module.exports = class Robot {
                 console.log("angleInRange(", angleA, angleB, measureAngle, ") =", inCollisionRange)
             }
             if(inCollisionRange && measure.d>0 && measure.d<this.collisionDistance){
+                if(utils.angleInRange( lastCollisionAngle-0.25, lastCollisionAngle+0.25, measureAngle )) continue; // too close rays means interference
+                lastCollisionAngle = measureAngle;
                 collisionCount++
-                if(collisionCount>=3){
+                if(collisionCount>=8){
                     //Add obstacle on map
                     let obstacleRadius = 150;
                     let obstacleTimeout = 2000; //will be removed from map in N milliseconds

@@ -129,30 +129,26 @@ module.exports = class Robot2020 extends Robot{
     }
 
     async activateLighthouse(parameters){
-        let intermediatePose = { a1:90, a2:90, a3:50, a4:120, a5:130, duration:200 };
+        //let intermediatePose = { a1:90, a2:90, a3:50, a4:120, a5:130, duration:200 };
+        let activationPose = { a1:90, a2:90, a3:140, a4:52, a5:90, duration:350 };
+        if(this.modules.arm) await this.modules.arm.setPose(activationPose);
+        await utils.sleep(100);
+        await this.moveForward({distance:200, speed:0.2});
         //let buoysOnFront = this.variables.buoyStorageFrontGreen.value>0 || this.variables.buoyStorageFrontRed.value>0;
         // Prepare arm
-        if(this.modules.arm) await this.modules.arm.setPose(intermediatePose);
+        //if(this.modules.arm) await this.modules.arm.setPose(intermediatePose);
         // Arm up
-        if(this.modules.arm) await this.modules.arm.setPose({ a1:30, a2:40, a3:55, a4:126, a5:90, duration:200 })
-        await utils.sleep(100);
+        //if(this.modules.arm) await this.modules.arm.setPose({ a1:30, a2:40, a3:55, a4:126, a5:90, duration:200 })
+        //await utils.sleep(100);
         // Move forward
-        await this.moveForward({distance:75, speed:0.4});
-        //await utils.sleep(1000); //todo remove by moveForward
+        //await this.moveForward({distance:75, speed:0.4});
         // Arm swipe
-        if(this.modules.arm) await this.modules.arm.setPose({ a1:30, a2:140, a3:55, a4:126, a5:90, duration:200 })
-        //Move back
-        /*if(buoysOnFront){
-            if(this.modules.arm) await this.modules.arm.setPose({ a1:90, a2:90, a3:90, a4:90, a5:90, duration:200 })
-            await utils.sleep(200);
-            await this.setArmClose({});
-        }*/
+        //if(this.modules.arm) await this.modules.arm.setPose({ a1:30, a2:140, a3:55, a4:126, a5:90, duration:200 })
         this.addScore(15);
         // Move backward
-        await this.moveBackward({distance:100, speed:0.4});
-        //await utils.sleep(1000); //todo remove by moveBackward
+        await this.moveBackward({distance:300, speed:0.4});
         // Arm to default
-        if(this.modules.arm) await this.modules.arm.setPose(intermediatePose);
+        //if(this.modules.arm) await this.modules.arm.setPose(intermediatePose);
         await utils.sleep(100);
         await this.setArmDefault({});
         return true
@@ -163,7 +159,7 @@ module.exports = class Robot2020 extends Robot{
         this.variables.buoyStorageFrontRed.value++;
         this.app.map.removeComponent(this.app.map.getComponent("buoyStartingNorth", this.team));
         this.app.map.removeComponent(this.app.map.getComponent("buoyStartingFairwayNorth", this.team));
-        await utils.sleep(500);
+        await utils.sleep(400);
         return true
     }
 
@@ -191,7 +187,7 @@ module.exports = class Robot2020 extends Robot{
         this.variables.buoyStorageSideB.value+=2;
         this.app.map.removeComponent(this.app.map.getComponent("buoyMiddleBottom", this.team));
         this.app.map.removeComponent(this.app.map.getComponent("buoyBottom", this.team));
-        await utils.sleep(500);
+        await utils.sleep(400);
         return true
     }
 
@@ -200,7 +196,7 @@ module.exports = class Robot2020 extends Robot{
         let elemList = []
         let result = await this.openSideArms({sideRed:!!parameters.sideRed, sideGreen:!!parameters.sideGreen});
         if(!result) return result;
-        result = await this.moveBackward({distance:150, speed:0.2});
+        result = await this.moveBackward({distance:150, speed:0.4});
         if(!result) return result;
         if(parameters.component){
             this.app.map.removeComponent(this.app.map.getComponent(parameters.component, this.team));
@@ -220,7 +216,7 @@ module.exports = class Robot2020 extends Robot{
         return false
         this.variables.buoyStorageFrontGreen.value++;
         this.variables.buoyStorageFrontRed.value++;
-        await utils.sleep(500);
+        await utils.sleep(400);
         return true
     }
     
@@ -255,7 +251,7 @@ module.exports = class Robot2020 extends Robot{
         
         let backwardDist = 200 - 75*fairway.buoyCount;
         console.log("buoys in fairway", fairway.buoyCount, "dist", backwardDist, "in paired", pairedFairway.buoyCount)
-        let result = await this.moveBackward({distance:backwardDist, speed:0.4});
+        let result = await this.moveBackward({distance:backwardDist, speed:0.5});
         if(!result) return result;
         let handleSideGreen = parameters.sideGreen && this.variables.buoyStorageSideGreen.value>0;
         let handleSideRed = parameters.sideRed && this.variables.buoyStorageSideRed.value>0;
@@ -277,7 +273,7 @@ module.exports = class Robot2020 extends Robot{
                 this.variables.buoyStorageSideRed.value = 0;
             }
             let forwardDist = 200;
-            result = await this.moveForward({distance:forwardDist, speed:0.4});
+            result = await this.moveForward({distance:forwardDist, speed:0.5});
             if(!result) return result;
             await this.closeSideArms({sideRed:true, sideGreen:true});
             
@@ -293,7 +289,7 @@ module.exports = class Robot2020 extends Robot{
             let angleDiff = 180;
             if(handleFrontRed && !handleFrontGreen) angleDiff = 160;
             if(handleFrontGreen && !handleFrontRed) angleDiff = -160;
-            await this.rotateToAngle({angle:utils.normAngle(this.angle+angleDiff), speed:0.4})
+            await this.rotateToAngle({angle:utils.normAngle(this.angle+angleDiff), speed:0.5})
             await this.setArmDefault({});
             let armPosCenter_Up = { a1:70, a2:95, a3:100, a4:40, a5:116, duration:200 };
             let armPosReleaseGreen_Up = { a1:70, a2:30, a3:157, a4:40, a5:116, duration:200 };
@@ -312,7 +308,7 @@ module.exports = class Robot2020 extends Robot{
                 this.addNewPairsScore(fairway, pairedFairway, buoyCount, 0);
                 this.variables.buoyStorageFrontGreen.value = 0;
                 //back move
-                result = await this.moveBackward({distance:200, speed:0.4});
+                result = await this.moveBackward({distance:200, speed:0.5});
                 if(this.variables.buoyStorageFrontRed.value>0){
                     await this.modules.arm.setPose(armPosReleaseGreen_Down);
                     await this.modules.arm.disablePump();
@@ -340,7 +336,7 @@ module.exports = class Robot2020 extends Robot{
                 this.addNewPairsScore(fairway, pairedFairway, buoyCount, 0);
                 this.variables.buoyStorageFrontRed.value = 0;
                 //back move
-                result = await this.moveBackward({distance:200, speed:0.4});
+                result = await this.moveBackward({distance:200, speed:0.5});
                 if(this.variables.buoyStorageFrontGreen.value>0){
                     await this.modules.arm.setPose(armPosReleaseRed_Down);
                     await this.modules.arm.disablePump();
@@ -359,7 +355,7 @@ module.exports = class Robot2020 extends Robot{
                 this.variables.buoyStorageFrontGreen.value = 0;
                 this.variables.buoyStorageFrontRed.value = 0;
                 //backmove
-                result = await this.moveBackward({distance:200, speed:0.4});
+                result = await this.moveBackward({distance:200, speed:0.5});
             }
         }
         //need to add 2 point per buoy pair
