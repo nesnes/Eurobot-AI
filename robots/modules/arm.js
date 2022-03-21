@@ -17,12 +17,11 @@ module.exports = class Arm {
             functions:{
                 openFlag: {},
                 closeFlag: {},
-                setPose:{
-                    a1:{ legend:"height", type:"range", min:0, max:180, value:90, step:1 },
-                    a2:{ legend:"rotation", type:"range", min:0, max:180, value:90, step:1 },
-                    a3:{ legend:"shoulder", type:"range", min:0, max:180, value:90, step:1 },
-                    a4:{ legend:"elbow", type:"range", min:0, max:180, value:90, step:1 },
-                    a5:{ legend:"wrist", type:"range", min:0, max:180, value:90, step:1 },
+                setPose3:{
+                    name:{ legend:"name", type:"text" },
+                    a1:{ legend:"shoulder", type:"range", min:0, max:180, value:90, step:1 },
+                    a2:{ legend:"elbow", type:"range", min:0, max:180, value:90, step:1 },
+                    a3:{ legend:"wrist", type:"range", min:0, max:180, value:90, step:1 },
                     duration:{ type:"range", min:0, max:1000, value:0, step:1 }
                 },
                 enablePump:  {  name:{ legend:"name", type:"text" } },
@@ -41,7 +40,18 @@ module.exports = class Arm {
 
     async setPose(params){
         this.app.logger.log("set pose");
-        let msg = "Z "+parseInt(""+params.a1)+" "+parseInt(""+params.a2)+" "+parseInt(""+params.a3)+" "+parseInt(""+params.a4)+" "+parseInt(""+params.a5)+" "+parseInt(""+params.duration);
+        if(!("name" in params)) return "ERROR";
+        let msg = "Z "+params.name+" "+parseInt(""+params.duration);
+        if("a1" in params) msg += " "+parseInt(""+params.a1);
+        if("a2" in params) msg += " "+parseInt(""+params.a2);
+        if("a3" in params) msg += " "+parseInt(""+params.a3);
+        if("a4" in params) msg += " "+parseInt(""+params.a4);
+        if("a5" in params) msg += " "+parseInt(""+params.a5);
+        if("a6" in params) msg += " "+parseInt(""+params.a6);
+        if("a7" in params) msg += " "+parseInt(""+params.a7);
+        if("a8" in params) msg += " "+parseInt(""+params.a8);
+        if("a9" in params) msg += " "+parseInt(""+params.a9);
+        if("a10" in params) msg += " "+parseInt(""+params.a10);
         console.log("Arm pose", msg)
         let result = true;
         if(this.app.robot.modules.robotLink)
@@ -52,9 +62,10 @@ module.exports = class Arm {
 
     async setPump(params){
         this.app.logger.log("pump set");
+        if(!("duration" in params)) params.duration = 0;
         if(!("value" in params)) return "ERROR";
         if(!("name" in params)) return "ERROR";
-        let msg = "pump set "+params.name+" "+params.value;
+        let msg = "S "+params.name+" "+params.value+" "+params.duration;
         let result = true;
         if(this.app.robot.modules.robotLink)
             result =  await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
@@ -78,7 +89,7 @@ module.exports = class Arm {
         if(!("duration" in params)) params.duration = 0;
         if(("wait" in params)) wait = params.wait;
         if(!("name" in params)) return "ERROR";
-        let msg = "servo set "+params.name+" "+params.angle+" "+params.duration;
+        let msg = "S "+params.name+" "+params.angle+" "+params.duration;
         let result = true;
         if(this.app.robot.modules.robotLink)
             result =  await this.app.robot.modules.robotLink.sendMessage(this.address, msg);

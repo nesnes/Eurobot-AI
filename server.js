@@ -32,7 +32,7 @@ module.exports = class Server {
     }
 
     onReady(){
-        console.log('Mosca server is up and running')
+        console.log('Server is up and running on port 8080')
     }
 
     onError(){

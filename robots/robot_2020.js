@@ -2,8 +2,12 @@
 delete require.cache[require.resolve('./robot')]; //Delete require() cache
 const Robot = require('./robot');
 
-delete require.cache[require.resolve('./modules/lidarx2')]; //Delete require() cache
-const Lidar = require('./modules/lidarx2');
+//delete require.cache[require.resolve('./modules/lidarx2')]; //Delete require() cache
+//const Lidar = require('./modules/lidarx2');
+
+//delete require.cache[require.resolve('./modules/lidarLD06')]; //Delete require() cache
+//const Lidar = require('./modules/lidarLD06');
+
 
 //delete require.cache[require.resolve('./modules/lidarLocalisation')]; //Delete require() cache
 //const LidarLocalisation = require('./modules/LidarLocalisation');
@@ -47,7 +51,7 @@ module.exports = class Robot2020 extends Robot{
         this.slowdownDistance = this.collisionDistance+100;
 
         if(!this.app.parameters.simulate){
-            this.modules.lidar = new Lidar(app)
+            //this.modules.lidar = new Lidar(app)
             //this.modules.lidarLocalisation = new LidarLocalisation(app)
             this.modules.arm = new Arm(app);
             this.modules.camera = new Camera(app);

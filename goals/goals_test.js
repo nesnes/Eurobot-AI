@@ -6,22 +6,7 @@ module.exports = class GoalsTest extends Goals{
     constructor(app) {
         super(app);
 
-        this.list = [
-
-            
-            // Wait for start
-            /*{
-                name: "Wait for start",
-                condition: ()=>{return true;}, 
-                executionCount: 1,
-                actions: [
-                    {
-                        name: "Wait for start",
-                        method: "waitForStart"
-                    }
-                ]
-            },*/
-            
+        this.list = [            
             // dance start
             {
                 condition: ()=>{return true},

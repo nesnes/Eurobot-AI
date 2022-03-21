@@ -18,6 +18,8 @@ module.exports = class Intelligence {
         //Load the map
         delete require.cache[require.resolve('./maps/map_2020')]; //Delete require() cache
         const Map = require('./maps/map_2020');
+        //delete require.cache[require.resolve('./maps/map_lidar_test')]; //Delete require() cache
+        //const Map = require('./maps/map_lidar_test');
         this.app.map = new Map(this.app);
         this.app.map.init();
         this.app.logger.log("Map loaded");
@@ -25,15 +27,16 @@ module.exports = class Intelligence {
         //Create robot
         delete require.cache[require.resolve('./robots/robot_2020')]; //Delete require() cache
         const Robot = require('./robots/robot_2020');
+        //delete require.cache[require.resolve('./robots/robot_test_lidar')]; //Delete require() cache
+        //const Robot = require('./robots/robot_test_lidar');
         this.app.robot = new Robot(this.app);
         await this.app.robot.init();
         this.app.logger.log("Robot loaded");
 
         //Read the goals
-        let goalsFile='./goals/goals_homologation';
-        //let goalsFile='./goals/goals_test'; // this is dance!
-        //let goalsFile='./goals/goals_2020';
-        //let goalsFile='./goals/goals_2020';
+        //let goalsFile='./goals/goals_homologation';
+        //let goalsFile='./goals/goals_test';
+        let goalsFile='./goals/goals_2020';
         delete require.cache[require.resolve(goalsFile)]; //Delete require() cache
         const Goals = require(goalsFile);
         this.app.goals = new Goals(this.app);
