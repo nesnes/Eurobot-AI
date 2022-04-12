@@ -12,11 +12,11 @@ const gpioStart = new Gpio(4, 'in', 'both');
 var valueColor = 0;
 var valueStart = 0;
 gpioColor.watch((err, value) => {
-  if (err) {throw err;}
+  if (err) {throw err;return;}
   valueColor = value?1:0;
 });
 gpioStart.watch((err, value) => {
-  if (err) {throw err;}
+  if (err) {throw err; return;}
   valueStart = value?0:1;
 });
     
@@ -37,7 +37,7 @@ async function getColorStart(){
 }
 
 async function run(msg){
-    if(msg.action == "getColorStart") await getColorStart();
+    if(msg.action == "getColorStart") getColorStart();
     if(msg.action == "setScore" && "score" in msg) score = msg.score;
     if(msg.action == "setColors" && "colors" in msg) colors = msg.colors;
 }

@@ -19,9 +19,13 @@ async function main(){
     //Create logger
     let Logger = require('./logger');
     app.logger = new Logger(app);
+    let params = {};
+    if(process.argv.length == 3 && process.argv[2]=="start") {
+        params = { simulate: false, disableColisions: false, start: true };
+    }
 
     //Create AI
-    app.reloadAI();
+    app.reloadAI(params);
 }
 
 main();

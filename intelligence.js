@@ -45,6 +45,10 @@ module.exports = class Intelligence {
 
         this.send();
         this.updateInterval = setInterval(()=>this.updateMatchTime(),150);
+        
+        if("start" in this.app.parameters && this.app.parameters.start) {
+            this.runMatch();
+        }
     }
 
     send(){

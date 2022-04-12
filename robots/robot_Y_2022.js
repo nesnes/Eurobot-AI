@@ -93,6 +93,7 @@ module.exports = class Robot2020 extends Robot{
             this.setPump({name: "BCP", value: 0});
             this.setPump({name: "ABP", value: 255});
         }
+        return;
     }
 
     async endMatch(){

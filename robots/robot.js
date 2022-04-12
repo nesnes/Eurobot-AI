@@ -205,7 +205,6 @@ module.exports = class Robot {
     };
     
     async waitForStart(parameters){
-        this.setScore(20)
         let matchStopped = false;
         await this.initMatch();
         if(!this.app.parameters.simulate && this.modules.controlPanel){
@@ -214,6 +213,7 @@ module.exports = class Robot {
             if(this.app.map && this.app.map.teams)
                 this.team = this.app.map.teams[status.color];
             await this.initMatch();
+            this.send();
             //Wait for the starter to be positioned and pulled
             let changed = false;
             do {
@@ -239,7 +239,7 @@ module.exports = class Robot {
                         changed = false;
                     }
                 }
-                await utils.sleep(250);
+                await utils.sleep(150);
                 matchStopped = this.app.intelligence.stopExecution;
                 if(!matchStopped){
                     this.app.intelligence.startMatchTimer();//Restarts Match timer

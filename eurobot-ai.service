@@ -1,0 +1,14 @@
+# To be copied in /etc/systemd/system for autostart (dont forget to deamon-reload and systemctl enable erobot-ai
+[Unit]
+Description=Eurobot AI service
+After=network-online.target
+
+[Service]
+Type=idle
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/Eurobot-AI/
+ExecStart=node main.js start
+
+[Install]
+WantedBy=multi-user.target
