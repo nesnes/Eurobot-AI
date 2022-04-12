@@ -8,8 +8,10 @@ module.exports = class Camera {
     constructor(app) {
         this.app = app;
         this.worker = null;
+        this.arucos = [];
         this.detections = [];
         this.orientation = null;
+        this.pendingArucos = null;
         this.pendingDetection = null;
         this.pendingOrientation = null;
     }
@@ -27,6 +29,7 @@ module.exports = class Camera {
     getDescription(){
         return {
             functions:{
+                detectArucos: {},
                 detectBuoys: {},
                 detectWeathervane: {},
             }
@@ -39,18 +42,16 @@ module.exports = class Camera {
         this.worker = null;
     }
 
-    /*async _startWorker(filepath) {
-        return new Promise((resolve, reject) => {
-            this.worker = Worker(filepath,{json:true, debug:false})
-            //this.worker.on('online', () => { console.log('Launching camera worker') })
-            this.worker.on('message', msg => { this.onWorkerMessage(msg); return resolve(); })
-            //this.worker.on('error', (e)=>{this.worker = null; reject(e)});
-            this.worker.on('exit', code => {
-                if(code!==0 && code !==null) reject(new Error(`Worker stopped with exit code ${code}`));
-                this.worker = null;
-            })
+    async detectArucos(){
+        this.arucos = [];
+        if(this.worker) this.worker.send({action:"detectArucos"});
+        await new Promise(resolve=>{
+            this.pendingArucos = resolve;
+            setTimeout(resolve, 2000)
         })
-    }*/
+        this.pendingArucos = null;
+        return this.arucos
+    }
 
     async detectBuoys(){
         this.detections = [];
@@ -76,6 +77,10 @@ module.exports = class Camera {
 
     onWorkerMessage(msg){
         try{
+            if(msg.type=="arucos"){
+                this.arucos = msg.arucos;
+                if(this.pendingArucos) this.pendingArucos();
+            }
             if(msg.type=="detections"){
                 this.detections = msg.detections;
                 if(this.pendingDetection) this.pendingDetection();

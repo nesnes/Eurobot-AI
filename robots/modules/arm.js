@@ -27,7 +27,10 @@ module.exports = class Arm {
                 enablePump:  {  name:{ legend:"name", type:"text" } },
                 disablePump: {  name:{ legend:"name", type:"text" } },
                 setPump: {  name:{ legend:"name", type:"text" },
-                            value:{ legend:"value", type:"range", min:0, max:1, value:0, step:1 }
+                            value:{ legend:"value", type:"range", min:0, max:255, value:0, step:1 }
+                },
+                setMotor: {  name:{ legend:"name", type:"text" },
+                            value:{ legend:"value", type:"range", min:0, max:255, value:0, step:1 }
                 },
                 setServo: { name:{ legend:"name", type:"text" },
                             angle:{ legend:"angle", type:"range", min:0, max:180, value:90, step:1 },
@@ -37,10 +40,17 @@ module.exports = class Arm {
             }
         }
     }
+    
+    async setPose3(params){
+        this.app.logger.log("set pose3");
+        return this.setPose(params);
+    }
 
     async setPose(params){
         this.app.logger.log("set pose");
         if(!("name" in params)) return "ERROR";
+        if(!("duration" in params)) params.duration = 0;
+        if(!("wait" in params)) params.wait = true;
         let msg = "Z "+params.name+" "+parseInt(""+params.duration);
         if("a1" in params) msg += " "+parseInt(""+params.a1);
         if("a2" in params) msg += " "+parseInt(""+params.a2);
@@ -56,11 +66,15 @@ module.exports = class Arm {
         let result = true;
         if(this.app.robot.modules.robotLink)
             result = await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
-        await utils.sleep(params.duration);
+        if(params.wait) await utils.sleep(params.duration);
         return result;
     }
-
+    
     async setPump(params){
+        this.setMotor(params);
+    }
+
+    async setMotor(params){
         this.app.logger.log("pump set");
         if(!("duration" in params)) params.duration = 0;
         if(!("value" in params)) return "ERROR";

@@ -103,18 +103,19 @@ module.exports = class Map {
 
     isContainedIn(x, y, component, useRobotRadius=true){
         let robotRadius = useRobotRadius?this.app.robot.radius:0;
+        let avoidOffset = component.avoidOffset || 0;
         if(component.shape.type == "rectangle"){
-            let fromX = component.shape.x-robotRadius;
-            let toX = component.shape.x+component.shape.width+robotRadius;
-            let fromY = component.shape.y-robotRadius;
-            let toY = component.shape.y+component.shape.height+robotRadius;
+            let fromX = component.shape.x-robotRadius - avoidOffset;
+            let toX = component.shape.x+component.shape.width+robotRadius+avoidOffset*2;
+            let fromY = component.shape.y-robotRadius - avoidOffset;
+            let toY = component.shape.y+component.shape.height+robotRadius+avoidOffset*2;
             //Rectangle corners as circle
             let centerX = component.shape.x+component.shape.width/2;
             let centerY = component.shape.y+component.shape.height/2;
             let dhx = component.shape.x-(component.shape.x+component.shape.width);
             let dhy = component.shape.y-(component.shape.y+component.shape.height);
             let hypotenuse = Math.sqrt(dhx*dhx + dhy*dhy);
-            let radius = hypotenuse/2+robotRadius;
+            let radius = hypotenuse/2+robotRadius+avoidOffset;
             let dx = centerX-x;
             let dy = centerY-y;
             let distance = Math.sqrt(dx*dx + dy*dy);
@@ -124,7 +125,7 @@ module.exports = class Map {
             let dx = component.shape.x-x;
             let dy = component.shape.y-y;
             let distance = Math.sqrt(dx*dx + dy*dy);
-            if(distance<component.shape.radius+robotRadius) return true;
+            if(distance<component.shape.radius+robotRadius+avoidOffset) return true;
         }
         return false;
     }
@@ -133,16 +134,16 @@ module.exports = class Map {
         this._updateMap();
         let grid = new PF.Grid(Math.ceil(this.width/this.pathResolution), Math.ceil(this.height/this.pathResolution));
         for(const item of this.app.map.components){
-            if(!item.isSolid
-             && ( this.isContainedIn(xFrom, yFrom, item) || this.isContainedIn(xTo, yTo, item))){
+            if(this.isContainedIn(xFrom, yFrom, item) || this.isContainedIn(xTo, yTo, item)){
                 continue;
             }
+            let avoidOffset = item.avoidOffset || 0;
             if(item.shape.type == "rectangle"){
                 //Compute rectangle extended by the robot radius
-                let fromX = (item.shape.x-this.app.robot.radius);
-                let fromY = (item.shape.y-this.app.robot.radius);
-                let width = (item.shape.width+this.app.robot.radius*2);
-                let height = (item.shape.height+this.app.robot.radius*2);
+                let fromX = (item.shape.x-this.app.robot.radius - avoidOffset);
+                let fromY = (item.shape.y-this.app.robot.radius - avoidOffset);
+                let width = (item.shape.width+this.app.robot.radius*2 + avoidOffset*2);
+                let height = (item.shape.height+this.app.robot.radius*2 + avoidOffset*2);
                 let mapWidth = this.width;
                 let mapHeight = this.height;
                 
@@ -170,10 +171,10 @@ module.exports = class Map {
             }
             if(item.shape.type == "circle"){
                 //Compute rectangle ectended by the robot radius
-                let fromX = (item.shape.x-item.shape.radius-this.app.robot.radius);
-                let fromY = (item.shape.y-item.shape.radius-this.app.robot.radius);
-                let width = (item.shape.radius*2+this.app.robot.radius*2);
-                let height = (item.shape.radius*2+this.app.robot.radius*2);
+                let fromX = (item.shape.x-item.shape.radius-this.app.robot.radius - avoidOffset);
+                let fromY = (item.shape.y-item.shape.radius-this.app.robot.radius - avoidOffset);
+                let width = (item.shape.radius*2+this.app.robot.radius*2 + avoidOffset*2);
+                let height = (item.shape.radius*2+this.app.robot.radius*2 + avoidOffset*2);
                 let mapWidth = this.width;
                 let mapHeight = this.height;
                 fromX = Math.max(0,Math.min(mapWidth,fromX))

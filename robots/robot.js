@@ -19,10 +19,10 @@ module.exports = class Robot {
         this.name = "";
         this.team = "";
         if(this.app.map && this.app.map.teams && this.app.map.teams[0])
-            this.team = this.app.map.teams[1];
+            this.team = this.app.map.teams[0];
         this.startPosition = {
-            blue:{x:0,y:0,angle:0},
-            yellow:{x:0,y:0,angle:0}
+            yellow:{x:0,y:0,angle:0},
+            violet:{x:0,y:0,angle:0}
         }
         this.x = 1500; // mm
         this.y = 1000; // mm
@@ -198,6 +198,12 @@ module.exports = class Robot {
         return await this.setScore({score:score})
     };
     
+    async sleep(parameters){
+        if(!("duration" in parameters)) return false;
+        await utils.sleep(parameters.duration);
+        return true;
+    };
+    
     async waitForStart(parameters){
         this.setScore(20)
         let matchStopped = false;
@@ -264,7 +270,10 @@ module.exports = class Robot {
     
     async setVariable(parameters){
         if(("name" in parameters) && (parameters.name in this.variables)){
-            this.variables[parameters.name].value = parameters.value;
+            let name = parameters.name;
+            let newVar = Object.assign({}, this.variables[name], parameters);
+            delete newVar.name;
+            this.variables[name] = newVar;
         }
         this.send();
         return true;
@@ -351,16 +360,19 @@ module.exports = class Robot {
     
 
     async moveRepositionning(parameters){
-        if(! ("axis" in parameters)) return false;
-        if(! ("value" in parameters)) return false;
+        if(! ("distance" in parameters)) return false;
+        if(! ("speed" in parameters)) return false;
+        let moveAngle = this.lastTarget.angle;
+        if("moveAngle" in parameters) moveAngle = parameters.moveAngle;
         let status = await this.moveAtAngle({
-            angle: this.lastTarget.angle,
+            angle: moveAngle,
             distance: parameters.distance,
             endAngle: this.lastTarget.angle,
             speed: parameters.speed
         });
-        if(parameters.axis == "x") this.x = parameters.value;
-        if(parameters.axis == "y") this.y = parameters.value;
+        if("newX" in parameters) this.x = parameters.newX
+        if("newY" in parameters) this.y = parameters.newY;
+        if("newAngle" in parameters) this.angle = parameters.newAngle;
         console.log("reposition", this.x, this.y, this.angle, parameters)
         this.lastTarget.x = this.x;
         this.lastTarget.y = this.y;

@@ -101,6 +101,7 @@ module.exports = class Robot2020 extends Robot{
     getDescription(){
         return {
             functions:{
+                testMove: {},
                 dance: {},
                 detectAndGrabBuoy: {},
                 setPosDebug: {},
@@ -635,6 +636,27 @@ module.exports = class Robot2020 extends Robot{
         });
         
         
+    }
+    
+    
+    async testMove(parameters){
+        await this.modules.arm.setPose({ name: "ACG", a1:62, a2:5, a3:170, duration:200 });
+        await utils.sleep(500);
+        await this.modules.arm.setPose({ name: "ACG", a1:172, a2:90, a3:90, duration:200 });
+        await utils.sleep(500);
+        await this.modules.arm.setPose({ name: "ACG", a1:172, a2:145, a3:130, duration:200 });
+        await utils.sleep(500);
+        await this.modules.arm.setPump({ name: "ACP", value:255 });
+        await this.modules.arm.setPose({ name: "ACG", a1:172, a2:158, a3:100, duration:200 });
+        await utils.sleep(500);
+        await this.modules.arm.setPose({ name: "ACG", a1:172, a2:145, a3:130, duration:200 });
+        await utils.sleep(500);
+        await this.modules.arm.setPose({ name: "ACG", a1:172, a2:90, a3:90, duration:200 });
+        await utils.sleep(500);
+        await this.modules.arm.setPose({ name: "ACG", a1:62, a2:5, a3:170, duration:200 });
+        await utils.sleep(500);
+        await this.modules.arm.setPump({ name: "ACP", value:0 });
+        return true;
     }
 
 }

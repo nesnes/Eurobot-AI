@@ -81,8 +81,8 @@ async function detectBuoys(img){
     }
     else {
         console.log("Duration", timeEnd-timeA, "ms")
-        cv.imshow('mask_gren', mask_green);
-        cv.imshow('mask_red', mask_red);
+        //cv.imshow('mask_gren', mask_green);
+        //cv.imshow('mask_red', mask_red);
     }
     sendImage("color", img);
     sendImage("mask", mask);
@@ -118,9 +118,33 @@ async function detectWeathervane(img){
     return orientation;
 }
 
+async function detectArucos(img){
+    if(detectionRunning) return;
+    detectionRunning = true;
+    let arucos = [];
+    let timeA = new Date().getTime();
+
+    const rgba = img.cvtColor(cv.COLOR_BGR2RGBA);
+    let imgData = canvas.createImageData( new Uint8ClampedArray(rgba.getData()), img.cols, img.rows);
+    arucos = detector.detect(imgData);
+    
+    let timeEnd = new Date().getTime();
+    if(!isMainThread){
+        sendMessage({type:"arucos", arucos:arucos});
+    }
+    else {
+        console.log("Arucos duration", timeEnd-timeA, "ms")
+        console.log(arucos);
+    }
+    detectionRunning = false;
+    sendImage("color", img);
+    return arucos;
+}
+
 async function run(action="buoys"){
     let frame = null;
     for(let i=0;i<6;i++) frame = cap.read();
+    if(action=="arucos") await detectArucos(frame);
     if(action=="buoys") await detectBuoys(frame);
     if(action=="weathervane") await detectWeathervane(frame);
     //const img = await cv.imreadAsync('./buoy-img/hsv-palette.jpg');
@@ -133,8 +157,8 @@ async function sendImage(name, img){
         sendMessage({type:"image", name:name, data:outBase64});
     }
     else {
-        cv.imshow(name, img);
-        await cv.waitKey(5);
+        //cv.imshow(name, img);
+        //await cv.waitKey(5);
     }
 }
 
@@ -144,6 +168,7 @@ function sendMessage(json){
 
 function onParentMessage(msg){
     if(!msg || !msg.action) return;
+    if(msg.action == "detectArucos") run("arucos");
     if(msg.action == "detectBuoys") run("buoys");
     if(msg.action == "detectWeathervane") run("weathervane");
 }
@@ -163,14 +188,15 @@ async function main(){
     cap.set(cv.CAP_PROP_FRAME_HEIGHT,240);
     cap.set(cv.CAP_PROP_BUFFERSIZE, 2);
     
-    if(isMainThread){
+    /*if(isMainThread){
         while(1){
+            await run("arucos");
             await run("buoys");
             await run("weathervane");
 
         }
-    }
-    await run("buoys");
+    }*/
+    await run("arucos");
 }
 
 main();
