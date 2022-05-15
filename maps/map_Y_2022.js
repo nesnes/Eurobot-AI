@@ -48,20 +48,20 @@ module.exports = class Map2020 extends Map{
             },
 
 
-            //Starting areas
+            //Starting areas (reduced for path finding)
             {
                 name: "Starting Area",
                 type: "startingArea",
                 team: "yellow",
-                shape: { type: "rectangle", x:0, y:400, width: 400,  height: 600, color: "yellow" },
-                access:{ x:500, y:700, angle:180 },
+                shape: { type: "rectangle", x:0, y:500, width: 400,  height: 500, color: "yellow" },
+                access:{ x:500, y:950, angle:0 },
                 avoidOffset: -50
             },{
                 name: "Starting Area",
                 type: "startingArea",
                 team: "violet",
-                shape: { type: "rectangle", x:2600, y:400, width: 400,  height: 600, color: "violet" },
-                access:{ x:2500, y:700, angle:0 },
+                shape: { type: "rectangle", x:2600, y:500, width: 400,  height: 500, color: "violet" },
+                access:{ x:2500, y:950, angle:180 },
                 avoidOffset: -50
             },
             
@@ -108,14 +108,14 @@ module.exports = class Map2020 extends Map{
                 type: "bottomDispenser",
                 team: "yellow",
                 shape: { type: "rectangle", x:0, y:1175, width: 102,  height: 150, color: "yellow" },
-                access:{ x:500, y:1250, angle:180 }
+                access:{ x:350, y:1250, angle:180 }
             },
             {
                 name: "Bottom Dispenser Violet",
                 type: "bottomDispenser",
                 team: "violet",
                 shape: { type: "rectangle", x:2898, y:1175, width: 102,  height: 150, color: "violet" },
-                access:{ x:2500, y:1250, angle:0 }
+                access:{ x:2650, y:1250, angle:0 }
             },
             
             // Shed
@@ -157,8 +157,8 @@ module.exports = class Map2020 extends Map{
                 access:{ x:400, y:1400, angle:135 }
             },
             {
-                name: "Sample Shed Top Yellow",
-                type: "sampleShedTop",
+                name: "Sample Shed bottom Yellow",
+                type: "sampleShedBottom",
                 team: "yellow",
                 shape: { type: "circle", x:312, y:1879, radius: 75, color: "red" },
                 access:{ x:600, y:1600, angle:135 }
@@ -171,8 +171,8 @@ module.exports = class Map2020 extends Map{
                 access:{ x:2600, y:1400, angle:45 }
             },
             {
-                name: "Sample Shed Top Violet",
-                type: "sampleShedTop",
+                name: "Sample Shed Bottom Violet",
+                type: "sampleShedBottom",
                 team: "violet",
                 shape: { type: "circle", x:2688, y:1879, radius: 75, color: "red" },
                 access:{ x:2400, y:1600, angle:45 }
@@ -287,14 +287,14 @@ module.exports = class Map2020 extends Map{
                 type: "gallery",
                 team: "yellow",
                 shape: { type: "rectangle", x:450, y:0, width: 720,  height: 86, color: "yellow" },
-                access:{ x:810, y:300, angle:-90 }
+                access:{ x:810, y:330, angle:-90 }
             },
             {
                 name: "Gallery Violet",
                 type: "gallery",
                 team: "violet",
                 shape: { type: "rectangle", x:1830, y:0, width: 720,  height: 86, color: "violet" },
-                access:{ x:2190, y:300, angle:-90 }
+                access:{ x:2190, y:330, angle:-90 }
             },
 
             // Site
@@ -319,42 +319,42 @@ module.exports = class Map2020 extends Map{
                 type: "sampleStartingTop",
                 team: "yellow",
                 shape: { type: "circle", x:900, y:555, radius: 75, color: "blue" },
-                access:{ x:775, y:338, angle:-90 }
+                access:{ x:/*770*/800, y:340, angle:-60 }
             },
             {
                 name: "Sample Starting Top",
                 type: "sampleStartingTop",
                 team: "violet",
                 shape: { type: "circle", x:2100, y:555, radius: 75, color: "blue" },
-                access:{ x:2225, y:338, angle:-90 }
+                access:{ x:/*2230*/2200, y:340, angle:-120 }
             },
             {
                 name: "Sample Starting Middle",
                 type: "sampleStartingMiddle",
                 team: "yellow",
                 shape: { type: "circle", x:830, y:675, radius: 75, color: "green" },
-                access:{ x:530, y:675, angle:0 }
+                access:{ x:580, y:675, angle:-120 }
             },
             {
                 name: "Sample Starting Middle",
                 type: "sampleStartingMiddle",
                 team: "violet",
                 shape: { type: "circle", x:2170, y:675, radius: 75, color: "green" },
-                access:{ x:2470, y:675, angle:180 }
+                access:{ x:2420, y:675, angle:-60 }
             },
             {
                 name: "Sample Starting Bottom",
                 type: "sampleStartingBottom",
                 team: "yellow",
                 shape: { type: "circle", x:900, y:795, radius: 75, color: "red" },
-                access:{ x:600, y:795, angle:0 }
+                access:{ x:/*770*/800, y:1010, angle:60 }
             },
             {
                 name: "Sample Starting Bottom",
                 type: "sampleStartingBottom",
                 team: "violet",
                 shape: { type: "circle", x:2100, y:795, radius: 75, color: "red" },
-                access:{ x:2400, y:795, angle:180 }
+                access:{ x:/*2230*/2200, y:1010, angle:120 }
             },
 
         ]

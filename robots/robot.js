@@ -53,7 +53,7 @@ module.exports = class Robot {
         this.angleSpeed = 0; // deg/s
         this.movementAngle = 0;
         this.collisionAngle = 90; // angle used to check obstacles from lidar around movement direction
-        this.collisionDistance = 0; // distance of objects to trigger a break (usually radius + ~100mm)
+        this.collisionDistance = 200; // distance of objects to trigger a break (usually radius + ~100mm)
         this.slowdownAngle = 150; // angle used to check obstacles from lidar around movement direction
         this.slowdownDistance = 0; // distance of object to slow down the robot (greater than collisionDistance)
         this.slowdown = false;
@@ -290,10 +290,12 @@ module.exports = class Robot {
         this.app.logger.log("  -> moving to "+component.name);
         let success = false
         if("access" in component){
+            let angle = component.access.angle;
+            if("angle" in parameters) angle = parameters.angle;
             success = await this.moveToPosition({
                 x:component.access.x,
                 y:component.access.y,
-                angle:component.access.angle,
+                angle:angle,
                 speed:parameters.speed,
                 nearDist:parameters.nearDist||0,
                 nearAngle:parameters.nearAngle||0
@@ -469,7 +471,7 @@ module.exports = class Robot {
         let slowdownCount = 0;
         let angleA = utils.normAngle(this.movementAngle-this.collisionAngle/2);
         let angleB = utils.normAngle(this.movementAngle+this.collisionAngle/2);
-        console.log("Detect between", angleA, angleB)
+        console.log("Detect between", angleA, angleB, this.modules.lidar.measures.length)
         let lastCollisionAngle = 0;
         for(let measure of this.modules.lidar.measures){
             //Check for collisions
@@ -482,11 +484,12 @@ module.exports = class Robot {
             if(inCollisionRange && measure.d>0 && measure.d<this.collisionDistance){
                 if(utils.angleInRange( lastCollisionAngle-0.25, lastCollisionAngle+0.25, measureAngle )) continue; // too close rays means interference
                 lastCollisionAngle = measureAngle;
-                collisionCount++
-                if(collisionCount>=8){
+                collisionCount++;
+                if(collisionCount>=10){
                     //Add obstacle on map
                     let obstacleRadius = 150;
                     let obstacleTimeout = 2000; //will be removed from map in N milliseconds
+                    console.log("collision detected");
                     this.app.logger.log("collision detected");
                     let rayAngleRad = utils.normAngle(measure.a+this.angle)*(Math.PI/180);
                     let raySin = Math.sin(rayAngleRad);
@@ -506,6 +509,9 @@ module.exports = class Robot {
                     })
                     return false;
                 }
+            }
+            else {
+                if(collisionCount>0) collisionCount--;
             }
             //Check for slowdowns
             let inSlowdownRange = utils.angleInRange(

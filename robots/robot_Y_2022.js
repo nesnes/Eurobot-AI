@@ -5,8 +5,8 @@ const Robot = require('./robot');
 //delete require.cache[require.resolve('./modules/lidarx2')]; //Delete require() cache
 //const Lidar = require('./modules/lidarx2');
 
-//delete require.cache[require.resolve('./modules/lidarLD06')]; //Delete require() cache
-//const Lidar = require('./modules/lidarLD06');
+delete require.cache[require.resolve('./modules/lidarLD06')]; //Delete require() cache
+const Lidar = require('./modules/lidarLD06');
 
 
 //delete require.cache[require.resolve('./modules/lidarLocalisation')]; //Delete require() cache
@@ -25,11 +25,11 @@ module.exports = class Robot2020 extends Robot{
     constructor(app) {
         super(app);
         this.name = "Robot Nesnes TDS"
-        this.radius = 150;
+        this.radius = 160;
         this.startPosition = {
             //blue:{x:265,y:650,angle:0},
-            yellow:{x:101,y:642,angle:60},
-            violet:{x:2899,y:642,angle:120}
+            yellow:{x:150,y:542,angle:0},
+            violet:{x:2850,y:542,angle:180}
         }
         this.variables = {
             // value:{R|G|B|replica|artifact|''}, Side: 0=ready 1=flipped(not ready to drop) 
@@ -39,14 +39,15 @@ module.exports = class Robot2020 extends Robot{
             galleryRed: { value: 0, max: 2 },
             galleryGreen: { value: 0, max: 2 },
             galleryBlue: { value: 0, max: 2 },
-            endReached: { value: 0, max: 1 }
+            endReached: { value: 0, max: 1 },
+            bottomDispenser: { value: 3, max: 3 }
         }
         this.collisionAngle = 115;
         this.collisionDistance = this.radius+250;
         this.slowdownDistance = this.collisionDistance+100;
 
         if(!this.app.parameters.simulate){
-            //this.modules.lidar = new Lidar(app)
+            this.modules.lidar = new Lidar(app)
             //this.modules.lidarLocalisation = new LidarLocalisation(app)
             this.modules.arm = new Arm(app);
             this.modules.camera = new Camera(app);
@@ -76,23 +77,27 @@ module.exports = class Robot2020 extends Robot{
 
     async initMatch(){
         await super.initMatch();
-        if(this.modules.arm) await this.modules.arm.setPose({ name: "ACG", a1:62, a2:5, a3:170 });
-        if(this.modules.arm) await this.modules.arm.setPose({ name: "ABG", a1:62, a2:5, a3:170 });
-        if(this.modules.arm) await this.modules.arm.setPose({ name: "BCG", a1:62, a2:5, a3:170 });
+        await this.setArmDefault({ name: "ACG", duration: 0, wait: false});
+        await this.setArmDefault({ name: "ABG", duration: 0, wait: false});
+        await this.setArmDefault({ name: "BCG", duration: 0, wait: false});
         if(this.modules.arm) await this.modules.arm.setPump({ name: "ACM", value:0 });
         if(this.modules.arm) await this.modules.arm.setPump({ name: "ACP", value:0 });
-        //if(this.modules.arm) await this.modules.arm.setPump({ name: "ABP", value:0 });
-        //if(this.modules.arm) await this.modules.arm.setPump({ name: "BCP", value:0 });
-        if(this.team == "yellow"){
+        if(this.modules.arm) await this.modules.arm.setPump({ name: "ABP", value:0 });
+        if(this.modules.arm) await this.modules.arm.setPump({ name: "BCP", value:0 });
+        /*if(this.team == "yellow"){
             this.variables.armBC.value = "replica";
+            await this.setArmAS({ name: "BCG", duration: 0, wait: false});
+            await this.setArmDefault({ name: "ABG", duration: 0, wait: false});
             this.setPump({name: "BCP", value: 255});
             this.setPump({name: "ABP", value: 0});
         }
         else if(this.team == "violet"){
             this.variables.armAB.value = "replica";
+            await this.setArmDefault({ name: "BCG", duration: 0, wait: false});
+            await this.setArmAS({ name: "ABG", duration: 0, wait: false});
             this.setPump({name: "BCP", value: 0});
             this.setPump({name: "ABP", value: 255});
-        }
+        }*/
         return;
     }
 
@@ -114,6 +119,10 @@ module.exports = class Robot2020 extends Robot{
                 debug_initActuators: {color:{ legend:"color", type:"text" },},
                 activateExperiment: {},
                 readWeathervane: {},
+                shareSampleBetweenArms:{
+                    from:{ legend:"from (ex: AC)", type:"text" },
+                    to:{ legend:"to (ex: AB)", type:"text" }
+                },
                 setArmDefault:{
                     name:{ legend:"name", type:"text" },
                     duration:{ type:"range", min:0, max:1000, value:0, step:1 }
@@ -134,11 +143,31 @@ module.exports = class Robot2020 extends Robot{
                     name:{ legend:"name", type:"text" },
                     duration:{ type:"range", min:0, max:1000, value:0, step:1 }
                 },
+                setArmPPGA:{
+                    name:{ legend:"name", type:"text" },
+                    duration:{ type:"range", min:0, max:1000, value:0, step:1 }
+                },
                 setArmPGA:{
                     name:{ legend:"name", type:"text" },
                     duration:{ type:"range", min:0, max:1000, value:0, step:1 }
                 },
                 setArmGA:{
+                    name:{ legend:"name", type:"text" },
+                    duration:{ type:"range", min:0, max:1000, value:0, step:1 }
+                },
+                setArmPGD:{
+                    name:{ legend:"name", type:"text" },
+                    duration:{ type:"range", min:0, max:1000, value:0, step:1 }
+                },
+                setArmGD:{
+                    name:{ legend:"name", type:"text" },
+                    duration:{ type:"range", min:0, max:1000, value:0, step:1 }
+                },
+                setArmAGD:{
+                    name:{ legend:"name", type:"text" },
+                    duration:{ type:"range", min:0, max:1000, value:0, step:1 }
+                },
+                setArmAS:{
                     name:{ legend:"name", type:"text" },
                     duration:{ type:"range", min:0, max:1000, value:0, step:1 }
                 },
@@ -232,28 +261,63 @@ module.exports = class Robot2020 extends Robot{
     
     async setArmPGFD(parameters){ // Pre Grab Flat Dispenser
         if(!parameters.name) return false;
-        let pose = Object.assign({ a1:62, a2:90, a3:80 }, parameters);
+        let pose = Object.assign({ a1:62, a2:90, a3:70 }, parameters);
         if(this.modules.arm) await this.modules.arm.setPose(pose);
         return true;
     }
     
     async setArmGFD(parameters){ // Grab Flat Dispenser
         if(!parameters.name) return false;
-        let pose = Object.assign({ a1:62, a2:90, a3:70 }, parameters);
+        let pose = Object.assign({ a1:62, a2:40, a3:50 }, parameters);
+        if(this.modules.arm) await this.modules.arm.setPose(pose);
+        return true;
+    }
+    
+    async setArmPPGA(parameters){ // Pre Pre Grab Artifact
+        if(!parameters.name) return false;
+        let pose = Object.assign({ a1:62, a2:40, a3:5 }, parameters);
         if(this.modules.arm) await this.modules.arm.setPose(pose);
         return true;
     }
     
     async setArmPGA(parameters){ // Pre Grab Artifact
         if(!parameters.name) return false;
-        let pose = Object.assign({ a1:62, a2:90, a3:80 }, parameters);
+        let pose = Object.assign({ a1:62, a2:90, a3:5 }, parameters);
         if(this.modules.arm) await this.modules.arm.setPose(pose);
         return true;
     }
     
     async setArmGA(parameters){ // Grab Artifact
         if(!parameters.name) return false;
-        let pose = Object.assign({ a1:62, a2:90, a3:70 }, parameters);
+        let pose = Object.assign({ a1:62, a2:74, a3:23 }, parameters);
+        if(this.modules.arm) await this.modules.arm.setPose(pose);
+        return true;
+    }
+    
+    async setArmPGD(parameters){ // Pre Grab Diagonal
+        if(!parameters.name) return false;
+        let pose = Object.assign({ a1:172, a2:155, a3:45 }, parameters);
+        if(this.modules.arm) await this.modules.arm.setPose(pose);
+        return true;
+    }
+    
+    async setArmGD(parameters){ // Grab Diagonal
+        if(!parameters.name) return false;
+        let pose = Object.assign({ a1:172, a2:135, a3:70 }, parameters);
+        if(this.modules.arm) await this.modules.arm.setPose(pose);
+        return true;
+    }
+    
+    async setArmAGD(parameters){ // After Grab Diagonal
+        if(!parameters.name) return false;
+        let pose = Object.assign({ a1:172, a2:160, a3:0 }, parameters);
+        if(this.modules.arm) await this.modules.arm.setPose(pose);
+        return true;
+    }
+    
+    async setArmAS(parameters){ // Artifact Storage
+        if(!parameters.name) return false;
+        let pose = Object.assign({ a1:62, a2:5, a3:90 }, parameters);
         if(this.modules.arm) await this.modules.arm.setPose(pose);
         return true;
     }
@@ -267,56 +331,83 @@ module.exports = class Robot2020 extends Robot{
     
     async setArmPGV(parameters){ // Pre Grab Vertical
         if(!parameters.name) return false;
-        let pose = Object.assign({ a1:172, a2:145, a3:130 }, parameters);
+        let pose = Object.assign({ a1:172, a2:130, a3:130 }, parameters);
         if(this.modules.arm) await this.modules.arm.setPose(pose);
         return true;
     }
     
     async setArmGV(parameters){ // Grab Vertical
         if(!parameters.name) return false;
-        let pose = Object.assign({ a1:172, a2:158, a3:100 }, parameters);
+        let pose = Object.assign({ a1:172, a2:158, a3:103 }, parameters);
         if(this.modules.arm) await this.modules.arm.setPose(pose);
         return true;
     }
     
     async setArmPT(parameters){ // Pre Throw
         if(!parameters.name) return false;
-        let pose = Object.assign({ a1:172, a2:145, a3:115 }, parameters);
+        let pose = Object.assign({ a1:172, a2:130, a3:50 }, parameters);
         if(this.modules.arm) await this.modules.arm.setPose(pose);
         return true;
     }
     
     async setArmT(parameters){ // Throw
         if(!parameters.name) return false;
-        let pose = Object.assign({ a1:172, a2:145, a3:95 }, parameters);
+        let pose = Object.assign({ a1:172, a2:143, a3:40 }, parameters);
         if(this.modules.arm) await this.modules.arm.setPose(pose);
         return true;
     }
     
     async setArmPSL(parameters){ // Pre Share Left
         if(!parameters.name) return false;
-        let pose = Object.assign({ a1:115, a2:90, a3:40 }, parameters);
+        let high = false | (parameters.high);
+        let pose = Object.assign({ a1:(high?125:105), a2:90, a3:40 }, parameters);
         if(this.modules.arm) await this.modules.arm.setPose(pose);
         return true;
     }
     
     async setArmSL(parameters){ // Share Left
         if(!parameters.name) return false;
-        let pose = Object.assign({ a1:115, a2:2, a3:28 }, parameters);
+        let high = false | (parameters.high);
+        let wiggle = false | (parameters.wiggle);
+        let pose = Object.assign({ a1:(high?125:105), a2:10, a3:(wiggle?25:45) }, parameters);
         if(this.modules.arm) await this.modules.arm.setPose(pose);
         return true;
     }
     
     async setArmPSR(parameters){ // Pre Share Right
         if(!parameters.name) return false;
-        let pose = Object.assign({ a1:10, a2:90, a3:40 }, parameters);
+        let high = false | (parameters.high);
+        let pose = Object.assign({ a1:(high?0:20), a2:90, a3:40 }, parameters);
         if(this.modules.arm) await this.modules.arm.setPose(pose);
         return true;
     }
     
     async setArmSR(parameters){ // Share Right
         if(!parameters.name) return false;
-        let pose = Object.assign({ a1:10, a2:18, a3:28 }, parameters);
+        let high = false | (parameters.high);
+        let wiggle = false | (parameters.wiggle);
+        let pose = Object.assign({ a1:(high?0:20), a2:10, a3:(wiggle?25:45) }, parameters);
+        if(this.modules.arm) await this.modules.arm.setPose(pose);
+        return true;
+    }
+    
+    async setArmDGH(parameters){ // Deposit Gallery High
+        if(!parameters.name) return false;
+        let pose = Object.assign({ a1:172, a2:45, a3:130 }, parameters);
+        if(this.modules.arm) await this.modules.arm.setPose(pose);
+        return true;
+    }
+    
+    async setArmDGL(parameters){ // Deposit Gallery Low
+        if(!parameters.name) return false;
+        let pose = Object.assign({ a1:172, a2:54, a3:145 }, parameters);
+        if(this.modules.arm) await this.modules.arm.setPose(pose);
+        return true;
+    }
+    
+    async setArmDSS(parameters){ // Drop Sample Shed
+        if(!parameters.name) return false;
+        let pose = Object.assign({ a1:62, a2:90, a3:170 }, parameters);
         if(this.modules.arm) await this.modules.arm.setPose(pose);
         return true;
     }
@@ -472,9 +563,9 @@ module.exports = class Robot2020 extends Robot{
         if(depositList.length == 0) return false;
         
         let offsetXColorMap = {
-            R: this.team == "yellow" ? -240 : 240,
+            R: this.team == "yellow" ? 240 : -240,
             G: 0,
-            B: this.team == "yellow" ? 240 : -240
+            B: this.team == "yellow" ? -240 : 240
         }
         
         for(let arm of depositList){
@@ -514,35 +605,10 @@ module.exports = class Robot2020 extends Robot{
             let finalPLabel = armPLabel;
             let finalArm = arm;
             if(flipArm){
-                let flipGLabel = flipArm.label+"G";
-                let flipPLabel = flipArm.label+"P";
-                finalGLabel = flipGLabel;
-                finalPLabel = flipPLabel;
+                await this.shareSampleBetweenArms({from:arm.label, to:flipArm.label});
+                finalGLabel = flipArm.label+"G";
+                finalPLabel = flipArm.label+"P";
                 finalArm = flipArm;
-                await this.setArmUH({ name:armGLabel, duration: 200, wait: false });
-                await this.setArmUH({ name:flipGLabel, duration: 200, wait: false });
-                await utils.sleep(200);
-                let left_G = onLeft ? armGLabel : flipGLabel;
-                let right_G = onLeft ? flipGLabel : armGLabel;
-                await this.setArmPSL({ name:left_G, duration: 200, wait: false });
-                await this.setArmPSR({ name:right_G, duration: 200, wait: false });
-                await utils.sleep(200);
-                await this.setArmSL({ name:left_G, duration: 500, wait: false });
-                await this.setArmSR({ name:right_G, duration: 500, wait: false });
-                await this.setPump({ name:flipPLabel, value: 255 });
-                await utils.sleep(500);
-                await this.setPump({ name:armPLabel, value: 0 });
-                await utils.sleep(300);
-                await this.setArmPSL({ name:left_G, duration: 200, wait: false });
-                await this.setArmPSR({ name:right_G, duration: 200, wait: false });
-                await utils.sleep(200);
-                await this.setArmUH({ name:armGLabel, duration: 200, wait: false });
-                await this.setArmUH({ name:flipGLabel, duration: 200, wait: false });
-                await utils.sleep(200);
-                await this.setArmDefault({ name:armGLabel, duration: 200, wait: false });
-                flipArm.value = arm.value;
-                flipArm.side = arm.side == 0 ? 1 : 0;
-                arm.value = "";
             }
             // Orient
             let directionLabel = arm.label;
@@ -559,10 +625,20 @@ module.exports = class Robot2020 extends Robot{
                 });
                 if(!result) return result;
             }
+            // Prepare arm
+            let galleryVar = this.getGallerySideVar(finalArm.value);
+            if(galleryVar.value == 0) {
+                await this.setArmDGL({ name:finalGLabel, duration: 200, wait: false });
+            }
+            else {
+                await this.setArmDGH({ name:finalGLabel, duration: 200, wait: false });
+            }
+            await utils.sleep(500);
+            await this.setPump({ name:finalPLabel, value: 140 });
             // Forward
             await this.moveAtAngle({
                 angle: -90,
-                distance: 150,
+                distance: 180,
                 speed: this.app.goals.defaultSpeed,
                 nearDist: this.app.goals.defaultNearDist,
                 nearAngle: this.app.goals.defaultNearAngle
@@ -570,27 +646,117 @@ module.exports = class Robot2020 extends Robot{
             if(!result) return result;
             // Deposit
             await this.setPump({ name:finalPLabel, value: 0 });
-            await utils.sleep(500);
+            await utils.sleep(1000);
             // Update variables and score
-            let galleryVar = this.getGallerySideVar(finalArm.value);
             galleryVar.value++;
             await this.addScore({ score: finalArm.side==0? 6 : 3 });
             finalArm.value = "";
             // Backward
             await this.moveAtAngle({
                 angle: -90,
-                distance: -150,
+                distance: -180,
                 speed: this.app.goals.defaultSpeed,
                 nearDist: this.app.goals.defaultNearDist,
                 nearAngle: this.app.goals.defaultNearAngle
             });
             if(!result) return result;
             // Close Arm
+            await this.setArmDH({ name:finalGLabel, duration: 200, wait: true });
+            await this.setArmUH({ name:finalGLabel, duration: 300, wait: true });
             await this.setArmDefault({ name:finalGLabel, duration: 400, wait: false });
         }
         
-        //need to add 2 point per buoy pair
+        result = await this.moveToComponent({
+            component: "gallery",
+            speed: this.app.goals.defaultSpeed,
+            nearDist: this.app.goals.defaultNearDist,
+            nearAngle: this.app.goals.defaultNearAngle
+        });
+        if(!result) return result;
+        
+        result = await this.moveRepositionning({
+            moveAngle: -90,
+            newAngle: -90,
+            newY: 155,//185
+            distance: 280,
+            speed: this.app.goals.defaultSpeed/2
+        });
+        if(!result) return result;
+        
+        // Backward
+        result = await this.moveAtAngle({
+            angle: -90,
+            distance: -180,
+            speed: this.app.goals.defaultSpeed,
+            nearDist: this.app.goals.defaultNearDist,
+            nearAngle: this.app.goals.defaultNearAngle
+        });
+        if(!result) return result;
+        
         return result;
+    }
+
+    async shareSampleBetweenArms(parameters){
+        let arm = this.variables["arm"+parameters.from];
+        let flipArm = this.variables["arm"+parameters.to];
+        if(!arm || !flipArm) return false;
+        
+        let armGLabel = parameters.from+"G";
+        let armPLabel = parameters.from+"P";
+        let flipGLabel = parameters.to+"G";
+        let flipPLabel = parameters.to+"P";
+        let onLeft = false;
+        if(arm.label == 'AB' && flipArm.label == "AC"){ onLeft = false; }
+        if(arm.label == 'BC' && flipArm.label == "AC"){ onLeft = true;  }
+        if(arm.label == 'AC' && flipArm.label == "BC"){ onLeft = false;  }
+        else if(arm.label == 'AC' && flipArm.label == "AB"){ onLeft = true; }
+        
+        await this.setArmUH({ name:armGLabel, duration: 200, wait: false });
+        await this.setArmUH({ name:flipGLabel, duration: 200, wait: false });
+        await utils.sleep(400);
+        let left_G = onLeft ? armGLabel : flipGLabel;
+        let right_G = onLeft ? flipGLabel : armGLabel;
+        await this.setArmPSL({ name:left_G, duration: 200, wait: false, high:false });
+        await this.setArmPSR({ name:right_G, duration: 200, wait: false, high:false });
+        await utils.sleep(400);
+        // Share
+        await this.setArmSL({ name:left_G, duration: 500, wait: false, high:true });
+        await this.setArmSR({ name:right_G, duration: 500, wait: true, high:true });
+        // Share Hight
+        await this.setArmSL({ name:left_G, duration: 100, wait: false, high:false });
+        await this.setArmSR({ name:right_G, duration: 100, wait: true, high:false });
+        // Share low
+        await this.setArmSL({ name:left_G, duration: 100, wait: false, high:true });
+        await this.setArmSR({ name:right_G, duration: 100, wait: true, high:true });
+        //Pump
+        await this.setPump({ name:flipPLabel, value: 255 });
+        await this.setPump({ name:armPLabel, value: 0 });
+        //Wiggle
+        await this.setArmSL({ name:left_G, duration: 100, wait: false, wiggle:true, high:true });
+        await this.setArmSR({ name:right_G, duration: 100, wait: true, wiggle:true, high:true });
+        //-
+        await this.setArmSL({ name:left_G, duration: 100, wait: false, wiggle:false, high:false });
+        await this.setArmSR({ name:right_G, duration: 100, wait: true, wiggle:false, high:false });
+        //-
+        await this.setArmSL({ name:left_G, duration: 100, wait: false, wiggle:true, high:true });
+        await this.setArmSR({ name:right_G, duration: 100, wait: true, wiggle:true, high:true });
+        //-
+        await this.setArmSL({ name:left_G, duration: 100, wait: false, high:false, high:true });
+        await this.setArmSR({ name:right_G, duration: 100, wait: true, high:false, high:true });
+        await utils.sleep(750);
+        // Split
+        await this.setArmPSL({ name:left_G, duration: 200, wait: false });
+        await this.setArmPSR({ name:right_G, duration: 200, wait: false });
+        await utils.sleep(400);
+        await this.setArmDH({ name:armGLabel, duration: 200, wait: false });
+        await this.setArmDH({ name:flipGLabel, duration: 200, wait: false });
+        await utils.sleep(300);
+        await this.setArmDefault({ name:armGLabel, duration: 200, wait: false });
+            
+        flipArm.value = arm.value;
+        flipArm.side = arm.side == 0 ? 1 : 0;
+        arm.value = "";
+        return true;
     }
 
     async enablePump(parameters){

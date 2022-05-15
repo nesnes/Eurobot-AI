@@ -12,12 +12,14 @@ module.exports = class LidarLD06 {
         this.serial = null;
         this.packet = null;
         this.borderMargin = 100;
+        this.minDistance = 150;
         this.maxDistance = 3200;
         this.rawMeasures = [];
         this.measures = [];
         this.angleOffset = 0;
         this.lastSendTime = 0;
-        if(process.platform=="linux") this.port = "/dev/ydlidarx2"; //Raspberry/Linux
+        this.rejectedAngles = [{from:47, to:73}, {from:167, to:193}, {from:287, to:313}]
+        if(process.platform=="linux") this.port = "/dev/lidar"; //Raspberry/Linux
         if(process.platform=="darwin") this.port = "/dev/cu.usbserial-A9QG4MTI"; //Mac
         //if(process.platform=="darwin") this.port = "/dev/cu.usbserial-001K39BS"; //Mac
         if(process.platform=="win32") this.port = "COM5"; //Windows
@@ -86,6 +88,7 @@ module.exports = class LidarLD06 {
         for(let i=0;i<this.rawMeasures.length;i++){
             let remove = false;
             if(this.rawMeasures[i].d>this.maxDistance) remove = true;
+            if(this.rawMeasures[i].d<this.minDistance) remove = true;
             if(!remove){
                 let rayAngle = this.rawMeasures[i].a + angle;
                 let x = this.rawMeasures[i].d;
@@ -101,7 +104,12 @@ module.exports = class LidarLD06 {
                 && this.borderMargin<=y2&&y2<=this.app.map.height-this.borderMargin))
                     remove = true;
             }
-            if(true || !remove){
+            // apply rejection angles
+            for(let range of this.rejectedAngles) {
+                if( range.from <= this.rawMeasures[i].a && this.rawMeasures[i].a <= range.to)
+                    remove = true;
+            }
+            if(!remove){
                 this.measures.push(this.rawMeasures[i])
             }
         }
