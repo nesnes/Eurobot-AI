@@ -11,6 +11,38 @@ module.exports = class Map2020 extends Map{
         this.background =  ""//"/images/fond2020.png"
         this.teams = ["yellow","violet"]
         this.components = [
+            
+            //Localisation Top
+            { name: "Loc Experience Yellow", type: "localisation",
+              shape: { type: "line", x1:0, y1:0, x2: 450, y2: 0, color: "blue" }
+            },
+            { name: "Loc Gallery Yellow", type: "localisation",
+              shape: { type: "line", x1:450, y1:40, x2: 1170, y2: 40, color: "blue" }
+            },
+            { name: "Loc Gallery Violet", type: "localisation",
+              shape: { type: "line", x1:1830, y1:40, x2: 2550, y2: 40, color: "blue" }
+            },
+            { name: "Loc Experience Violet", type: "localisation",
+              shape: { type: "line", x1:2550, y1:0, x2: 3000, y2: 0, color: "blue" }
+            },
+            // Localisation Side Yellow
+            { name: "Loc Side Yellow", type: "localisation",
+              shape: { type: "line", x1:0, y1:0, x2: 0, y2: 1490, color: "blue" }
+            },
+            // Localisation Side Yellow
+            { name: "Loc Side Violet", type: "localisation",
+              shape: { type: "line", x1:3000, y1:0, x2: 3000, y2: 1490, color: "blue" }
+            },
+            // Localisation Bottom
+            { name: "Loc Shed Yellow", type: "localisation",
+              shape: { type: "line", x1:0, y1:1490, x2: 510, y2: 2000, color: "blue" }
+            },
+            { name: "Loc Shed Violet", type: "localisation",
+              shape: { type: "line", x1:2490, y1:2000, x2: 3000, y2: 1490, color: "blue" }
+            },
+            { name: "Loc Bottom", type: "localisation",
+              shape: { type: "line", x1:510, y1:2000, x2: 2490, y2: 2000, color: "blue" }
+            },
 
             //Borders
             {
@@ -54,14 +86,14 @@ module.exports = class Map2020 extends Map{
                 type: "startingArea",
                 team: "yellow",
                 shape: { type: "rectangle", x:0, y:500, width: 400,  height: 500, color: "yellow" },
-                access:{ x:500, y:950, angle:0 },
+                access:{ x:500, y:750, angle:180 },
                 avoidOffset: -50
             },{
                 name: "Starting Area",
                 type: "startingArea",
                 team: "violet",
                 shape: { type: "rectangle", x:2600, y:500, width: 400,  height: 500, color: "violet" },
-                access:{ x:2500, y:950, angle:180 },
+                access:{ x:2500, y:750, angle:0 },
                 avoidOffset: -50
             },
             
@@ -71,14 +103,14 @@ module.exports = class Map2020 extends Map{
                 type: "middleDispenser",
                 team: "yellow",
                 shape: { type: "rectangle", x:1275, y:0, width: 150,  height: 102, color: "yellow" },
-                access:{ x:1350, y:400, angle:-90 }
+                access:{ x:1340, y:350, angle:-90 }
             },
             {
                 name: "Middle Dispenser Violet",
                 type: "middleDispenser",
                 team: "violet",
                 shape: { type: "rectangle", x:1575, y:0, width: 150,  height: 102, color: "violet" },
-                access:{ x:1650, y:400, angle:-90 }
+                access:{ x:1660, y:350, angle:-90 }
             },
             {
                 name: "Middle Dispenser Border",
@@ -303,14 +335,14 @@ module.exports = class Map2020 extends Map{
                 type: "site",
                 team: "yellow",
                 shape: { type: "rectangle", x:800, y:1200, width: 350,  height: 350, color: "yellow" },
-                access:{ x:600, y:1375, angle:0 }
+                access:{ x:975, y:1030, angle:90 }
             },
             {
                 name: "Site Violet",
                 type: "site",
                 team: "violet",
                 shape: { type: "rectangle", x:1850, y:1200, width: 350,  height: 350, color: "violet" },
-                access:{ x:2400, y:1375, angle:180 }
+                access:{ x:2025, y:1030, angle:90 }
             },
 
             //Samples Starting

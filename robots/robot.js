@@ -70,6 +70,14 @@ module.exports = class Robot {
                 this.modules.lidar = null;
             })
         }
+        
+        if(this.modules.lidarLoc){
+            await this.modules.lidarLoc.init().then(()=>{}).catch(()=>{
+                this.app.logger.log("==> LidarLoc not connected");
+                this.modules.lidarLoc = null;
+            })
+        }
+        
         if(this.modules.robotLink){
             await this.modules.robotLink.init().catch((e)=>{
                 this.app.logger.log("==> RobotLink not connected",e);
@@ -101,6 +109,8 @@ module.exports = class Robot {
     async close(){
         if(this.funnyActionTimeout){clearTimeout(this.funnyActionTimeout); this.funnyActionTimeout=null;}
         if(this.modules.lidar) await this.modules.lidar.close();
+        if(this.modules.lidarLoc) await this.modules.lidarLoc.close();
+        if(this.modules.lidarLocalisation) await this.modules.lidarLocalisation.close();
         if(this.modules.robotLink) await this.modules.robotLink.close();
         if(this.modules.controlPanel) await this.modules.controlPanel.close();
     }
@@ -204,6 +214,14 @@ module.exports = class Robot {
         return true;
     };
     
+    async waitForTime(parameters){
+        if(!("time" in parameters)) return false;
+        while(this.app.intelligence.currentTime < parameters.time){
+            await utils.sleep(100);
+        }
+        return true;
+    };
+    
     async waitForStart(parameters){
         let matchStopped = false;
         await this.initMatch();
@@ -278,10 +296,29 @@ module.exports = class Robot {
         this.send();
         return true;
     }
+    
+    async findLocalisation(parameters){
+        if(this.modules.lidarLocalisation){
+            let count = parameters.count||2;
+            for(let i=0;i<count;i++){
+                let found = await this.modules.lidarLocalisation.resolvePosition();
+                if(found){
+                    this._updatePosition(
+                        this.modules.lidarLocalisation.x,
+                        this.modules.lidarLocalisation.y,
+                        this.modules.lidarLocalisation.angle);
+                }
+                else return false;
+            }
+            if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle});
+            this.send();
+        }
+        return true;
+    }
 
     async moveToComponent(parameters){
-
-        let component = this.app.map.getComponent(parameters.component, this.team);
+        let teamColor = parameters.color||this.team;
+        let component = this.app.map.getComponent(parameters.component, teamColor);
         if(component === null){
             this.app.logger.log("  -> Component not found "+parameters.component);
             return false
@@ -292,9 +329,11 @@ module.exports = class Robot {
         if("access" in component){
             let angle = component.access.angle;
             if("angle" in parameters) angle = parameters.angle;
+            let offsetX = parameters.offsetX||0;
+            let offsetY = parameters.offsetY||0;
             success = await this.moveToPosition({
-                x:component.access.x,
-                y:component.access.y,
+                x:component.access.x + offsetX,
+                y:component.access.y + offsetY,
                 angle:angle,
                 speed:parameters.speed,
                 nearDist:parameters.nearDist||0,
@@ -417,8 +456,10 @@ module.exports = class Robot {
         let y1 = 0;
         let x2 = x1*rayCos - y1*raySin;
         let y2 = y1*rayCos + x1*raySin;
-        x2 += this.lastTarget.x;
-        y2 += this.lastTarget.y;
+        let offsetX = parameters.offsetX||0;
+        let offsetY = parameters.offsetY||0;
+        x2 += this.lastTarget.x + offsetX;
+        y2 += this.lastTarget.y + offsetY;
         let endAngle = ("endAngle" in parameters)?parameters.endAngle:this.lastTarget.angle;
         console.log("move angle to", x2, y2, "at", endAngle)
         this.lastTarget.x = x2;

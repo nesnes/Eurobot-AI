@@ -6,8 +6,8 @@ module.exports = class LidarLocalisation {
     constructor(app) {
         this.app = app;
         this.lastSendTime=0;
-        this.x=0;
-        this.y=0;
+        this.x=150;
+        this.y=542;
         this.angle=0;
 
         this.maxOffset=500; // maximum position correction (mm)
@@ -16,6 +16,7 @@ module.exports = class LidarLocalisation {
         this.particles = [];
         this.detectedFeatures = [];
         this.features = [];
+        this.matches = [];
         this.score = 0;
     }
     
@@ -40,11 +41,10 @@ module.exports = class LidarLocalisation {
             y: this.y,
             angle: this.angle,
             score: this.score,
-            features: this.features,
             particles: this.particles,
-            detectedFeatures: this.detectedFeatures
+            matches: this.matches,
+            measures: this.polarMeasures
         }
-        console.log(payload)
         this.app.mqttServer.publish({
             topic: '/lidar/localisation',
             payload: JSON.stringify(payload),
@@ -60,11 +60,21 @@ module.exports = class LidarLocalisation {
     }
 
     async resolvePosition(){
-        if(!this.app.robot ||  !this.app.robot.modules || !this.app.robot.modules.lidar || !this.app.map) return;
+        if(!this.app.robot ||  !this.app.robot.modules || !this.app.robot.modules.lidarLoc || !this.app.map) return false;
+        console.log("Resolve lidar loc")
         let startTime = new Date().getTime();
         let x=0, y=0, theta=0;
+        
+        //Get localization borders
+        let mapContours = [];
+        for(const item of this.app.map.components){
+            if(item.type == "localisation")
+                mapContours.push(item.shape)
+        }
+        if(mapContours.length == 0) return false;
+        
         // Convert map to features
-        this.features.length = 0;
+       /* this.features.length = 0;
         for(const item of this.app.map.components){
             if(item.type != "localisation") continue;
             if(item.shape && item.shape.type == "line")
@@ -72,7 +82,7 @@ module.exports = class LidarLocalisation {
                 this.addFeature(item.shape.x1, item.shape.y1)
                 this.addFeature(item.shape.x2, item.shape.y2)
             }
-        }
+        }*/
 
         // Generate possible positions
         this.particles.length = 0;
@@ -88,8 +98,22 @@ module.exports = class LidarLocalisation {
                 score: 0
             })
         }
+        
+        // Far from current position
+        let particleFarCount = 300;
+        const particleFarDistance = 150; // +- mm
+        const particleFarAngle = 20; // +- deg
+        for(let i=0;i<particleFarCount;i++){
+            this.particles.push({
+                x: this.app.robot.x + (Math.random()*2-1)*particleFarDistance,
+                y: this.app.robot.y + (Math.random()*2-1)*particleFarDistance,
+                angle: this.app.robot.angle + (Math.random()*2-1)*particleFarAngle,
+                score: 0
+            })
+        }
+        
         // On all the map
-        let particleFarCount = 100;
+        /*let particleFarCount = 100;
         for(let i=0;i<particleFarCount;i++){
             this.particles.push({
                 x: Math.random()*this.app.map.width,
@@ -97,11 +121,11 @@ module.exports = class LidarLocalisation {
                 angle: (Math.random()*2-1)*180,
                 score: 0
             })
-        }
+        }*/
 
         // Detect features in lidar data
-        this.detectedFeatures.length = 0;
-        let polarMeasures = [...this.app.robot.modules.lidar.rawMeasures];
+        /*this.detectedFeatures.length = 0;
+        let polarMeasures = [...this.app.robot.modules.lidarloc.measures];
         for(let i=0;i<polarMeasures.length;i++){
             const prevValue = this.getAtOverflow(polarMeasures, i-1).d;
             const currentValue = this.getAtOverflow(polarMeasures, i).d;
@@ -111,18 +135,61 @@ module.exports = class LidarLocalisation {
             const rampDiff = prevValue - nextValue;
             const isSignChangedCorner = Math.sign(nextDiff) != Math.sign(prevDiff) && Math.abs(rampDiff)>0.1;
             const isHighDiffCorner = Math.abs(rampDiff)>6;
-            if(isSignChangedCorner /*|| isHighDiffCorner*/){
+            if(isSignChangedCorner){// || isHighDiffCorner){
                 this.detectedFeatures.push({
                     angle: this.getAtOverflow(polarMeasures, i).a - this.angle,
                     distance: this.getAtOverflow(polarMeasures, i).d,
                     index: i
                 });
             }
+        }*/
+        
+        // Score each particule against map contours
+        let polarMeasures = [...this.app.robot.modules.lidarLoc.measures];
+        for(let part of this.particles){
+            let meanDist = 0;
+            let matchCount = 0;
+            part.matches = [];
+            let i=0;
+            for(let measure of polarMeasures){
+                if(++i%2) continue; // skip half the points
+                // Measure to xy from particule
+                let rayAngle = measure.a + part.angle;
+                let x = measure.d;
+                let y = 0;
+                let rayAngleRad = rayAngle*(Math.PI/180);
+                let raySin = Math.sin(rayAngleRad);
+                let rayCos = Math.cos(rayAngleRad);
+                let measureX = x*rayCos - y*raySin;
+                let measureY = y*rayCos + x*raySin;
+                measureX += part.x;
+                measureY += part.y;
+                part.matches.push({x:measureX, y:measureY, angle:0});
+                // Find min dist to contours
+                let minDist = 9999999;
+                let minContour = null;
+                let point = {x: measureX, y: measureY};
+                for(let contour of mapContours){
+                    let dist = this.distancePointSegment(point, contour).d;
+                    //if(i==0) console.log(dist)
+                    if(dist < minDist){
+                        minDist = dist;
+                        minContour = contour;
+                    }
+                }
+                if(minDist>30) continue;
+                matchCount++;
+                meanDist += minDist;
+            }
+            if(matchCount<40) continue;
+            let notMatched = polarMeasures.length - matchCount;
+            meanDist /= matchCount;
+            part.score = matchCount - meanDist/2  ;
         }
 
 
         // Score each position against features
-        for(let part of this.particles){
+        /*for(let part of this.particles){
             for(let mapFeat of this.features){
                 for(let foundFeat of this.detectedFeatures){
                     // Project found feature from particle position
@@ -139,24 +206,32 @@ module.exports = class LidarLocalisation {
                     }
                 }
             }
-        }
+        }*/
 
         // Select best particle
         let maxScore = 0;
+        let bestPart = null;
         for(let part of this.particles){
             if(part.score<=maxScore) continue;
             maxScore = part.score;
+            bestPart = part;
             this.x = part.x;
             this.y = part.y;
             this.angle = part.angle;
             this.score = part.score;
         }
+        if(bestPart){
+            console.log("Localised: ", bestPart.x, bestPart.y, bestPart.angle);
+            this.matches = bestPart.matches;
+        }
 
         console.log("duration", new Date().getTime() - startTime, "ms")
         this.send();
         //Update robot pose for debug
-        this.app.robot._updatePosition(this.x, this.y, this.angle);
-        this.app.robot.send()
+        //this.app.robot._updatePosition(this.x, this.y, this.angle);
+        //this.app.robot.send()
+        if(bestPart) return true;
+        else return false;
     }
 
     getAtOverflow(data,index){

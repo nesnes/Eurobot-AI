@@ -101,19 +101,21 @@ module.exports = class Intelligence {
     async runMatch(){
         this.hasBeenRun = true;
         this.stopExecution = false;
-        this.startMatchTimer()
+        this.startMatchTimer();
         while(!this.stopExecution && this.currentTime < this.matchDuration){
-            await utils.sleep(10);//Required to avoid loop burst when no goal can be acheived
+            let goalFound = false;
             for(const goal of this.app.goals.list){
                 if(this.stopExecution) break;
                 //Ignore goals already done
                 if(goal.status == "done" && goal.executionCount == 0) continue;
                 //Run goal
                 if(goal.condition()){
+                    goalFound = true;
                     await this.runGoal(goal);
                     await utils.sleep(10);
                 }
             }
+            if(!goalFound) await utils.sleep(100);//Required to avoid loop burst when no goal can be acheived
         }
         this.app.logger.log("End of match, score:"+this.app.robot.score);
         this.app.robot.endMatch();

@@ -5,8 +5,8 @@ const Goals = require('./goals');
 module.exports = class GoalsTest extends Goals{
     constructor(app) {
         super(app);
-        this.defaultSpeed=0.6; //m/s 0.6
-        this.moveSpeed = 0.5; //m/s 0.4
+        this.defaultSpeed=0.5; //m/s 0.6
+        this.moveSpeed = 0.4; //m/s 0.5
         this.defaultNearDist=50;//50mm
         this.defaultNearAngle=10;//10°
         
@@ -21,7 +21,7 @@ module.exports = class GoalsTest extends Goals{
                 },
                 { name: "Experiment deposit Score", method: "addScore", parameters:{ score: 2 } },
                 { name: "Artifact deposit Score", method: "addScore", parameters:{ score: 2 } },
-                { name: "Score secondaire", method: "addScore", parameters:{ score: 45 } },
+                //{ name: "Score secondaire", method: "addScore", parameters:{ score: 68 } },
             ]
         };
         
@@ -245,6 +245,105 @@ module.exports = class GoalsTest extends Goals{
             ]
         };
         
+        let startMoveSamplesGrab = {
+            name: "Start move sample grab",
+            condition: ()=>{
+                let hasArmFree =   this.app.robot.variables.armAC.value == ""
+                                && this.app.robot.variables.armAB.value == ""
+                                && this.app.robot.variables.armBC.value == "";
+                let samplesAvailable = this.app.map.getComponent("sampleStartingTop", this.app.robot.team) != null
+                                    && this.app.map.getComponent("sampleStartingMiddle", this.app.robot.team) != null
+                                    && this.app.map.getComponent("sampleStartingBottom", this.app.robot.team) != null;
+                let hasTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-20*1000;
+                let endReached = this.app.robot.variables.endReached.value;
+                return hasArmFree && samplesAvailable && hasTimeLeft && !endReached;
+            },                
+            executionCount: 1,
+            actions: [
+                // Prepare grab arm 1/3
+                { name: "Prepare arm 1/3", method: "setArmUH", parameters:{ name:"ACG", duration: 0, wait: false } },
+                // Move to sample starting Middle
+                { team:"yellow", name: "Move", method: "moveToComponent", parameters:{ component: "sampleStartingMiddle", angle: 0, speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle } },
+                { team:"violet", name: "Move", method: "moveToComponent", parameters:{ component: "sampleStartingMiddle", angle: 180, speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle } },
+                // ----- Grab Middle -----
+                // Prepare grab arm 2/3
+                { name: "Prepare arm 2/3", method: "setArmDH", parameters:{ name:"ACG", duration: 300, wait: true } },
+                // Forward
+                { name: "Forward",  method: "moveForward", parameters:{ distance:140, speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle } },
+                // Prepare grab arm 3/3
+                { name: "Pump on", method: "setPump", parameters:{ name:"ACP", value: 255 } },
+                { name: "Prepare arm 3/3", method: "setArmPGV", parameters:{ name:"ACG", duration: 0, wait: false } },
+                { name: "Wait", method: "sleep", parameters:{ duration:300 } },
+                // Grab arm
+                { name: "Grab arm", method: "setArmGV", parameters:{ name:"ACG", duration: 0, wait: false } },
+                { name: "Wait", method: "sleep", parameters:{ duration:200 } },
+                // Forward
+                { name: "Backward",  method: "moveBackward", parameters:{ distance:50, speed: this.defaultSpeed, nearDist: 20, nearAngle: 5 } },
+                // Lift arm 1/2
+                { name: "Lift arm 1/2", method: "setArmPGV", parameters:{ name:"ACG", duration: 200, wait: true } },
+                { name: "Store in variable", method: "setVariable", parameters:{ name:"armAC", value:"G", side:1 } },
+                // Lift arm 2/2
+                { name: "Lift arm 2/2", method: "setArmDH", parameters:{ name:"ACG", duration: 200, wait: true } },
+                // Remove from map
+                { name:"updateMap", method: "removeFromMap", parameters:{ list:["sampleStartingMiddle"] } },
+                // Close arm
+                { name: "Close arm", method: "setArmDefault", parameters:{ name:"ACG", duration: 400, wait: false } },
+                // ----- Echange Sample -----
+                { team:"yellow", name: "Exchange", method: "shareSampleBetweenArms", parameters:{ from:"AC", to:"BC"} },
+                { team:"violet", name: "Exchange", method: "shareSampleBetweenArms", parameters:{ from:"AC", to:"AB"} },
+                { name: "Close Arm", method: "setArmDefault", parameters:{ name:"BCG", duration: 500, wait: false } },
+                { name: "Close Arm", method: "setArmDefault", parameters:{ name:"ABG", duration: 500, wait: false } },
+                // ----- Move In Between -----
+                // Arm 1/3
+                {                name: "Open Arm 1/3", method: "setArmUH", parameters:{ name:"ACG", duration: 500, wait: false } },
+                { team:"yellow", name: "Open Arm 1/3", method: "setArmUH", parameters:{ name:"ABG", duration: 500, wait: false } },
+                { team:"violet", name: "Open Arm 1/3", method: "setArmUH", parameters:{ name:"BCG", duration: 500, wait: false } },
+                // Rotate
+                { team:"yellow", name: "Rotate",  method: "rotateToAngle", parameters:{ angle:60, speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle } },
+                { team:"violet", name: "Rotate",  method: "rotateToAngle", parameters:{ angle:120, speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle } },
+                // Arm 2/3
+                {                name: "Open Arm 2/3", method: "setArmDH", parameters:{ name:"ACG", duration: 0, wait: false } },
+                { team:"yellow", name: "Open Arm 2/3", method: "setArmDH", parameters:{ name:"ABG", duration: 0, wait: false } },
+                { team:"violet", name: "Open Arm 2/3", method: "setArmDH", parameters:{ name:"BCG", duration: 0, wait: false } },
+                // Move between
+                { team:"yellow", name: "MoveBetween",  method: "moveAtAngle", parameters:{ angle:0, distance:170, speed: this.defaultSpeed } },
+                { team:"violet", name: "MoveBetween",  method: "moveAtAngle", parameters:{ angle:180, distance:170, speed: this.defaultSpeed } },
+                // ----- Grab Both -----
+                // Arm 3/3
+                {                name: "Pump on", method: "setPump", parameters:{ name:"ACP", value: 255 } },
+                { team:"yellow", name: "Pump on", method: "setPump", parameters:{ name:"ABP", value: 255 } },
+                { team:"violet", name: "Pump on", method: "setPump", parameters:{ name:"BCP", value: 255 } },
+                {                name: "Prepare arm 3/3", method: "setArmPGV", parameters:{ name:"ACG", duration: 0, wait: false } },
+                { team:"yellow", name: "Prepare arm 3/3", method: "setArmPGV", parameters:{ name:"ABG", duration: 0, wait: false } },
+                { team:"violet", name: "Prepare arm 3/3", method: "setArmPGV", parameters:{ name:"BCG", duration: 0, wait: false } },
+                { name: "Wait", method: "sleep", parameters:{ duration:300 } },
+                // Grab arm
+                {                name: "Grab arm", method: "setArmGV", parameters:{ name:"ACG", duration: 0, wait: false } },
+                { team:"yellow", name: "Grab arm", method: "setArmGV", parameters:{ name:"ABG", duration: 0, wait: false } },
+                { team:"violet", name: "Grab arm", method: "setArmGV", parameters:{ name:"BCG", duration: 0, wait: false } },
+                { name: "Wait", method: "sleep", parameters:{ duration:400 } },
+                // Lift arm 1/2
+                {                name: "Lift arm 1/2", method: "setArmPGV", parameters:{ name:"ACG", duration: 200, wait: true } },
+                { team:"yellow", name: "Lift arm 1/2", method: "setArmPGV", parameters:{ name:"ABG", duration: 200, wait: true } },
+                { team:"violet", name: "Lift arm 1/2", method: "setArmPGV", parameters:{ name:"BCG", duration: 200, wait: true } },
+                {                name: "Store in variable", method: "setVariable", parameters:{ name:"armAC", value:"R", side:1 } },
+                { team:"yellow", name: "Store in variable", method: "setVariable", parameters:{ name:"armAB", value:"B", side:1 } },
+                { team:"violet", name: "Store in variable", method: "setVariable", parameters:{ name:"armBC", value:"B", side:1 } },
+                // Lift arm 2/2
+                {                name: "Lift arm 2/2", method: "setArmDH", parameters:{ name:"ACG", duration: 200, wait: true } },
+                { team:"yellow", name: "Lift arm 2/2", method: "setArmDH", parameters:{ name:"ABG", duration: 200, wait: true } },
+                { team:"violet", name: "Lift arm 2/2", method: "setArmDH", parameters:{ name:"BCG", duration: 200, wait: true } },
+                // Remove from map
+                { name:"updateMap", method: "removeFromMap", parameters:{ list:["sampleStartingTop"] } },
+                { name:"updateMap", method: "removeFromMap", parameters:{ list:["sampleStartingBottom"] } },
+                // Close arm
+                {                name: "Close arm", method: "setArmDefault", parameters:{ name:"ACG", duration: 400, wait: false } },
+                { team:"yellow", name: "Close arm", method: "setArmDefault", parameters:{ name:"ABG", duration: 400, wait: false } },
+                { team:"violet", name: "Close arm", method: "setArmDefault", parameters:{ name:"BCG", duration: 400, wait: false } },
+               
+            ]
+        };
+        
         let grabSampleStarting = (element, sideYellow, moveAngleYellow, sampleColor, sampleSide)=>{
             let sideViolet = sideYellow;
             if(sideYellow=="AB") sideViolet = "BC";
@@ -327,6 +426,36 @@ module.exports = class GoalsTest extends Goals{
             executionCount: -1,
             actions: [
                 { name: "Deposit", method: "depositInGallery" }
+            ]
+        };
+        
+        let grabOnSite = {
+            name: "Grab on Site",
+            condition: ()=>{
+                let hasArmFree =   this.app.robot.variables.armAC.value == "";
+                let hasTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-15*1000;
+                let samplesAvailable = this.app.robot.variables.foundInSite.value < 3;
+                let endReached = this.app.robot.variables.endReached.value;
+                return  hasArmFree && samplesAvailable && hasTimeLeft && !endReached;
+            },                
+            executionCount: -1,
+            actions: [
+                { name: "Search", method: "detectAndGrabSample", parameters:{ opposit:false } }
+            ]
+        };
+        
+        let grabOnOppositSite = {
+            name: "Grab on opposit Site",
+            condition: ()=>{
+                let hasArmFree =   this.app.robot.variables.armAC.value == "";
+                let hasTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-20*1000;
+                let samplesAvailable = this.app.robot.variables.foundInOppositSite.value < 3;
+                let endReached = this.app.robot.variables.endReached.value;
+                return  hasArmFree && samplesAvailable && hasTimeLeft && !endReached;
+            },                
+            executionCount: -1,
+            actions: [
+                { name: "Search", method: "detectAndGrabSample", parameters:{ opposit:true } }
             ]
         };
         
@@ -492,6 +621,11 @@ module.exports = class GoalsTest extends Goals{
             if(sideYellow=="AC") armAngleYellow = 180;
             if(sideYellow=="BC") armAngleYellow = 60;
             let armAngleViolet = 180 - armAngleYellow;
+            if(element=="middleDispenser"){
+                moveAngleViolet = moveAngleYellow;
+                armAngleYellow = -90; //only for AC
+                armAngleViolet = -90;
+            } 
             return {
                 name: "Grab "+element,
                 condition: ()=>{
@@ -599,12 +733,15 @@ module.exports = class GoalsTest extends Goals{
                     method: "moveToComponent",
                     parameters:{ component: "startingArea", speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                 },
+                //Wait time
+                { name: "Wait for time", method: "waitForTime", parameters:{ time:98*1000 } },
                 // Lift arm
-                { team:"yellow", name: "Extend arm", method: "setArmUH", parameters:{ name:"ABG", duration: 500, wait: false } },
-                { team:"violet", name: "Extend arm", method: "setArmUH", parameters:{ name:"BCG", duration: 500, wait: false } },
+                { name: "Extend arm", method: "setArmUH", parameters:{ name:"ACG", duration: 300, wait: true } },
+                //{ team:"yellow", name: "Extend arm", method: "setArmUH", parameters:{ name:"ABG", duration: 300, wait: true } },
+                //{ team:"violet", name: "Extend arm", method: "setArmUH", parameters:{ name:"BCG", duration: 300, wait: true } },
                 // Backward
-                { team:"yellow", name: "Backward",  method: "moveBackward", parameters:{ distance:350, speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle } },
-                { team:"violet", name: "Backward",  method: "moveBackward", parameters:{ distance:350, speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle } },
+                //{ team:"yellow", name: "Backward",  method: "moveBackward", parameters:{ distance:350, speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle } },
+                //{ team:"violet", name: "Backward",  method: "moveBackward", parameters:{ distance:350, speed: this.defaultSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle } },
                 // Store End reached
                 { name: "Score artifact", method: "addScore", parameters:{ score: 20 } },
                 { name: "Store in variable", method: "setVariable", parameters:{ name:"endReached", value:1 } },
@@ -656,34 +793,74 @@ module.exports = class GoalsTest extends Goals{
                 { name: "backward",  method: "moveBackward", parameters:{ distance:200, speed: this.defaultSpeed } },
             ]
         };
+        
+        let repositionLidar = {
+            name: "Reposition Lidar",
+            condition: ()=>{
+                let hasTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-6*1000;
+                let endReached = this.app.robot.variables.endReached.value;
+                return hasTimeLeft && !endReached;
+            },                
+            executionCount: -1,
+            actions: [
+                { name: "Find localisation",  method: "findLocalisation", parameters:{ count:4 } },
+            ]
+        };
 
         this.list = [
             waitForStart,
-            /*replicaAndArtifactFromShed,
-            depositArtifactInGallery,*/
-            grabSampleStarting("sampleStartingMiddle", "BC", 0, "G", 1), //4s+d
-            exchangeSamples("BC", "AB", "AC"),
+            
+            replicaAndArtifactFromShed,
+            replicaAndArtifactFromShed,
+            depositArtifactInGallery,
+            
+            startMoveSamplesGrab,
+            depositInGallery,
+           grabSampleStarting("sampleStartingMiddle", "BC", 0, "G", 1), //4s+d
+          exchangeSamples("BC", "AB", "AC"),
             grabSampleStarting("sampleStartingBottom", "AB", -60, "R", 1), //4S+d
             grabSampleStarting("sampleStartingTop", "BC", 60, "B", 1), //4s+d
             depositInGallery, //20s+d (2sample)
+            
+            replicaAndArtifactFromShed,
+            depositArtifactInGallery,
+            
+            
+            grabAndDropSampleShed("sampleShedTop"),
+            
+            
+            flipSquare("square2"),
+            flipSquare("squareShared1"),
+            flipSquare("squareShared2"),
+            flipSquare("squareShared3"),
+            flipSquare("squareShared4"),
+            
+            
+            
             grabTopDispenser, //4s+d
+            depositInGallery,
+            
+            //repositionStart,
+            //repositionLidar,
+            grabOnSite,
+            //repositionLidar,
             depositInGallery,//20s+d (2sample)
-            repositionStart,
-            repositionSquare,
+            //grabSampleDiagonal("middleDispenser", "AC", -90, "B", 1, 0),
+            //repositionLidar,
+            grabOnOppositSite,
+            
+            //repositionStart,
+            //repositionSquare,
             //grabAndDropSampleShed("sampleShedTop"),
-            grabAndDropSampleShed("sampleShedBottom"),
+            //grabAndDropSampleShed("sampleShedBottom"),
             //justGrabSampleShed("sampleShedBottom"),
-            grabAndThrowSampleShed("sampleShedTop", 75),
+            //grabAndThrowSampleShed("sampleShedTop", 75),
             //grabAndThrowSampleShed("sampleShedBottom", -75),
             //grabSampleDiagonal("bottomDispenser", "AB", 180, "B", 1, 0),
             //grabSampleDiagonal("bottomDispenser", "BC", 180, "G", 1, 1),
             //grabSampleDiagonal("bottomDispenser", "AB", 180, "R", 1, 2),
-            depositInGallery,
-            /*flipSquare("square2"),
-            flipSquare("squareShared1"),
-            flipSquare("squareShared2"),
-            flipSquare("squareShared3"),
-            flipSquare("squareShared4"),*/
+            //depositInGallery,
+           
             moveToEndStart
         ]
     }

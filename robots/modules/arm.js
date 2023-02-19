@@ -71,7 +71,16 @@ module.exports = class Arm {
     }
     
     async setPump(params){
-        this.setMotor(params);
+        // Handle Valve control
+        let controlValve = null;
+        if(parseInt(params.value) == 0 && params.name.length == 3 && params.name[2] == 'P') {
+            controlValve = params.name[0]+params.name[1]+'V';
+        }
+        console.log(params.name, params.value, controlValve);
+        if(controlValve) await this.setMotor({name:controlValve, value:255});
+        await this.setMotor(params);
+        await  utils.sleep(30);
+        if(controlValve) await this.setMotor({name:controlValve, value:0});
     }
 
     async setMotor(params){

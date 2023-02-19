@@ -48,7 +48,7 @@
                                 <template v-if="item.shape.type == 'line'">
                                     <g>
                                         <title>{{item.name}} - {{item.type}} - {{item.team}}</title>
-                                        <line  v-bind:x1="item.shape.x1" v-bind:y1="item.shape.y1" v-bind:x2="item.shape.x2" v-bind:y2="item.shape.y2" v-bind:style="{ stroke: item.shape.color }" style="stroke-width:2;opacity: 0.9;" />
+                                        <line  v-bind:x1="item.shape.x1" v-bind:y1="item.shape.y1" v-bind:x2="item.shape.x2" v-bind:y2="item.shape.y2" v-bind:style="{ stroke: item.shape.color }" style="stroke-width:4;opacity: 0.9;" />
                                     </g>
                                 </template>
                             </template>
@@ -119,13 +119,10 @@
 
                             <!--Lidar Localisation-->
                             <template>
-                                <g v-bind:transform="'translate('+lidarLocalisation.x+' '+lidarLocalisation.y+') rotate('+lidarLocalisation.angle+')'">
-                                    <title> x:{{lidarLocalisation.x}}  y:{{lidarLocalisation.y}} angle:{{lidarLocalisation.angle}}</title>
-                                    <circle  v-bind:cx="0" v-bind:cy="0" r="30" style="fill:none;stroke-width:15;stroke:red;opacity: 0.9;" />
-                                    <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="20" v-bind:y2="0" style="stroke-width:5;stroke:red;opacity: 0.9;" />
-                                </g>
-                                <template v-for="feat in lidarLocalisation.features">
-                                    <circle  v-bind:cx="feat.x" v-bind:cy="feat.y" r="35" style="fill:none;stroke-width:15;stroke:violet;opacity: 0.9;" />
+                                <template v-for="match in lidarLocalisation.matches">
+                                    <g v-bind:transform="'translate('+match.x+' '+match.y+')'">
+                                        <circle  v-bind:cx="0" v-bind:cy="0" r="15" style="fill:none;stroke-width:7;stroke:green;opacity: 0.9;" />
+                                    </g>
                                 </template>
                                 <template v-for="part in lidarLocalisation.particles">
                                     <g v-bind:transform="'translate('+part.x+' '+part.y+') rotate('+part.angle+')'">
@@ -133,13 +130,11 @@
                                         <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="15" v-bind:y2="0" style="stroke-width:5;stroke:grey;opacity: 0.9;" />
                                     </g>
                                 </template>
-                                <template v-for="feat in lidarLocalisation.detectedFeatures">
-                                    <g v-bind:transform="'translate('+robot.x+' '+robot.y+') rotate('+robot.angle+')'">
-                                        <g v-bind:transform="'rotate('+lidar.measures[feat.index].a+')'">
-                                            <circle  v-bind:cx="lidar.measures[feat.index].d" v-bind:cy="0" r="20" style="fill:none;stroke-width:5;stroke:yellow;opacity: 0.9;" />
-                                        </g>
-                                    </g>
-                                </template>
+                                <g v-bind:transform="'translate('+lidarLocalisation.x+' '+lidarLocalisation.y+') rotate('+lidarLocalisation.angle+')'">
+                                    <title> x:{{lidarLocalisation.x}}  y:{{lidarLocalisation.y}} angle:{{lidarLocalisation.angle}}</title>
+                                    <circle  v-bind:cx="0" v-bind:cy="0" r="30" style="fill:none;stroke-width:15;stroke:red;opacity: 0.9;" />
+                                    <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="20" v-bind:y2="0" style="stroke-width:5;stroke:red;opacity: 0.9;" />
+                                </g>
                             </template>
                         </svg>
                     </div>

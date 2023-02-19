@@ -4,6 +4,7 @@ const isMainThread = !process.send;
 let stopCapture = false;
 let cap = null;
 let canvas = require('canvas')
+const ImageData = require('@canvas/image-data')
 var AR = require('js-aruco').AR;
 var detector = new AR.Detector(AR.MarkerType4x4);
 
@@ -97,7 +98,7 @@ async function detectWeathervane(img){
     let timeA = new Date().getTime();
 
     const rgba = img.cvtColor(cv.COLOR_BGR2RGBA);
-    let imgData = canvas.createImageData( new Uint8ClampedArray(rgba.getData()), img.cols, img.rows);
+    let imgData = new ImageData( new Uint8ClampedArray(rgba.getData()), img.cols, img.rows);
     let markers = detector.detect(imgData);
     for(let marker of markers){
         if(marker.id==17){
@@ -117,7 +118,7 @@ async function detectWeathervane(img){
     detectionRunning = false;
     return orientation;
 }
-
+//var imgData = canvas.createImageData(320,240);
 async function detectArucos(img){
     if(detectionRunning) return;
     detectionRunning = true;
@@ -125,8 +126,21 @@ async function detectArucos(img){
     let timeA = new Date().getTime();
 
     const rgba = img.cvtColor(cv.COLOR_BGR2RGBA);
-    let imgData = canvas.createImageData( new Uint8ClampedArray(rgba.getData()), img.cols, img.rows);
+    let imgData = new ImageData( new Uint8ClampedArray(rgba.getData()), img.cols, img.rows);
     arucos = detector.detect(imgData);
+    
+    for(let tag of arucos){
+        let meanX = 0, meanY = 0;
+        if(tag.corners.length==0) continue; // should not be possible
+        for(let c of tag.corners){
+            meanX += c.x;
+            meanY += c.y;
+        }
+        meanX /= tag.corners.length;
+        meanY /= tag.corners.length;
+        tag.x = meanX;
+        tag.y = meanY;
+    }
     
     let timeEnd = new Date().getTime();
     if(!isMainThread){
@@ -188,15 +202,13 @@ async function main(){
     cap.set(cv.CAP_PROP_FRAME_HEIGHT,240);
     cap.set(cv.CAP_PROP_BUFFERSIZE, 2);
     
-    /*if(isMainThread){
-        while(1){
-            await run("arucos");
-            await run("buoys");
-            await run("weathervane");
-
-        }
-    }*/
+    if(isMainThread){
+        setInterval( ()=>{run("arucos");}, 1000);
+    }
     await run("arucos");
 }
+
+const SegfaultHandler = require('segfault-handler');
+SegfaultHandler.registerHandler('crash.log');
 
 main();
