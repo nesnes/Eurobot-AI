@@ -17,7 +17,7 @@ module.exports = class Intelligence {
 
         //Load the map
         //let mapFile = './maps/map_lidar_test';
-        let mapFile = './maps/map_Y_2022';
+        let mapFile = './maps/map_2023';
         delete require.cache[require.resolve(mapFile)]; //Delete require() cache
         const Map = require(mapFile);
         this.app.map = new Map(this.app);
@@ -26,7 +26,7 @@ module.exports = class Intelligence {
         
         //Create robot
         //let robotFile = './robots/robot_test_lidar';
-        let robotFile = './robots/robot_Y_2022';
+        let robotFile = './robots/robot_2023';
         delete require.cache[require.resolve(robotFile)]; //Delete require() cache
         const Robot = require(robotFile);
         this.app.robot = new Robot(this.app);
@@ -36,7 +36,7 @@ module.exports = class Intelligence {
         //Read the goals
         //let goalsFile='./goals/goals_homologation';
         //let goalsFile='./goals/goals_test';
-        let goalsFile='./goals/goals_Y_2022';
+        let goalsFile='./goals/goals_2023';
         delete require.cache[require.resolve(goalsFile)]; //Delete require() cache
         const Goals = require(goalsFile);
         this.app.goals = new Goals(this.app);
@@ -46,6 +46,8 @@ module.exports = class Intelligence {
         this.send();
         this.updateInterval = setInterval(()=>this.updateMatchTime(),150);
         
+        this.app.map.sendGrid(this.app.map.createGrid(1500,1000,1500,1000));
+
         if("start" in this.app.parameters && this.app.parameters.start) {
             this.runMatch();
         }

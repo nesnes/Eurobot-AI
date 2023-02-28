@@ -105,10 +105,10 @@ module.exports = class Map {
         let robotRadius = useRobotRadius?this.app.robot.radius:0;
         let avoidOffset = component.avoidOffset || 0;
         if(component.shape.type == "rectangle"){
-            let fromX = component.shape.x-robotRadius - avoidOffset;
-            let toX = component.shape.x+component.shape.width+robotRadius+avoidOffset*2;
+            let fromX = component.shape.x-robotRadius + avoidOffset;
+            let toX = component.shape.x+component.shape.width+robotRadius+Math.abs(avoidOffset)*2;
             let fromY = component.shape.y-robotRadius - avoidOffset;
-            let toY = component.shape.y+component.shape.height+robotRadius+avoidOffset*2;
+            let toY = component.shape.y+component.shape.height+robotRadius+Math.abs(avoidOffset)*2;
             //Rectangle corners as circle
             let centerX = component.shape.x+component.shape.width/2;
             let centerY = component.shape.y+component.shape.height/2;

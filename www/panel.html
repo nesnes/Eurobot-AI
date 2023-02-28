@@ -1,0 +1,130 @@
+<html>
+    <head>
+        <!--<script src="js/lib/mqttws31.min.js" type="text/javascript"></script>-->
+        <script src="js/lib/browserMqtt.js" type="text/javascript"></script>
+        <script src="js/lib/vue.min.js"></script>
+        <link rel="stylesheet" href="css/bootstrap.min.css">
+        <link rel="stylesheet" href="css/style.css">
+        <script src="js/lib/jquery-3.4.1.slim.min.js"></script>
+        <script src="js/lib/bootstrap.bundle.min.js"></script>
+    </head>
+    <body>
+        <div id="app" class="container-fluid h-100">
+            <div class="row h-100">
+                <!-- Side Panel -->
+                <div class="col-md-12 h-100 d-flex flex-column">
+                    <!--Score-->
+                    <div style="text-align: center;font-size:3em">
+                        {{robot.score}}
+                    </div>
+                    <!--Map-->
+                    <div class="row justify-content-center">
+                        <svg class="w-100"  viewBox="-100 -100 3200 2200" unit="mm">
+                            <template v-if="map.background != ''">
+                                <image v-bind:href="map.background" x="0" y="0" height="2000" width="3000" /> 
+                            </template>
+
+                            <!--Map components-->
+                            <template v-for="item in map.components">
+                                <template v-if="item.shape.type == 'rectangle'">
+                                    <g v-on:click="onMapComponentClick(item)">
+                                        <title>{{item.name}} - {{item.type}} - {{item.team}}</title>
+                                        <rect v-bind:x="item.shape.x" v-bind:y="item.shape.y" v-bind:width="item.shape.width" v-bind:height="item.shape.height" v-bind:style="{ fill: item.shape.color }" style="stroke-width:1;stroke:rgb(0,0,0);opacity: 0.9;" />
+                                    </g>
+                                </template>
+                                <template v-if="item.shape.type == 'circle'">
+                                    <g v-on:click="onMapComponentClick(item)">
+                                        <title>{{item.name}} - {{item.type}} - {{item.team}}</title>
+                                        <circle  v-bind:cx="item.shape.x" v-bind:cy="item.shape.y" v-bind:r="item.shape.radius" v-bind:style="{ fill: item.shape.color }" style="stroke-width:1;stroke:rgb(0,0,0);opacity: 0.9;" />
+                                    </g>
+                                </template>
+                                <template v-if="item.shape.type == 'line'">
+                                    <g v-on:click="onMapComponentClick(item)">
+                                        <title>{{item.name}} - {{item.type}} - {{item.team}}</title>
+                                        <line  v-bind:x1="item.shape.x1" v-bind:y1="item.shape.y1" v-bind:x2="item.shape.x2" v-bind:y2="item.shape.y2" v-bind:style="{ stroke: item.shape.color }" style="stroke-width:4;opacity: 0.9;" />
+                                    </g>
+                                </template>
+                            </template>
+                            
+                            <!--Path-->
+                            <template v-if="path.path != null">
+                                <g>
+                                    <template v-for="node in path.path">
+                                        <rect v-bind:x="node[0]*path.resolution" v-bind:y="node[1]*path.resolution" v-bind:width="path.resolution" v-bind:height="path.resolution" style="fill:green;stroke-width:1;stroke:rgb(0,0,0);opacity: 0.8;" />
+                                    </template>
+                                </g>
+                            </template>
+                            <template v-if="path.smoothPath != null">
+                                <g>
+                                    <template v-for="node in path.smoothPath">
+                                        <rect v-bind:x="node[0]*path.resolution" v-bind:y="node[1]*path.resolution" v-bind:width="path.resolution" v-bind:height="path.resolution" style="fill:blue;stroke-width:1;stroke:rgb(0,0,0);opacity: 0.9;" />
+                                    </template>
+                                </g>
+                            </template>
+
+                            <!--Robot-->
+                            <template>
+                                <g v-bind:transform="'translate('+robot.x+' '+robot.y+') rotate('+robot.angle+')'">
+                                    <title>{{robot.name}} x:{{robot.x}}  y:{{robot.y}} angle:{{robot.angle}}</title>
+                                    <circle  v-bind:cx="0" v-bind:cy="0" v-bind:r="robot.radius" style="fill:none;stroke-width:10;stroke:rgb(224, 224, 224);opacity: 0.9;" />
+                                    <line v-bind:x1="robot.radius*0.8" v-bind:y1="0" v-bind:x2="robot.radius*1.2" v-bind:y2="0" style="stroke-width:15;stroke:rgb(224, 224, 224);opacity: 0.9;" />
+                                    <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="Math.sin(30*0.0174533)*robot.radius" v-bind:y2="Math.cos(30*0.0174533)*robot.radius" style="stroke-width:15;stroke:rgb(224, 224, 224);opacity: 0.9;" />
+                                    <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="Math.sin(30*0.0174533)*robot.radius" v-bind:y2="-Math.cos(30*0.0174533)*robot.radius" style="stroke-width:15;stroke:rgb(224, 224, 224);opacity: 0.9;" />
+                                    <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="-robot.radius" v-bind:y2="0" style="stroke-width:15;stroke:rgb(224, 224, 224);opacity: 0.9;" />
+                                </g>
+                            </template>
+                        </svg>
+                    </div>
+                    <!--Control-->
+                    <div class="d-flex justify-content-around">
+                        <div class="">
+                            <button class="btn btn-primary mx-1" v-on:click="reloadAI()" v-bind:disabled="communication.client.connected === false">Reload AI</button>                            
+                        </div>
+                        <div class="">
+                            <button class="btn btn-success mx-1" v-if="!intelligence.running && !intelligence.hasBeenRun" v-on:click="runMatch()" v-bind:disabled="communication.client.connected === false">Run Match</button>                            
+                            <button class="btn btn-danger mx-1" v-if="intelligence.running" v-on:click="stopMatch()" v-bind:disabled="communication.client.connected === false">Stop Match</button>                            
+                        </div>
+                        <div v-if="intelligence.currentTime>0 || communication.client.connected === false">
+                            <span v-if="intelligence.currentTime>0" class="text-primary mx-2 font-weight-bold">{{intelligence.currentTime}}s</span>
+                            <span v-if="communication.client.connected === false" class="text-danger mx-2 font-weight-bold">Not connected</span>
+                        </div>
+                    </div>
+                    <!--Robot-->
+                    <div class="d-flex flex-wrap mt-1" style="justify-content: space-evenly;">
+                        <div class="card p-1" v-bind:style="{ 'background-color': robot.team?robot.team:'none' }" style="text-shadow: white 0 0 5px;">team:{{robot.team}}</div>
+                        <div class="card p-1">x:{{robot.x}}</div>
+                        <div class="card p-1">y:{{robot.y}}</div>
+                        <div class="card p-1">angle:{{robot.angle}}</div>
+                    </div>
+                    <div class="d-flex flex-wrap mt-1" style="justify-content: space-evenly;">
+                        <div class="card p-1">speed:{{robot.speed}}</div>
+                        <div class="card p-1">angleSpeed:{{robot.angleSpeed}}</div>
+                        <div class="card p-1">slowdown:{{robot.slowdown}}</div>
+                    </div>
+
+                    <div class="d-flex flex-wrap" style="font-size:0.8em;justify-content: space-evenly;">
+                        <div class="card p-2 text-center" v-for="(variable, name, index) in robot.variables" style="min-width: 5em;">
+                            <span>{{name}}</span>
+                            <span v-if="variable.max==undefined">{{variable.value}}</span>
+                            <span v-if="variable.max!=undefined">{{variable.value}}/{{variable.max}}</span>
+                        </div>
+                    </div>
+                    
+                    
+
+                    <!--Console-->
+                    <div id="logConsole" class="row justify-content-center mt-2 flex-grow-1 overflow-auto">
+                        <div class="col w-100 bg-dark p-2 m-0" style="font-family: monospace;line-height: 1;">
+                            <span v-for="log in logs" class="d-block text-white text-break">
+                                {{log}}
+                            </span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        <script src="js/panel.js"></script>
+    </body>
+
+</html>

@@ -24,6 +24,7 @@ module.exports = class Robot {
             yellow:{x:0,y:0,angle:0},
             violet:{x:0,y:0,angle:0}
         }
+        this.startPositionSelected = false;
         this.x = 1500; // mm
         this.y = 1000; // mm
         this.angle = 0; // deg
@@ -115,19 +116,32 @@ module.exports = class Robot {
         if(this.modules.controlPanel) await this.modules.controlPanel.close();
     }
 
+    async selectStartPosition(preset){
+        this.startPositionSelected = true;
+        if('x' in preset && 'y' in preset && 'angle' in preset){
+            this.x = preset.x;
+            this.y = preset.y;
+            this.angle = preset.angle;
+        }
+        if('team' in preset){
+            this.team = preset.team;
+        }
+        this.send();
+    }
+
     async initMatch(){
         this.setScore(0);
-        if(this.startPosition[this.team]){
+        if(!this.startPositionSelected && this.startPosition[this.team]){
             this.x = this.startPosition[this.team].x;
             this.y = this.startPosition[this.team].y;
             this.angle = this.startPosition[this.team].angle;
-            this.lastTarget.x = this.x;
-            this.lastTarget.y = this.y;
-            this.lastTarget.angle = this.angle;
-            if(this.modules.base) await this.modules.base.enableMove();
-            if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle});
-            if(this.modules.base) await this._updatePositionAndMoveStatus();
         }
+        this.lastTarget.x = this.x;
+        this.lastTarget.y = this.y;
+        this.lastTarget.angle = this.angle;
+        if(this.modules.base) await this.modules.base.enableMove();
+        if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle});
+        if(this.modules.base) await this._updatePositionAndMoveStatus();
         //Other specific init actions should be defined in year-dedicated robot file
         this.send();
     }
