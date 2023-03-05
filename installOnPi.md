@@ -20,7 +20,7 @@ cd LCD-show/
 
 ## GUI
 ```bash
-sudo apt install --no-install-recommends xserver-xorg x11-xserver-utils xinit chromium-browser
+sudo apt install --no-install-recommends xserver-xorg x11-xserver-utils xinit openbox chromium-browser
 
 mkdir -p ~/.config/openbox && cp /etc/xdg/openbox/* ~/.config/openbox
 ```
