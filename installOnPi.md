@@ -8,6 +8,7 @@ sudo apt install git build-essential
 
 ## Screen MHS-3.5
 ```bash
+cd
 git clone https://github.com/Lcdwiki/LCD-show.git
 chmod -R 755 LCD-show
 cd LCD-show/
@@ -37,7 +38,7 @@ setxkbmap -option terminate:ctrl_alt_bksp
 # Start Chromium in kiosk mode
 sed -i 's/"exited_cleanly":false/"exited_cleanly":true/' ~/.config/chromium/'Local State'
 sed -i 's/"exited_cleanly":false/"exited_cleanly":true/; s/"exit_type":"[^"]\+"/"exit_type":"Normal"/' ~/.config/chromium/Default/Preferences
-chromium-browser --disable-infobars --kiosk 'https://www.google.com'
+chromium-browser --disable-infobars  --force-device-scale-factor=0.65 --kiosk 'http://127.0.0.1:8080/panel.html'
 ```
 
 ### Autologin
@@ -54,4 +55,29 @@ ExecStart=-/sbin/agetty --autologin pi --noclear %I \$TERM
 `nano ~/.bash_profile`
 ```
 [[ -z $DISPLAY && $XDG_VTNR -eq 1 ]] && startx -- -nocursor
+```
+### Node
+
+```bash
+curl -sL https://deb.nodesource.com/setup_18.x | sudo bash -
+sudo apt install nodejs
+sudo apt install python2.7 #Needed by some packages for compilation
+sudo ln -fs /usr/bin/python2.7 /usr/bin/python # Set python 2.7 as default python
+```
+### Eurobot-AI
+```bash
+cd
+git clone https://github.com/nesnes/Eurobot-AI.git
+cd Eurobot-AI
+# Install packages for canvas dependencie compilation
+sudo apt install libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev
+npm i
+```
+### Autostart
+````bash
+sudo npm install pm2 -g
+pm2 startup
+sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u pi --hp /home/pi
+pm2 start main.js
+pm2 save
 ```
