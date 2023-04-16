@@ -5,9 +5,11 @@
 #include <Arduino.h>
 #include <initializer_list>
 #include <Array.h> //https://github.com/janelia-arduino/Array
-#include <Ramp.h>
+#include <Ramp.h> //https://github.com/siteswapjuggler/RAMP
 #define USE_PCA9685_SERVO_EXPANDER
-#include "ServoEasing.h" //https://github.com/ArminJo/ServoEasing
+#define SUPPRESS_HPP_WARNING
+#include <ServoEasing.h> //https://github.com/ArminJo/ServoEasing
+#include <FeetechServo.h> //https://github.com/Robot-Maker-SAS/FeetechServo
 
 #define ACTUATOR_MAX_ARRAY_SIZE 30
 template <typename T>
@@ -43,7 +45,7 @@ public:
   const uint8_t pin;
   const int defaultValue;
 protected:
-  ramp rampObj;
+  rampInt rampObj;
 };
 
 class ActuatorOnPCA9685 : public Actuator {
@@ -61,6 +63,44 @@ public:
   
 private:
   ServoEasing servo;
+};
+
+class ActuatorFeetechSCS : public Actuator {
+public:
+  ActuatorFeetechSCS(uint8_t id_, const char* name_, SCSCL* driver_, int defaultValue_)
+  : Actuator(id_, name_, 0, defaultValue_)
+  , driver(driver_)
+  {
+    //servo.attach(pin, defaultValue, minUs, maxUs);
+  }
+
+  void update() {
+    //deg to value
+    int target = map(rampObj.update(), 0, 300, 0, 1024); // 300° range
+    driver->WritePos(id, target, 0);
+  }
+  
+private:
+  SCSCL* driver;
+};
+
+class ActuatorFeetechSTS : public Actuator {
+public:
+  ActuatorFeetechSTS(uint8_t id_, const char* name_, SMS_STS* driver_, int defaultValue_)
+  : Actuator(id_, name_, 0, defaultValue_)
+  , driver(driver_)
+  {
+    //servo.attach(pin, defaultValue, minUs, maxUs);
+  }
+
+  void update() {
+    //deg to value
+    int target = map(rampObj.update(), 0, 360, 0, 4096); // 300° range
+    driver->WritePosEx(id, target, 0);
+  }
+  
+private:
+  SMS_STS* driver;
 };
 
 class ActuatorGroup {

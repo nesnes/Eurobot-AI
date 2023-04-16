@@ -1,47 +1,101 @@
 #include "comunication.h"
-#include "actuators.h"
 #include "moving.h"
-#include "ServoEasing.hpp"
+#include "pin_def.h"
 #include <Metro.h>    //Include Metro library
+#define SERIAL_DEBUG
 
-int positionFrequency = 100; //Hz
-int controlFrequency = 100; //Hz
-Metro updatePos = Metro(1000 / positionFrequency);
-Metro updateControl = Metro(1000 / controlFrequency);
+float positionFrequency = 100; //Hz
+float controlFrequency = 200; //Hz
+float motorFrequency = 10000; //Hz
+float debugFrequency = 100; //Hz
+Metro updatePos = Metro(1000.f / positionFrequency);
+Metro updateControl = Metro(1000.f / controlFrequency);
+Metro updateDebug = Metro(1000.f / debugFrequency);
+Metro updateMotor = Metro(1000.f / motorFrequency);
 Metro updateLed = Metro(500);
 
 
-#define LED_PIN 13
+#define LED_PIN PIN_LED_DEBUG
 bool ledValue = true;
 
 void setup() {
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);
   comunication_begin(7);// Init communication I2C address 7 (not used, we're in serial mode for now)
-  delay(2500);
-  initActuators();      // Init servo and pumps
+  //delay(2500);
   initMotors();         // Init brushless motors
 }
 
 void loop() {
   executeOrder();
 
-  if (updatePos.check())  // Run position loop
-    updatePosition();
+  // Run position loop
+  if (updatePos.check()) { updatePosition(); }
 
-  if (updateControl.check())  // Run control loop
-    control();
+#ifdef SERIAL_DEBUG
+  if (updateDebug.check()) { printCharts(); }
+#endif
 
-  updateServos();
+  // Run control loop
+  if (updateControl.check()) { control(); }
 
   if (updateLed.check()) { // blink led
     ledValue = !ledValue;
     digitalWrite(LED_PIN, ledValue);
   }
 
-  spinMotors();
+  // Update motor control
+  if (updateMotor.check()) { spinMotors(); }
 }
 
+/*
+#include "MagneticSensorSPIWithMCP23017.h"
+MagneticSensorSPIWithMCP23017*  encoder1{nullptr};
+MagneticSensorSPIWithMCP23017*  encoder2{nullptr};
+MagneticSensorSPIWithMCP23017*  encoder3{nullptr};
+
+#include <Adafruit_MCP23X17.h>
+Adafruit_MCP23X17 mcp_ext;
+#include "BrushlessFOCMotor.h"
+BrushlessFOCMotor motor1(PIN_MOT1_INU, PIN_MOT1_INV, PIN_MOT1_INW, 186.5, false, PIN_MOT1_INH, PIN_MOT1_CS, PIN_MOT1_IMU, PIN_MOT1_IMV, PIN_MOT1_IMW);
+//BrushlessFOCMotor motor1(PIN_MOT3_INU, PIN_MOT3_INV, PIN_MOT3_INW, 186.5, false, PIN_MOT3_INH, PIN_MOT3_CS, _NC, PIN_MOT3_IMV, PIN_MOT3_IMW);
+//BrushlessFOCMotor motor1(PIN_MOT2_INU, PIN_MOT2_INV, PIN_MOT2_INW, 186.5, false, PIN_MOT2_INH, PIN_MOT2_CS, _NC, PIN_MOT2_IMV, PIN_MOT2_IMW);
+
+void setup() {
+  pinMode(PIN_LED_DEBUG, OUTPUT);
+  (new MagneticSensorSPIWithMCP23017(AS5048_SPI, PIN_MOT1_CS))->init();
+  (new MagneticSensorSPIWithMCP23017(AS5048_SPI, PIN_MOT2_CS))->init();
+  (new MagneticSensorSPIWithMCP23017(AS5048_SPI, PIN_MOT3_CS))->init();
+
+  motor1.begin();
+  Serial.println("# Start loop.");
+  motor1.setSpeed(0.1);
+}
+
+void loop() {
+
+  //if(updateControl.check()) {
+    //motor1.spin();
+    //Serial.print(">ActualSpeed:"); Serial.print(motor1.getSpeed(), 6);Serial.println("§m/s");
+    //Serial.print(">ActualSpeedRaw:"); Serial.print(motor1.m_encoder->getVelocity(), 6);Serial.println("§m/s");
+    //Serial.print(">q:"); Serial.print(motor1.m_motor->c.q, 6);Serial.println("§mA");
+
+  //encoder1->update();
+  //Serial.print(">angle1:"); Serial.print(encoder1->getAngle(), 4);Serial.println("§rad");
+  //encoder2->update();
+  //Serial.print(">angle2:"); Serial.print(encoder2->getAngle(), 4);Serial.println("§rad");
+  //encoder3->update();
+  //Serial.print(">angle3:"); Serial.print(encoder3->getAngle(), 4);Serial.println("§rad");
+
+  //}
+  //Serial.print(">TargetSpeed:"); Serial.print(0.05);Serial.println("§_");
+  //Serial.print(">phaseA:"); Serial.print(motor1.m_currentSense->getPhaseCurrents().a);Serial.println("§A");
+  //Serial.print(">phaseB:"); Serial.print(motor1.m_currentSense->getPhaseCurrents().b);Serial.println("§A");
+  //Serial.print(">phaseC:"); Serial.print(motor1.m_currentSense->getPhaseCurrents().c);Serial.println("§A");
+  
+  //delay(1);
+  //delayMicroseconds(50);
+}*/
 
 
 /*void loop() { // Motor test loop
@@ -53,32 +107,6 @@ void loop() {
     motors[i].spin();
   }
   }*/
-
-
-
-
-/* Test PWM extender
-
-  #include <Arduino.h>
-  #define USE_PCA9685_SERVO_EXPANDER
-  #include "ServoEasing.hpp"
-  ServoEasing ServoExt_0(PCA9685_DEFAULT_ADDRESS, &Wire); // If you use more than one PCA9685 you probably must modify MAX_EASING_SERVOS at line 88 in ServoEasing.h
-  ServoEasing ServoExt_1(PCA9685_DEFAULT_ADDRESS, &Wire);
-  void setup() {
-    Wire.begin();
-    Wire.beginTransmission(PCA9685_DEFAULT_ADDRESS);
-    ServoExt_0.attach(0, 90);
-    ServoExt_1.attach(1, 90);
-  }
-  void loop() {
-    ServoExt_0.write(90);
-    ServoExt_1.write(90);
-    delay(1000);
-    ServoExt_0.write(0);
-    ServoExt_1.write(0);
-    delay(1000);
-  }
-*/
 
 bool movementEnabled = false;
 bool emergencyStop = false;
@@ -125,7 +153,7 @@ void executeOrder() {
       //ignore
     }
     else if (strstr(comunication_InBuffer, "id")) {
-      sprintf(comunication_OutBuffer, "MovingBaseAlexandreV4");//max 29 Bytes
+      sprintf(comunication_OutBuffer, "MovingBaseTDS");//max 29 Bytes
       comunication_write();//async
     }
     else if (strstr(comunication_InBuffer, "move enable")) {
@@ -281,57 +309,6 @@ void executeOrder() {
       emergencyStop = false;
       runTargetPath = false;
     }
-    else if (strstr(comunication_InBuffer, "S ")) { // set servo by name
-      sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
-      comunication_write();//async
-      char c[4]{'\0'};
-      int value = 90, duration = 0;
-      sscanf(comunication_InBuffer, "S %c%c%c %i %i", &c[0], &c[1], &c[2], &value, &duration);
-      setActuator(c, value, duration);
-    }
-    else if (strstr(comunication_InBuffer, "s ")) { // set servo by id
-      sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
-      comunication_write();//async
-      int id=-1, value = 90, duration = 0;
-      sscanf(comunication_InBuffer, "s %i %i %i", &id, &value, &duration);
-      setActuator(id, value, duration);
-    }
-    else if (strstr(comunication_InBuffer, "Z ")) { //set servo group by name
-      sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
-      comunication_write();//async
-      char c[4]{'\0'};
-      int v[ACTUATOR_MAX_ARRAY_SIZE];
-      int  t = 0;
-      int matches = sscanf(comunication_InBuffer, "Z %c%c%c %i %i %i %i %i %i %i %i %i %i %i",  &c[0], &c[1], &c[2], &t, &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]);
-      Vector<int> values;
-      matches -= 4; // length of group name and duration(t)
-      for(int i=0;i<matches && i<ACTUATOR_MAX_ARRAY_SIZE;i++) {
-        values.push_back(v[i]);
-      }
-      setActuatorGroup(c, values, t);
-    }
-    else if (strstr(comunication_InBuffer, "z ")) { //set servo group by id
-      sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
-      comunication_write();//async
-      int v[ACTUATOR_MAX_ARRAY_SIZE], t = 0, id = -1;
-      int matches = sscanf(comunication_InBuffer, "z %i %i %i %i %i %i %i %i %i %i %i %i",  &id, &t, &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]);
-      Vector<int> values;
-      matches -= 2; // length of id and duration(t)
-      for(int i=0;i<matches && i<ACTUATOR_MAX_ARRAY_SIZE;i++) {
-        values.push_back(v[i]);
-      }
-      setActuatorGroup(id, values, t);
-    }
-    /*else if (strstr(comunication_InBuffer, "pump set ")) {
-      sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
-      comunication_write();//async
-      char c1, c2, c3;
-      int value = 0;
-      sscanf(comunication_InBuffer, "pump set %c%c%c %i", &c1, &c2, &c3, &value);
-      value = value ? 1 : 0;
-      if (c1 == 'L' && c2 == 'E' && c3 == 'F') setPump(L, value);
-      if (c1 == 'R' && c2 == 'I' && c3 == 'G') setPump(R, value);
-    }*/
     else {
       sprintf(comunication_OutBuffer, "ERROR");
       comunication_write();//async
@@ -341,19 +318,16 @@ void executeOrder() {
 }
 
 void control() {
+  if(!movementEnabled) { disableMotors(); }
+  else { enableMotors(); }
+
   if (emergencyStop || !movementEnabled) {
     stopMotors();
     return;
   }
-  if (runTargetPath)
-    updatePath();
-  if (!manualMode)
-    updateAsserv();
-    
-#ifdef SERIAL_DEBUG
-  printCharts();
-#endif
-
+  if (runTargetPath) updatePath();
+  if (!manualMode)   updateAsserv();
+  
   setRobotSpeed(targetSpeed_mps, targetMovmentAngle, targetAngleSpeed_dps);
 }
 
@@ -400,21 +374,21 @@ void updateAsserv() {
   targetMovmentAngle = angleDiff(translationAngle, getAnglePos());
 
   //Translation Speed
-  double minSpeed = 0.05;
+  double minSpeed = 0.01;
   if (runTargetPath && targetPathIndex > 0 && targetPathIndex < targetPathSize - 1)
     minSpeed = 0.1;
-  double slowDownDistance = 0.20;//m
+  double slowDownDistance = abs(0.80 * speedTarget);//m
   double distFromStart = sqrt(pow(getXPos() - xStart, 2) + pow(getYPos() - yStart, 2)); // meters
   double distFromEnd = translationError;
-  targetSpeed_mps = applySpeedRamp(distFromStart, distFromEnd, slowDownDistance, speedTarget, minSpeed);
+  targetSpeed_mps = applySpeedRamp(distFromStart, distFromEnd, slowDownDistance, speedTarget, minSpeed*2);
 
   //Rotation
-  double angleMinSpeed = 10;//deg/s
+  double angleMinSpeed = 2;//deg/s
   double slowDownAngle = 25;//deg
   double rotationError = angleDiff(angleTarget, getAnglePos());
   double rotationFromStart = angleDiff(angleStart, getAnglePos());
 
-  targetAngleSpeed_dps = applySpeedRamp(rotationFromStart, rotationError, slowDownAngle, angleSpeedTarget, angleMinSpeed);
+  targetAngleSpeed_dps = applySpeedRamp(rotationFromStart, rotationError, slowDownAngle, angleSpeedTarget, angleMinSpeed*2);
 
   nearTarget = (!runTargetPath and translationError <= nearTranslationError and fabs(rotationError) <= nearAngleError);
 
@@ -457,30 +431,32 @@ double applySpeedRamp(double distFromStart, double distFromEnd, double rampDist,
 
 
 void printCharts() {
-  //Position
-  Serial.print(getXPos() * 1000); Serial.print(" ");
-  Serial.print(getYPos() * 1000); Serial.print(" ");
-  Serial.print(xTarget * 1000); Serial.print(" ");
-  Serial.print(yTarget * 1000); Serial.print(" ");
+  // Preview charts with teleplot.fr
+  // Position
+  Serial.print(">posX:"); Serial.print(getXPos() * 1000, 4);Serial.println("§mm");
+  Serial.print(">posY:"); Serial.print(getYPos() * 1000, 4);Serial.println("§mm");
+  Serial.print(">targetX:"); Serial.print(xTarget * 1000, 4);Serial.println("§mm");
+  Serial.print(">targetY:"); Serial.print(yTarget * 1000, 4);Serial.println("§mm");
+  Serial.print(">targetReached:"); Serial.println(targetReached);
 
-  //Angle
-  Serial.print(getAnglePos()); Serial.print(" ");
-  Serial.print(angleTarget); Serial.print(" ");
-  Serial.print(targetMovmentAngle); Serial.print(" ");
+  // Angle
+  Serial.print(">angle:"); Serial.print(getAnglePos(), 4);Serial.println("§deg");
+  Serial.print(">targetAngle:"); Serial.print(angleTarget, 4);Serial.println("§deg");
+  Serial.print(">targetMoveAngle:"); Serial.print(targetMovmentAngle, 4);Serial.println("§deg");
 
-  //Angle Speed
-  Serial.print(targetAngleSpeed_dps); Serial.print(" ");
-  Serial.print(angleSpeedTarget); Serial.print(" ");
+  // Angle Speed
+  Serial.print(">targetAngleSpeed:"); Serial.print(targetAngleSpeed_dps, 4);Serial.println("§deg/s");
+  Serial.print(">maxAngleSpeed:"); Serial.print(angleSpeedTarget, 4);Serial.println("§deg/s");
 
-  //Position Speed
-  Serial.print(targetSpeed_mps * 100.0); Serial.print(" ");
-  Serial.print(speedTarget * 100.0); Serial.print(" ");
+  // Position Speed
+  Serial.print(">targetSpeed:"); Serial.print(targetSpeed_mps, 4);Serial.println("§m/s");
+  Serial.print(">maxSpeed:"); Serial.print(speedTarget, 4);Serial.println("§m/s");
 
-  //Motor Speed
+  // Motor Speed
   for (uint8_t i = 0; i < NB_MOTORS; i++) { // Display all motors speed or only 2 => i<2
-    Serial.print(getMotorSpeed(i)); Serial.print(" ");
+    Serial.print(">motorSpeed");Serial.print(i);Serial.print(":");Serial.print(getMotorSpeed(i), 6);Serial.println("§deg/s");
     //Serial.print(getMotorSpeed(i)*1000);Serial.print(" ");
   }
 
-  Serial.print("\r\n");
+  //Serial.print("\r\n");
 }

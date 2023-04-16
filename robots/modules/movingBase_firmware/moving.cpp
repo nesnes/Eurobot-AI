@@ -1,9 +1,10 @@
 #include "moving.h"
+#include "pin_def.h"
 
 const double wheelPerimeter = 186.5d;//188.495559215;//mm = pi*d = pi*60
 const double reductionFactor = 3.75d;//3.75d
 
-#ifdef TEENSYDUINO
+/*#ifdef TEENSYDUINO
 const double wheelDistanceA = 125;//mm
 const double wheelDistanceB = 125;//mm
 const double wheelDistanceC = 125;//mm
@@ -13,9 +14,21 @@ const double wheelDistanceA = 120;//mm
 const double wheelDistanceB = 125.4;//mm
 const double wheelDistanceC = 123;//mm
 const double wheelDistances[NB_MOTORS] = {wheelDistanceA, wheelDistanceB, wheelDistanceC};
-#endif
+#endif*/
 
-#define BRUSHLESSMOTORS // change to SERIALMOTORS or I2CMOTORS if needed and add dedicated .c and .h files
+const double wheelDistanceA = 97.178;//mm
+const double wheelDistanceB = 97.178;//mm
+const double wheelDistanceC = 97.178;//mm
+const double wheelDistances[NB_MOTORS] = {wheelDistanceA, wheelDistanceB, wheelDistanceC};
+
+#define BRUSHLESSFOCMOTORS // change to BRUSHLESSMOTORS or SERIALMOTORS or I2CMOTORS if needed and add dedicated .c and .h files
+
+#ifdef BRUSHLESSFOCMOTORS
+BrushlessFOCMotor motorC(PIN_MOT1_INU, PIN_MOT1_INV, PIN_MOT1_INW, wheelPerimeter, false, PIN_MOT1_INH, PIN_MOT1_CS, PIN_MOT1_IMU, PIN_MOT1_IMV, PIN_MOT1_IMW); //enable and CS pin are on MCP23017
+BrushlessFOCMotor motorA(PIN_MOT2_INU, PIN_MOT2_INV, PIN_MOT2_INW, wheelPerimeter, false, PIN_MOT2_INH, PIN_MOT2_CS, _NC,          PIN_MOT2_IMV, PIN_MOT2_IMW); //enable and CS pin are on MCP23017
+BrushlessFOCMotor motorB(PIN_MOT3_INU, PIN_MOT3_INV, PIN_MOT3_INW, wheelPerimeter, false, PIN_MOT3_INH, PIN_MOT3_CS, _NC,          PIN_MOT3_IMV, PIN_MOT3_IMW); //enable and CS pin are on MCP23017
+BrushlessFOCMotor motors[NB_MOTORS] = {motorA, motorB, motorC};
+#endif
 
 #ifdef BRUSHLESSMOTORS
 BrushlessMotor motorA(10, 11, 12, wheelPerimeter, false);
@@ -55,8 +68,16 @@ const double motors_angle[NB_MOTORS] = {motorA_angle, motorB_angle, motorC_angle
 void initMotors() {
   //Init motors
   Wire.begin();
+
+#ifdef BRUSHLESSFOCMOTORS
+  // Obscure magic but encoders need to all be enabled before any motor calibration
+  (new MagneticSensorSPIWithMCP23017(AS5048_SPI, PIN_MOT1_CS))->init();
+  (new MagneticSensorSPIWithMCP23017(AS5048_SPI, PIN_MOT2_CS))->init();
+  (new MagneticSensorSPIWithMCP23017(AS5048_SPI, PIN_MOT3_CS))->init();
+#endif
+
   for (uint8_t i = 0; i < NB_MOTORS; i++) {
-    motors[i].begin();
+    while(!motors[i].begin());
   }
 }
 
@@ -112,6 +133,14 @@ void updatePosition() {
   }
 }
 
+void enableMotors(){
+  for (uint8_t i = 0; i < NB_MOTORS; i++)
+    motors[i].enable();
+}
+void disableMotors(){
+  for (uint8_t i = 0; i < NB_MOTORS; i++)
+    motors[i].disable();
+}
 
 double custom_mod(double a, double n) {
   return a - floor(a / n) * n;
