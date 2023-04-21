@@ -45,7 +45,7 @@ void MagneticSensorSPIWithMCP23017::init(SPIClass* _spi){
   while(!mcpInitOk){
     mcpInitOk = mcp.begin_I2C(MCP23017_ADDR, &Wire2);
     if(!mcpInitOk) {
-      Serial.println("# Cannot initialize MCP23017 from MagneticSensorSPIWithMCP23017.");
+      //Serial.println("# Cannot initialize MCP23017 from MagneticSensorSPIWithMCP23017.");
       delay(10);
     }
   }

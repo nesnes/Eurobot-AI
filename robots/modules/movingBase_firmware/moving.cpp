@@ -162,12 +162,8 @@ void setRobotSpeed(double targetSpeed_mps, double targetMovmentAngle, double tar
 
   for (uint8_t i = 0; i < NB_MOTORS; i++) {
     speeds[i] = targetSpeed_mps * sin((targetMovmentAngle - motors_angle[i]) * DEG_TO_RAD); // Compute Linear speed
-    //Serial.print(speeds[i]*1000000.f);Serial.print("\t");  // Display Linear speed
     speedsAngle[i] = 2.0d * PI * (wheelDistances[i] / 1000.d) * (targetAngleSpeed_dps / 360.0d); // Compute Rotation speed , arcLength in meters => speed m.s-1
-    //Serial.print(speedsAngle[i]*1000000.f);Serial.print("\t"); // Display Rotation speed
     speeds[i] += speedsAngle[i] * 1.25; // Compound
-    //Serial.print(speeds[i]*1000000.f);Serial.print("\t");  // Display compound speed
-    //Serial.print("\n");
   }
 
   for (uint8_t i = 0; i < NB_MOTORS; i++)

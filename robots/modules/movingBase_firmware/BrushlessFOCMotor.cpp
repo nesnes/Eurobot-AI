@@ -17,7 +17,7 @@ BrushlessFOCMotor::BrushlessFOCMotor(int pinA, int pinB, int pinC, double wheelP
   while(!mcpInitOk){
     mcpInitOk = m_mcp.begin_I2C(MCP23017_ADDR, &Wire2);
     if(!mcpInitOk) {
-      Serial.println("# Cannot initialize MCP23017 from BrushlessFOCMotor.");
+      //Serial.println("# Cannot initialize MCP23017 from BrushlessFOCMotor.");
       delay(1);
     }
   }

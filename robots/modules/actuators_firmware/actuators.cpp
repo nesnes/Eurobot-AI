@@ -5,27 +5,26 @@ SCSCL feetechSCSDriver;
 SMS_STS feetechSTSDriver;
 
 Vector <Actuator*> actuators{
-  new ActuatorFeetechSTS(10, "STS", &feetechSTSDriver, 90), // test in progress
-  new ActuatorFeetechSCS(11, "SCS", &feetechSCSDriver, 90), // test in progress
-  //new ActuatorOnPCA9685(0,  "AC0", 0,  65), // AC shoulder
-  //new ActuatorOnPCA9685(1,  "AC1", 1,  10), // AC elbow
-  //new ActuatorOnPCA9685(2,  "AC2", 2,  90), // AC wrist
-  //new ActuatorOnPCA9685(3,  "ACP", 3,  0, 0, 2500),  // AC pump
-  //new ActuatorOnPCA9685(12, "ACM", 12, 0, 0, 2500),  // AC motor
-  //new ActuatorOnPCA9685(4,  "AB0", 4,  65), // AB shoulder
-  //new ActuatorOnPCA9685(5,  "AB1", 5,  10), // AB elbow
-  //new ActuatorOnPCA9685(6,  "AB2", 6,  90), // AB wrist
-  //new ActuatorOnPCA9685(7,  "ABP", 7,  0, 0, 2500),  // AB pump
-  //new ActuatorOnPCA9685(8,  "BC0", 8,  65), // BC shoulder
-  //new ActuatorOnPCA9685(9,  "BC1", 9,  10), // BC elbow
-  //new ActuatorOnPCA9685(10, "BC2", 10, 90), // BC wrist
-  //new ActuatorOnPCA9685(11, "BCP", 11, 0, 0, 2500)   // BC pump
+  new ActuatorFeetechSTS(10, "ACL", &feetechSTSDriver, 40 , false,  0.f ),  // AC Lift
+  new ActuatorFeetechSCS(11, "ACD", &feetechSCSDriver, 150, false,  5.f ),  // AC Distributor
+  new ActuatorFeetechSCS(12, "ACC", &feetechSCSDriver, 150, true , -5.f ),  // AC C door
+  new ActuatorFeetechSCS(13, "ACA", &feetechSCSDriver, 150, false,  0.f ),  // AC A door
+
+  new ActuatorFeetechSTS(20, "BCL", &feetechSTSDriver, 40 , false,  2.f ),  // BC Lift
+  new ActuatorFeetechSCS(21, "BCD", &feetechSCSDriver, 150, false,  0.f ),  // BC Distributor
+  new ActuatorFeetechSCS(22, "BCB", &feetechSCSDriver, 150, true ,  3.f ),  // BC A door
+  new ActuatorFeetechSCS(23, "BCC", &feetechSCSDriver, 150, false, -10.f),  // BC B door
+
+  new ActuatorFeetechSTS(30, "ABL", &feetechSTSDriver, 40 , true ,  2.f ),  // AB Lift
+  new ActuatorFeetechSCS(31, "ABD", &feetechSCSDriver, 150, true , -7.f ),  // AB Distributor
+  new ActuatorFeetechSCS(32, "ABA", &feetechSCSDriver, 150, true , -4.f ),  // AB A door
+  new ActuatorFeetechSCS(33, "ABB", &feetechSCSDriver, 150, false,  3.f ),  // AB B door
 };
 
 Vector<ActuatorGroup*> actuatorGroups{
-  //new ActuatorGroup(0, "ACG", actuators, {"AC0", "AC1", "AC2"}),
-  //new ActuatorGroup(1, "ABG", actuators, {"AB0", "AB1", "AB2"}),
-  //new ActuatorGroup(2, "BCG", actuators, {"BC0", "BC1", "BC2"})
+  new ActuatorGroup(0, "ACG", actuators, {"ACL", "ACD", "ACC", "ACA"}),
+  new ActuatorGroup(1, "ABG", actuators, {"ABL", "ABD", "ABA", "ABB"}),
+  new ActuatorGroup(2, "BCG", actuators, {"BCL", "BCD", "BCB", "BCC"})
 };
 
 

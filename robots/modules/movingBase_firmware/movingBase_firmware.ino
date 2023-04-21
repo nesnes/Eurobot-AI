@@ -2,7 +2,7 @@
 #include "moving.h"
 #include "pin_def.h"
 #include <Metro.h>    //Include Metro library
-#define SERIAL_DEBUG
+//#define SERIAL_DEBUG
 
 float positionFrequency = 100; //Hz
 float controlFrequency = 200; //Hz

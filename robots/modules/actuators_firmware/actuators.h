@@ -67,40 +67,50 @@ private:
 
 class ActuatorFeetechSCS : public Actuator {
 public:
-  ActuatorFeetechSCS(uint8_t id_, const char* name_, SCSCL* driver_, int defaultValue_)
+  ActuatorFeetechSCS(uint8_t id_, const char* name_, SCSCL* driver_, int defaultValue_, bool reversed_=false, float offset_=0.f)
   : Actuator(id_, name_, 0, defaultValue_)
   , driver(driver_)
+  , reversed(reversed_)
+  , offset(offset_)
   {
     //servo.attach(pin, defaultValue, minUs, maxUs);
   }
 
   void update() {
     //deg to value
-    int target = map(rampObj.update(), 0, 300, 0, 1024); // 300° range
+    int target = map(rampObj.update() + offset, 0, 300, 0, 1024); // 300° range
+    if(reversed) target = 1024 - target;
     driver->WritePos(id, target, 0);
   }
   
 private:
   SCSCL* driver;
+  bool reversed;
+  float offset;
 };
 
 class ActuatorFeetechSTS : public Actuator {
 public:
-  ActuatorFeetechSTS(uint8_t id_, const char* name_, SMS_STS* driver_, int defaultValue_)
+  ActuatorFeetechSTS(uint8_t id_, const char* name_, SMS_STS* driver_, int defaultValue_, bool reversed_=false, float offset_=0.f)
   : Actuator(id_, name_, 0, defaultValue_)
   , driver(driver_)
+  , reversed(reversed_)
+  , offset(offset_)
   {
     //servo.attach(pin, defaultValue, minUs, maxUs);
   }
 
   void update() {
     //deg to value
-    int target = map(rampObj.update(), 0, 360, 0, 4096); // 300° range
+    int target = map(rampObj.update() + offset, 0, 360, 0, 4096); // 300° range
+    if(reversed) target = 4096 - target;
     driver->WritePosEx(id, target, 0);
   }
   
 private:
   SMS_STS* driver;
+  bool reversed;
+  float offset;
 };
 
 class ActuatorGroup {

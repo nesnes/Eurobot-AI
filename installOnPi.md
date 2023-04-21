@@ -74,10 +74,36 @@ sudo apt install libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-d
 npm i
 ```
 ### Autostart
-````bash
+```bash
 sudo npm install pm2 -g
 pm2 startup
 sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u pi --hp /home/pi
 pm2 start main.js
 pm2 save
+```
+
+## WIFI
+Set list of wifi networks to auto-connect to in `/etc/wpa_supplicant/wpa_supplicant.conf`
+```
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+update_config=1
+
+network={
+        ssid="MyNetwork1"
+        psk="myPsw0d1"
+        priority=10
+}
+
+network={
+        ssid="MyNetwork2"
+        psk="myPsw0d2"
+        priority=5
+}
+
+```
+
+## Lidar
+Add `sudo nano /etc/udev/rules.d/49-ld06.rules`
+```
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", SYMLINK+="lidar"
 ```
