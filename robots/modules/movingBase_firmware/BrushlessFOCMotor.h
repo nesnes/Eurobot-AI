@@ -13,6 +13,7 @@ public:
   BrushlessFOCMotor(int pinA, int pinB, int pinC, double wheelPerimeter=100, bool invert=false, int pinEnable=-1, int encoderCS=-1, int pinCurrentSenseA=-1, int pinCurrentSenseB=-1, int pinCurrentSenseC=-1); //mm
   ~BrushlessFOCMotor();
   bool begin();
+  void runFOC();
   void spin();
   void enable();
   void disable();
@@ -37,6 +38,7 @@ public:
   float m_targetSpeed; // m/s
   float m_targetSpeedRad; // rad/s
   bool m_enabled{false};
+  float m_maxCurrent{3.f};
 
   BLDCMotor*          m_motor{nullptr};
   BLDCDriver*         m_driver{nullptr};

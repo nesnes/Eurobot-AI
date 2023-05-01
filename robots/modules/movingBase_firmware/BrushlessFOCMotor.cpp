@@ -37,6 +37,7 @@ void BrushlessFOCMotor::enable()
   if(m_enabled) return;
   m_enabled = true;
   m_mcp.digitalWrite(m_pinEnable, 1);
+  m_motor->current_limit = m_maxCurrent;
 }
 
 void BrushlessFOCMotor::disable()
@@ -44,6 +45,7 @@ void BrushlessFOCMotor::disable()
   if(!m_enabled) return;
   m_enabled = false;
   m_mcp.digitalWrite(m_pinEnable, 0);
+  m_motor->current_limit = 0.0001;
 }
   
 bool BrushlessFOCMotor::begin(){
@@ -56,8 +58,8 @@ bool BrushlessFOCMotor::begin(){
   // Driver
   m_driver = new BLDCDriver3PWM(m_pinA, m_pinB, m_pinC);
   m_driver->pwm_frequency = 20000;
-  m_driver->voltage_power_supply = 12;
-  m_driver->voltage_limit = 12; // should match power supply
+  m_driver->voltage_power_supply = 25;
+  m_driver->voltage_limit = 25; // should match power supply
   m_driver->init();
 
   // Enable motor through MCP23017
@@ -92,24 +94,25 @@ bool BrushlessFOCMotor::begin(){
   m_motor->foc_modulation = FOCModulationType::SinePWM;
   m_motor->controller = MotionControlType::velocity; // Can use velocity_openloop if encoders have issues
 
-  m_motor->voltage_sensor_align = 3; //V
-  m_motor->current_limit = 2.5; // Amps
+  m_motor->voltage_sensor_align = 5; //V
+  m_motor->current_limit = 4.0; // Amps
   m_motor->linkDriver(m_driver);
   m_motor->linkSensor(m_encoder);
   m_motor->init();
 
-  m_motor->PID_velocity.P = 30;//2.0;
-  m_motor->PID_velocity.I = 1.0;//0.0;
-  m_motor->PID_velocity.D = 2.0;//0.1;
+  m_motor->PID_velocity.P = 30;//30.0;
+  m_motor->PID_velocity.I = 0.0;//0.0;
+  m_motor->PID_velocity.D = 2.0;//2.0;
+  m_motor->PID_velocity.output_ramp = 1000;
   //m_motor->LPF_velocity = 0.01;
   //m_motor->LPF_angle = 0.5;
   //m_encoder->min_elapsed_time = 0.015;
-  m_motor->PID_current_q.P = 0.01;//0.01;
-  m_motor->PID_current_q.I = 3.0;//5.0;
+  m_motor->PID_current_q.P = 0.05;//0.05
+  m_motor->PID_current_q.I = 6.0;//6.0
   m_motor->PID_current_q.D = 0.0;//0.0;
   //m_motor->LPF_angle.Tf = 0.01;
   
-  m_motor->motion_downsample = 1;
+  m_motor->motion_downsample = 0;
 
   m_currentSense->init();
   m_motor->linkCurrentSense(m_currentSense);
@@ -119,9 +122,14 @@ bool BrushlessFOCMotor::begin(){
   return m_motor->initFOC();
 }
 
-void BrushlessFOCMotor::spin(){
+void BrushlessFOCMotor::runFOC(){
   if(!m_motor) return;
   m_motor->loopFOC();
+}
+
+void BrushlessFOCMotor::spin(){
+  if(!m_motor) return;
+  //m_motor->loopFOC();
 
   if(!m_enabled) {
     m_motor->PID_velocity.reset();

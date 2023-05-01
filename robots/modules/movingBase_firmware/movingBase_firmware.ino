@@ -2,21 +2,39 @@
 #include "moving.h"
 #include "pin_def.h"
 #include <Metro.h>    //Include Metro library
-//#define SERIAL_DEBUG
+#define SERIAL_DEBUG
 
-float positionFrequency = 100; //Hz
+float positionFrequency = 200; //Hz
 float controlFrequency = 200; //Hz
-float motorFrequency = 10000; //Hz
-float debugFrequency = 100; //Hz
+float motorFrequency = 500; //Hz
+float debugFrequency = 25; //Hz
+// see setup() for FOC frequency
 Metro updatePos = Metro(1000.f / positionFrequency);
 Metro updateControl = Metro(1000.f / controlFrequency);
 Metro updateDebug = Metro(1000.f / debugFrequency);
 Metro updateMotor = Metro(1000.f / motorFrequency);
 Metro updateLed = Metro(500);
 
+// measure control frequency
+unsigned long freqStartTimeUpdateMotor = 0;
+float freqUpdateMotor = 0.f;
+unsigned long freqStartTimeFoc = 0;
+float freqFoc = 0.f;
+unsigned long freqStartTimeControl = 0;
+float freqControl = 0.f;
+
+IntervalTimer focTimer;
+
 
 #define LED_PIN PIN_LED_DEBUG
 bool ledValue = true;
+
+void onFocInterrup(){
+  runFOC();
+  unsigned long elapsed = micros() - freqStartTimeFoc;
+  freqFoc = freqFoc* 0.99f+0.01f *1.f/((float)(elapsed)/1000000.f);
+  freqStartTimeFoc = micros();
+}
 
 void setup() {
   pinMode(LED_PIN, OUTPUT);
@@ -24,6 +42,8 @@ void setup() {
   comunication_begin(7);// Init communication I2C address 7 (not used, we're in serial mode for now)
   //delay(2500);
   initMotors();         // Init brushless motors
+  //focTimer.begin(onFocInterrup, 1250); // every N microseconds
+  //focTimer.priority(200); // lower priority than potential other interrupts
 }
 
 void loop() {
@@ -37,7 +57,12 @@ void loop() {
 #endif
 
   // Run control loop
-  if (updateControl.check()) { control(); }
+  if (updateControl.check()) {
+    control();
+    unsigned long elapsed = micros() - freqStartTimeControl;
+    freqControl = freqControl* 0.99f+0.01f *1.f/((float)(elapsed)/1000000.f);
+    freqStartTimeControl = micros();
+  }
 
   if (updateLed.check()) { // blink led
     ledValue = !ledValue;
@@ -45,7 +70,13 @@ void loop() {
   }
 
   // Update motor control
-  if (updateMotor.check()) { spinMotors(); }
+  if (updateMotor.check()) {
+    spinMotors();
+    unsigned long elapsed = micros() - freqStartTimeUpdateMotor;
+    freqUpdateMotor = freqUpdateMotor* 0.99f+0.01f *1.f/((float)(elapsed)/1000000.f);
+    freqStartTimeUpdateMotor = micros();
+  }
+  onFocInterrup();
 }
 
 /*
@@ -374,21 +405,21 @@ void updateAsserv() {
   targetMovmentAngle = angleDiff(translationAngle, getAnglePos());
 
   //Translation Speed
-  double minSpeed = 0.01;
+  double minSpeed = 0.1;//0.05
   if (runTargetPath && targetPathIndex > 0 && targetPathIndex < targetPathSize - 1)
-    minSpeed = 0.1;
-  double slowDownDistance = abs(0.80 * speedTarget);//m
+    minSpeed = 0.2;
+  double slowDownDistance = abs(0.50 * speedTarget);//m
   double distFromStart = sqrt(pow(getXPos() - xStart, 2) + pow(getYPos() - yStart, 2)); // meters
   double distFromEnd = translationError;
   targetSpeed_mps = applySpeedRamp(distFromStart, distFromEnd, slowDownDistance, speedTarget, minSpeed*2);
 
   //Rotation
-  double angleMinSpeed = 2;//deg/s
+  double angleMinSpeed = 10;//deg/s
   double slowDownAngle = 25;//deg
   double rotationError = angleDiff(angleTarget, getAnglePos());
   double rotationFromStart = angleDiff(angleStart, getAnglePos());
 
-  targetAngleSpeed_dps = applySpeedRamp(rotationFromStart, rotationError, slowDownAngle, angleSpeedTarget, angleMinSpeed*2);
+  targetAngleSpeed_dps = applySpeedRamp(rotationFromStart, rotationError, slowDownAngle, angleSpeedTarget, angleMinSpeed);
 
   nearTarget = (!runTargetPath and translationError <= nearTranslationError and fabs(rotationError) <= nearAngleError);
 
@@ -457,6 +488,12 @@ void printCharts() {
     Serial.print(">motorSpeed");Serial.print(i);Serial.print(":");Serial.print(getMotorSpeed(i), 6);Serial.println("§deg/s");
     //Serial.print(getMotorSpeed(i)*1000);Serial.print(" ");
   }
+
+  // Frequencies
+  Serial.print(">MotorSpeedControlFreq:"); Serial.print(freqUpdateMotor, 2);Serial.println("§Hz");
+  Serial.print(">XYControlFreq:"); Serial.print(freqControl, 2);Serial.println("§Hz");
+  Serial.print(">FocFreq:"); Serial.print(freqFoc, 2);Serial.println("§Hz");
+  
 
   //Serial.print("\r\n");
 }

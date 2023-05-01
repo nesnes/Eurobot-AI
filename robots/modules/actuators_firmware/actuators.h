@@ -39,6 +39,12 @@ public:
   }
 
   virtual void update() = 0;
+  virtual int getPosition() {
+    return rampObj.update();
+  };
+  virtual int getLoad() {
+    return 0;
+  };
   
   const uint8_t id;
   const char* name;
@@ -82,6 +88,14 @@ public:
     if(reversed) target = 1024 - target;
     driver->WritePos(id, target, 0);
   }
+
+  int getPosition() override {
+    return map(driver->ReadPos(id), 0, 1024, 0, 300);
+  }
+
+  int getLoad() override {
+    return driver->ReadLoad(id);
+  }
   
 private:
   SCSCL* driver;
@@ -102,9 +116,17 @@ public:
 
   void update() {
     //deg to value
-    int target = map(rampObj.update() + offset, 0, 360, 0, 4096); // 300° range
+    int target = map(rampObj.update() + offset, 0, 360, 0, 4096); // 360° range
     if(reversed) target = 4096 - target;
     driver->WritePosEx(id, target, 0);
+  }
+
+  int getPosition() override {
+    return map(driver->ReadPos(id), 0, 4096, 0, 360);
+  }
+
+  int getLoad() override {
+    return driver->ReadLoad(id);
   }
   
 private:

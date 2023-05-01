@@ -17,6 +17,7 @@ enum {
 void initMotors();
 void enableMotors();
 void disableMotors();
+void runFOC();
 void spinMotors();
 double getXPos();
 double getYPos();

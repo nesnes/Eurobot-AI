@@ -1,7 +1,7 @@
 #include "moving.h"
 #include "pin_def.h"
 
-const double wheelPerimeter = 186.5d;//188.495559215;//mm = pi*d = pi*60
+const double wheelPerimeter = 176.75d;// 186.5d //188.495559215;//mm = pi*d = pi*60
 const double reductionFactor = 3.75d;//3.75d
 
 /*#ifdef TEENSYDUINO
@@ -27,7 +27,7 @@ const double wheelDistances[NB_MOTORS] = {wheelDistanceA, wheelDistanceB, wheelD
 BrushlessFOCMotor motorC(PIN_MOT1_INU, PIN_MOT1_INV, PIN_MOT1_INW, wheelPerimeter, false, PIN_MOT1_INH, PIN_MOT1_CS, PIN_MOT1_IMU, PIN_MOT1_IMV, PIN_MOT1_IMW); //enable and CS pin are on MCP23017
 BrushlessFOCMotor motorA(PIN_MOT2_INU, PIN_MOT2_INV, PIN_MOT2_INW, wheelPerimeter, false, PIN_MOT2_INH, PIN_MOT2_CS, _NC,          PIN_MOT2_IMV, PIN_MOT2_IMW); //enable and CS pin are on MCP23017
 BrushlessFOCMotor motorB(PIN_MOT3_INU, PIN_MOT3_INV, PIN_MOT3_INW, wheelPerimeter, false, PIN_MOT3_INH, PIN_MOT3_CS, _NC,          PIN_MOT3_IMV, PIN_MOT3_IMW); //enable and CS pin are on MCP23017
-BrushlessFOCMotor motors[NB_MOTORS] = {motorA, motorB, motorC};
+volatile BrushlessFOCMotor motors[NB_MOTORS] = {motorA, motorB, motorC};
 #endif
 
 #ifdef BRUSHLESSMOTORS
@@ -79,6 +79,13 @@ void initMotors() {
   for (uint8_t i = 0; i < NB_MOTORS; i++) {
     while(!motors[i].begin());
   }
+}
+
+void runFOC(){
+  #ifdef BRUSHLESSFOCMOTORS
+  for (uint8_t i = 0; i < NB_MOTORS; i++)
+    motors[i].runFOC();
+  #endif
 }
 
 void spinMotors() {
