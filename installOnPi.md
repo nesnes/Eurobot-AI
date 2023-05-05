@@ -70,7 +70,7 @@ cd
 git clone https://github.com/nesnes/Eurobot-AI.git
 cd Eurobot-AI
 # Install packages for canvas dependencie compilation
-sudo apt install libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev
+sudo apt install libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev libraspberrypi-dev
 npm i
 ```
 ### Autostart
@@ -106,4 +106,12 @@ network={
 Add `sudo nano /etc/udev/rules.d/49-ld06.rules`
 ```
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", SYMLINK+="lidar"
+```
+
+## Camera
+To use the wide angle 160° camera module
+Edit `sudo nano /boot/config.txt` to add
+```
+# Enable OV5647 camera module
+dtoverlay=ov5647
 ```
