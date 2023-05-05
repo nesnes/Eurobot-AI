@@ -2,13 +2,12 @@
 #include "moving.h"
 #include "pin_def.h"
 #include <Metro.h>    //Include Metro library
-#define SERIAL_DEBUG
+//#define SERIAL_DEBUG
 
 float positionFrequency = 200; //Hz
 float controlFrequency = 200; //Hz
 float motorFrequency = 500; //Hz
-float debugFrequency = 25; //Hz
-// see setup() for FOC frequency
+float debugFrequency = 200; //Hz
 Metro updatePos = Metro(1000.f / positionFrequency);
 Metro updateControl = Metro(1000.f / controlFrequency);
 Metro updateDebug = Metro(1000.f / debugFrequency);
@@ -23,18 +22,11 @@ float freqFoc = 0.f;
 unsigned long freqStartTimeControl = 0;
 float freqControl = 0.f;
 
-IntervalTimer focTimer;
+//IntervalTimer focTimer;
 
 
 #define LED_PIN PIN_LED_DEBUG
 bool ledValue = true;
-
-void onFocInterrup(){
-  runFOC();
-  unsigned long elapsed = micros() - freqStartTimeFoc;
-  freqFoc = freqFoc* 0.99f+0.01f *1.f/((float)(elapsed)/1000000.f);
-  freqStartTimeFoc = micros();
-}
 
 void setup() {
   pinMode(LED_PIN, OUTPUT);
@@ -71,16 +63,20 @@ void loop() {
 
   // Update motor control
   if (updateMotor.check()) {
-    spinMotors();
+    motorHighLevel();
     unsigned long elapsed = micros() - freqStartTimeUpdateMotor;
     freqUpdateMotor = freqUpdateMotor* 0.99f+0.01f *1.f/((float)(elapsed)/1000000.f);
     freqStartTimeUpdateMotor = micros();
   }
-  onFocInterrup();
+  
+  motorLowLevel();
+  unsigned long elapsed = micros() - freqStartTimeFoc;
+  freqFoc = freqFoc* 0.99f+0.01f *1.f/((float)(elapsed)/1000000.f);
+  freqStartTimeFoc = micros();
 }
 
-/*
-#include "MagneticSensorSPIWithMCP23017.h"
+
+/*#include "MagneticSensorSPIWithMCP23017.h"
 MagneticSensorSPIWithMCP23017*  encoder1{nullptr};
 MagneticSensorSPIWithMCP23017*  encoder2{nullptr};
 MagneticSensorSPIWithMCP23017*  encoder3{nullptr};
@@ -88,7 +84,7 @@ MagneticSensorSPIWithMCP23017*  encoder3{nullptr};
 #include <Adafruit_MCP23X17.h>
 Adafruit_MCP23X17 mcp_ext;
 #include "BrushlessFOCMotor.h"
-BrushlessFOCMotor motor1(PIN_MOT1_INU, PIN_MOT1_INV, PIN_MOT1_INW, 186.5, false, PIN_MOT1_INH, PIN_MOT1_CS, PIN_MOT1_IMU, PIN_MOT1_IMV, PIN_MOT1_IMW);
+//BrushlessFOCMotor motor1(PIN_MOT1_INU, PIN_MOT1_INV, PIN_MOT1_INW, 186.5, false, PIN_MOT1_INH, PIN_MOT1_CS, PIN_MOT1_IMU, PIN_MOT1_IMV, PIN_MOT1_IMW);
 //BrushlessFOCMotor motor1(PIN_MOT3_INU, PIN_MOT3_INV, PIN_MOT3_INW, 186.5, false, PIN_MOT3_INH, PIN_MOT3_CS, _NC, PIN_MOT3_IMV, PIN_MOT3_IMW);
 //BrushlessFOCMotor motor1(PIN_MOT2_INU, PIN_MOT2_INV, PIN_MOT2_INW, 186.5, false, PIN_MOT2_INH, PIN_MOT2_CS, _NC, PIN_MOT2_IMV, PIN_MOT2_IMW);
 
@@ -98,27 +94,35 @@ void setup() {
   (new MagneticSensorSPIWithMCP23017(AS5048_SPI, PIN_MOT2_CS))->init();
   (new MagneticSensorSPIWithMCP23017(AS5048_SPI, PIN_MOT3_CS))->init();
 
-  motor1.begin();
+  encoder1 = new MagneticSensorSPIWithMCP23017(AS5048_SPI, PIN_MOT1_CS);
+  encoder1->init();
+  encoder2 = new MagneticSensorSPIWithMCP23017(AS5048_SPI, PIN_MOT2_CS);
+  encoder2->init();
+  encoder3 = new MagneticSensorSPIWithMCP23017(AS5048_SPI, PIN_MOT2_CS);
+  encoder3->init();
+  
+  Serial.println("# Befor init");
+  //Serial.print(motor1.begin());
   Serial.println("# Start loop.");
-  motor1.setSpeed(0.1);
+  //motor1.setSpeed(0.1);
 }
 
 void loop() {
 
-  //if(updateControl.check()) {
+  if(updateControl.check()) {
     //motor1.spin();
     //Serial.print(">ActualSpeed:"); Serial.print(motor1.getSpeed(), 6);Serial.println("§m/s");
     //Serial.print(">ActualSpeedRaw:"); Serial.print(motor1.m_encoder->getVelocity(), 6);Serial.println("§m/s");
     //Serial.print(">q:"); Serial.print(motor1.m_motor->c.q, 6);Serial.println("§mA");
 
-  //encoder1->update();
-  //Serial.print(">angle1:"); Serial.print(encoder1->getAngle(), 4);Serial.println("§rad");
-  //encoder2->update();
-  //Serial.print(">angle2:"); Serial.print(encoder2->getAngle(), 4);Serial.println("§rad");
-  //encoder3->update();
-  //Serial.print(">angle3:"); Serial.print(encoder3->getAngle(), 4);Serial.println("§rad");
+  encoder1->update();
+  Serial.print(">angle1:"); Serial.print(encoder1->getAngle(), 4);Serial.println("§rad");
+  encoder2->update();
+  Serial.print(">angle2:"); Serial.print(encoder2->getAngle(), 4);Serial.println("§rad");
+  encoder3->update();
+  Serial.print(">angle3:"); Serial.print(encoder3->getAngle(), 4);Serial.println("§rad");
 
-  //}
+  }
   //Serial.print(">TargetSpeed:"); Serial.print(0.05);Serial.println("§_");
   //Serial.print(">phaseA:"); Serial.print(motor1.m_currentSense->getPhaseCurrents().a);Serial.println("§A");
   //Serial.print(">phaseB:"); Serial.print(motor1.m_currentSense->getPhaseCurrents().b);Serial.println("§A");
@@ -138,6 +142,66 @@ void loop() {
     motors[i].spin();
   }
   }*/
+
+/*#include "BrushlessMotor.h"
+#include <Adafruit_MCP23X17.h> // from https://github.com/adafruit/Adafruit-MCP23017-Arduino-Library
+Adafruit_MCP23X17 m_mcp;
+BrushlessMotor motor1(PIN_MOT1_INU, PIN_MOT1_INV, PIN_MOT1_INW, 100, false);
+BrushlessMotor motor2(PIN_MOT2_INU, PIN_MOT2_INV, PIN_MOT2_INW, 100, false);
+BrushlessMotor motor3(PIN_MOT3_INU, PIN_MOT3_INV, PIN_MOT3_INW, 100, false);
+
+void onSpinInterrupt(){
+  motor1.spin();
+  motor2.spin();
+  motor3.spin();
+  unsigned long elapsed = micros() - freqStartTimeFoc;
+  freqFoc = freqFoc* 0.99f+0.01f *1.f/((float)(elapsed)/1000000.f);
+  freqStartTimeFoc = micros();
+}
+
+void setup() {
+  pinMode(PIN_LED_DEBUG, OUTPUT);
+  // MCP23017
+  bool mcpInitOk = false;
+  while(!mcpInitOk){
+    mcpInitOk = m_mcp.begin_I2C(MCP23017_ADDR, &Wire2);
+    if(!mcpInitOk) {
+      Serial.println("# Cannot initialize MCP23017.");
+      delay(1);
+    }
+  }
+  
+  m_mcp.pinMode(PIN_MOT1_INH, OUTPUT);
+  m_mcp.digitalWrite(PIN_MOT1_INH, 1);
+  m_mcp.pinMode(PIN_MOT2_INH, OUTPUT);
+  m_mcp.digitalWrite(PIN_MOT2_INH, 1);
+  m_mcp.pinMode(PIN_MOT3_INH, OUTPUT);
+  m_mcp.digitalWrite(PIN_MOT3_INH, 1);
+  motor1.begin();
+  motor1.enable();
+  motor2.begin();
+  motor2.enable();
+  motor3.begin();
+  motor3.enable();
+  onSpinInterrupt();
+  delay(10000);
+  motor1.setSpeed(0.01);
+  motor2.setSpeed(0.01);
+  motor3.setSpeed(0.01);
+}
+
+void loop() {
+  //if(abs(motor1.m_stepsDone) >= BRUSHLESS_STEP_PER_REVOLUTION) motor1.setSpeed(0);
+  if (updateDebug.check()) {
+    Serial.print(">DCA:");Serial.println(motor1.m_dcA, 4);
+    Serial.print(">DCB:");Serial.println(motor1.m_dcB, 4);
+    Serial.print(">DCC:");Serial.println(motor1.m_dcC, 4);
+    Serial.print(">powerTarget:");Serial.println(motor1.m_powerTarget, 4);
+    Serial.print(">FocFreq:"); Serial.print(freqFoc, 2);Serial.println("§Hz");
+  }
+  onSpinInterrupt();
+}*/
+
 
 bool movementEnabled = false;
 bool emergencyStop = false;
@@ -405,13 +469,13 @@ void updateAsserv() {
   targetMovmentAngle = angleDiff(translationAngle, getAnglePos());
 
   //Translation Speed
-  double minSpeed = 0.1;//0.05
+  double minSpeed = 0.05;
   if (runTargetPath && targetPathIndex > 0 && targetPathIndex < targetPathSize - 1)
-    minSpeed = 0.2;
-  double slowDownDistance = abs(0.50 * speedTarget);//m
+    minSpeed = 0.1;
+  double slowDownDistance = 0.20;//abs(0.50 * speedTarget);//m
   double distFromStart = sqrt(pow(getXPos() - xStart, 2) + pow(getYPos() - yStart, 2)); // meters
   double distFromEnd = translationError;
-  targetSpeed_mps = applySpeedRamp(distFromStart, distFromEnd, slowDownDistance, speedTarget, minSpeed*2);
+  targetSpeed_mps = applySpeedRamp(distFromStart, distFromEnd, slowDownDistance, speedTarget, minSpeed);
 
   //Rotation
   double angleMinSpeed = 10;//deg/s

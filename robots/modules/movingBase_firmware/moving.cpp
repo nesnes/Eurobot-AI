@@ -1,6 +1,7 @@
 #include "moving.h"
 #include "pin_def.h"
 
+
 const double wheelPerimeter = 176.75d;// 186.5d //188.495559215;//mm = pi*d = pi*60
 const double reductionFactor = 3.75d;//3.75d
 
@@ -21,9 +22,11 @@ const double wheelDistanceB = 97.178;//mm
 const double wheelDistanceC = 97.178;//mm
 const double wheelDistances[NB_MOTORS] = {wheelDistanceA, wheelDistanceB, wheelDistanceC};
 
-#define BRUSHLESSFOCMOTORS // change to BRUSHLESSMOTORS or SERIALMOTORS or I2CMOTORS if needed and add dedicated .c and .h files
+//#define BRUSHLESSFOCMOTORS // change to BRUSHLESSMOTORS or SERIALMOTORS or I2CMOTORS if needed and add dedicated .c and .h files
+#define BRUSHLESSMOTORS
 
 #ifdef BRUSHLESSFOCMOTORS
+#include "BrushlessFOCMotor.h"
 BrushlessFOCMotor motorC(PIN_MOT1_INU, PIN_MOT1_INV, PIN_MOT1_INW, wheelPerimeter, false, PIN_MOT1_INH, PIN_MOT1_CS, PIN_MOT1_IMU, PIN_MOT1_IMV, PIN_MOT1_IMW); //enable and CS pin are on MCP23017
 BrushlessFOCMotor motorA(PIN_MOT2_INU, PIN_MOT2_INV, PIN_MOT2_INW, wheelPerimeter, false, PIN_MOT2_INH, PIN_MOT2_CS, _NC,          PIN_MOT2_IMV, PIN_MOT2_IMW); //enable and CS pin are on MCP23017
 BrushlessFOCMotor motorB(PIN_MOT3_INU, PIN_MOT3_INV, PIN_MOT3_INW, wheelPerimeter, false, PIN_MOT3_INH, PIN_MOT3_CS, _NC,          PIN_MOT3_IMV, PIN_MOT3_IMW); //enable and CS pin are on MCP23017
@@ -31,13 +34,17 @@ volatile BrushlessFOCMotor motors[NB_MOTORS] = {motorA, motorB, motorC};
 #endif
 
 #ifdef BRUSHLESSMOTORS
-BrushlessMotor motorA(10, 11, 12, wheelPerimeter, false);
-BrushlessMotor motorB(7, 8, 9, wheelPerimeter, false);
-BrushlessMotor motorC(4, 5, 6, wheelPerimeter, false);
+#include "BrushlessMotor.h"
+BrushlessMotor motorA(PIN_MOT2_INU, PIN_MOT2_INV, PIN_MOT2_INW, wheelPerimeter, true);
+BrushlessMotor motorB(PIN_MOT3_INU, PIN_MOT3_INV, PIN_MOT3_INW, wheelPerimeter, true);
+BrushlessMotor motorC(PIN_MOT1_INU, PIN_MOT1_INV, PIN_MOT1_INW, wheelPerimeter, true);
 BrushlessMotor motors[NB_MOTORS] = {motorA, motorB, motorC};
+#include <Adafruit_MCP23X17.h> // from https://github.com/adafruit/Adafruit-MCP23017-Arduino-Library
+Adafruit_MCP23X17 motor_enable_mcp;
 #endif
 
 #ifdef SERIALMOTORS
+#include "SerialMotor.h"
 SerialMotor motorA(&Serial3, wheelPerimeter / reductionFactor, true, true);
 SerialMotor motorB(&Serial4, wheelPerimeter / reductionFactor, true);
 SerialMotor motorC(&Serial2, wheelPerimeter / reductionFactor, true);
@@ -45,6 +52,7 @@ SerialMotor motors[NB_MOTORS] = {motorA, motorB, motorC};
 #endif
 
 #ifdef I2CMOTORS
+#include "I2CMotor.h"
 I2CMotor motorA(0x10, wheelPerimeter / reductionFactor, true);
 I2CMotor motorB(0x11, wheelPerimeter / reductionFactor, true);
 I2CMotor motorC(0x12, wheelPerimeter / reductionFactor, true);
@@ -79,16 +87,40 @@ void initMotors() {
   for (uint8_t i = 0; i < NB_MOTORS; i++) {
     while(!motors[i].begin());
   }
+
+#ifdef BRUSHLESSMOTORS
+  motorLowLevel();
+  // Enable motors through MCP23017
+  bool mcpInitOk = false;
+  while(!mcpInitOk){
+    mcpInitOk = motor_enable_mcp.begin_I2C(MCP23017_ADDR, &Wire2);
+    if(!mcpInitOk) {
+      Serial.println("# Cannot initialize MCP23017 from moving.cpp .");
+      delay(1);
+    }
+  }
+  motor_enable_mcp.pinMode(PIN_MOT1_INH, OUTPUT);
+  motor_enable_mcp.digitalWrite(PIN_MOT1_INH, 1);
+  motor_enable_mcp.pinMode(PIN_MOT2_INH, OUTPUT);
+  motor_enable_mcp.digitalWrite(PIN_MOT2_INH, 1);
+  motor_enable_mcp.pinMode(PIN_MOT3_INH, OUTPUT);
+  motor_enable_mcp.digitalWrite(PIN_MOT3_INH, 1);
+#endif
 }
 
-void runFOC(){
+void motorLowLevel(){
   #ifdef BRUSHLESSFOCMOTORS
   for (uint8_t i = 0; i < NB_MOTORS; i++)
     motors[i].runFOC();
   #endif
+  
+  #ifdef BRUSHLESSMOTORS
+  for (uint8_t i = 0; i < NB_MOTORS; i++)
+    motors[i].spin();
+  #endif  
 }
 
-void spinMotors() {
+void motorHighLevel() {
   for (uint8_t i = 0; i < NB_MOTORS; i++)
     motors[i].spin();
 }

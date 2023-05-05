@@ -1,12 +1,6 @@
 #ifndef moving_h
 #define moving_h
-
 #include <Wire.h>
-#include "BrushlessFOCMotor.h"
-//#include "BrushlessMotor.h"
-//#include "SerialMotor.h"
-//#include "I2CMotor.h"
-
 enum {
   A,
   B,
@@ -17,8 +11,8 @@ enum {
 void initMotors();
 void enableMotors();
 void disableMotors();
-void runFOC();
-void spinMotors();
+void motorLowLevel();
+void motorHighLevel();
 double getXPos();
 double getYPos();
 double getAnglePos();
