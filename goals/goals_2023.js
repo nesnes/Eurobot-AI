@@ -89,8 +89,8 @@ module.exports = class GoalsTest extends Goals{
                 condition: ()=>{
                     let hasCakes = this.app.robot.variables.armAC.value != "" || this.app.robot.variables.armAB.value != "" || this.app.robot.variables.armBC.value != "";
                     let hasAllCakes = this.app.robot.variables.armAC.value != "" && this.app.robot.variables.armAB.value != "" && this.app.robot.variables.armBC.value != "";
-                    let hasMuchTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-20*1000;
-                    let hasSomeTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-10*1000;
+                    let hasMuchTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-30*1000;
+                    let hasSomeTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-15*1000;
                     let endReached = this.app.robot.variables.endReached.value;
                     
                     let canDepositAndBuild = hasAllCakes && hasMuchTimeLeft;
@@ -102,7 +102,7 @@ module.exports = class GoalsTest extends Goals{
                     {
                         name: "Deposit cake",
                         method: "depositCake",
-                        parameters:{ platesTypes: plateTypes, speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
+                        parameters:{ plateTypes: plateTypes, speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     }
                 ]
             };
@@ -122,7 +122,7 @@ module.exports = class GoalsTest extends Goals{
                     {
                         name: "Deposit cake",
                         method: "depositCakeSimple",
-                        parameters:{ platesTypes: plateTypes, speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
+                        parameters:{ plateTypes: plateTypes, speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     }
                 ]
             };
@@ -169,14 +169,15 @@ module.exports = class GoalsTest extends Goals{
 
         this.list = [
             waitForStart,
-            simpleGrabCake(null, 1),
-            simpleGrabCake(null, 1),
-            simpleGrabCake(null, 1),
+            simpleGrabCake(null, 0),
+            simpleGrabCake(null, 0),
+            simpleGrabCake(null, 0),
             //depositeCake("plateProtected", 1),
-            depositeCake(),
+            depositeCake(["plateMiddleTop", "plateMiddleBottom", "plateBottom"]), // not "plateProtected", "plateBottomSide"
+            depositeCake(["plateMiddleTop", "plateMiddleBottom", "plateBottom"]), // not "plateProtected", "plateBottomSide"
             //depositeCakeSimple("plateProtected", 1),
-            depositeCakeSimple(),
-            depositeCakeSimple(),
+            //depositeCakeSimple(),
+            //depositeCakeSimple(),
             moveToEndZone
             
             //moveTest

@@ -90,6 +90,43 @@ module.exports = class Arm {
         return result;
     }
 
+    async getServo(params){
+        //this.app.logger.log("servo get");
+        if(!("name" in params)) return "ERROR";
+        let msg = "G "+params.name;
+        let result = true;
+        if(this.link){
+            let response =  await this.link.sendMessage(this.address, msg);
+            if(!response) return false;
+            let resArray = response.split(" ");
+            if(resArray.length != 4) return false;
+            let resName = resArray[1];
+            if(resName != params.name) return false;
+            let resPosition = resArray[2];
+            let resLoad = resArray[3];
+            return {name: resName, position: resPosition, load: resLoad};
+        }
+        return result;
+    }
+    
+    async waitServo(params){
+        //this.app.logger.log("servo get");
+        if(!("name" in params)) return "ERROR";
+        if(!("position" in params)) return "ERROR";
+        let timeout = params.timeout || 2500;//ms
+        while(timeout>0){
+            let current = await this.getServo({name:params.name});
+            console.log(params.name, params.position, current)
+            if(current && current.position != undefined){
+                let precision = params.precision || 10;
+                if(Math.abs(current.position - params.position) < precision) return true;
+            }
+            await utils.sleep(50);
+            timeout -= 50;
+        }
+        return false;
+    }
+
     async setLed(params){
         //this.app.logger.log("set led");
         const ledCount = 12;

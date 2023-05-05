@@ -2,7 +2,8 @@
 
 exports.sleep = function(ms){
     return new Promise(resolve=>{
-        setTimeout(resolve,ms)
+        if(ms && ms > 0) setTimeout(resolve,ms)
+        else resolve();
     })
 }
 

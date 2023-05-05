@@ -64,7 +64,7 @@ module.exports = class Robot2020 extends Robot{
         
         this.armCloseAngle = 131;
         this.armGrabtHeight = 29;
-        this.cherryLayer = 2.6;
+        this.cherryLayer = 3.2;
     }
 
     async init(){
@@ -250,20 +250,34 @@ module.exports = class Robot2020 extends Robot{
         return true;
     }
     
-    async setArmToLayer(parameters){
-        if(!parameters.name) return false;
-        //height
+    layerToHeight(parameters){
         let targetLayer = parameters.layer || 0;
         let layerHeight = 80;
         let targetHeight = this.armGrabtHeight + layerHeight * targetLayer;
-        // transport
         if(parameters.transport) targetHeight += 6;
+        return targetHeight;
+    }
+    
+    async setArmToLayer(parameters){
+        if(!parameters.name) return false;
+        //height
+        let targetHeight = this.layerToHeight(parameters);
         //open
         let targetArmAngle = this.armCloseAngle;
         if(parameters.open) targetArmAngle += 20;
         console.log(parameters)
         let pose = Object.assign({ name: "ACG", a1:targetHeight, a2:150, a3:targetArmAngle, a4:targetArmAngle }, parameters);
         if(this.modules.arm) await this.modules.arm.setPose(pose);
+        if(parameters.wait){
+            if(this.modules.arm){
+                await this.modules.arm.waitServo({
+                    name: pose.name.substr(0,2)+"L",
+                    position: targetHeight,
+                    precision: parameters.precision || 5,
+                    timeout: parameters.timeout || 2000
+                });
+            }
+        }
         return true;
     }
     
@@ -341,7 +355,7 @@ module.exports = class Robot2020 extends Robot{
         this.lastTarget.angle = this.angle;
         if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle});
         //return true;
-        return await this.depositCake({doNotMoveToSite:true});
+        return await this.depositCake({doNotMoveToSite:true, speed: 0.8, nearAngle: 3});
     }
 
     async depositCake(parameters){
@@ -350,9 +364,9 @@ module.exports = class Robot2020 extends Robot{
         // List deposit sites
         let teamColor = parameters.color||this.team;
         let plateList = []
-        let platesTypes = ["plateProtected", "plateMiddleTop", "plateMiddleBottom", "plateBottomSide", "plateBottom"];
-        if(parameters.plateTypes) platesTypes = parameters.plateTypes;
-        for(let type of platesTypes) {
+        let plateTypes = ["plateProtected", "plateMiddleTop", "plateMiddleBottom", "plateBottomSide", "plateBottom"];
+        if(parameters.plateTypes) plateTypes = parameters.plateTypes;
+        for(let type of plateTypes) {
             plateList.push(...this.app.map.getComponentList(type, teamColor));
         }
         // Indetify closest deposit site
@@ -425,278 +439,357 @@ module.exports = class Robot2020 extends Robot{
             }
             return max;
         }
+        
+        let rotationSpeed = 0.7;
+        let moveSpeed = 0.5;
         let cakeBuildDistance = 100;
-        // For each full rotation
-        for(let cycle=0;cycle<4;cycle++){
-            console.log("Starting new cycle", cycle)
-            // For each 120° rotation
-            for(let index=0;index<3;index++){
-                console.log("Starting new index in rotation", index)
-                // Check end of construction
-                if(cycle!=0)
-                {
-                    let finished = true;
-                    for(let c of cakes){
-                        if(c!="") finished = false;
-                    }
-                    if(finished) break;
-                }
-                // Rotate 120° (unsledd it's the first iteration)
-                if(cycle!=0 || index!=0){
-                    targetAngle -= 120;
-                    console.log("Rotation to", targetAngle)
-                    result = await this.rotateToAngle({
-                        angle:targetAngle,
-                        speed:      parameters.speed||this.app.goals.defaultSpeed,
-                        nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                        nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
-                    });
-                }
-                // For each arm
-                for(let armIdx=0;armIdx<3;armIdx++){
-                    if(this.modules.arm) await this.modules.arm.setLed({ brightness: 100, color: 100*armIdx});
-                    // Resolve target color on the associated cake
-                    let currArm = armList[armIdx];
-                    let cakeIdx = (armIdx + index)%3;
-                    let targetColor = cakeOrder[cakes[cakeIdx].length];
-                    let forwardAngle = this.angle - armIdx * 120;
-                    let armMovedUp = false;
-                    // If arm has target color, and is not holding an already-built cake
-                    if( this.variables["arm"+currArm].value.startsWith(targetColor) && ! this.variables["arm"+currArm].value.startsWith("BYP")){
-                        // Make sure arm it at target height
-                        await this.setArmToLayer({name:currArm+"G", layer:armDepositLayer[currArm]+armClearanceLayerOffset, open:false, transport: false});
-                        // TODO wait for arm height (with timeout)
-                        
-                        //Move Forward
-                        result = await this.moveAtAngle({
-                            angle: forwardAngle,
-                            distance: cakeBuildDistance,
-                            speed:      parameters.speed||this.app.goals.defaultSpeed,
-                            nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
-                        });
-                        if(!result) return result;
-                        
-                        // Deposit cake layer
-                        await this.setArmToLayer({name:currArm+"G", layer:armDepositLayer[currArm], open:false, transport: true});
-                        await utils.sleep(200);
-                        // Open and lift to next layer
-                        await this.setArmToLayer({name:currArm+"G", layer:armDepositLayer[currArm]+1, open:true, transport: false});
-                        await utils.sleep(750);
-                        // Grab next layer and move to clearance
-                        await this.setArmToLayer({name:currArm+"G", layer:armDepositLayer[currArm]+1+armClearanceLayerOffset, open:false, transport: false});
-                        
-                        //let targetLayer = cakes[cakeIdx].length;
-                        //await this.setArmToLayer({name:currArm+"G", layer:targetLayer, open:false, transport: true});
-                        //await utils.sleep(targetLayer==0?0:500);
-                        // Open arms
-                        //await this.setArmToLayer({name:currArm+"G", layer:targetLayer+1, open:true});
-                        //await utils.sleep(400);
-                        
-                        // Update cake and arm content
-                        cakes[cakeIdx] += targetColor;
-                        this.variables["arm"+currArm].value =  this.variables["arm"+currArm].value.substring(1);
-                        //// Move to next layer
-                        //await this.setArmToLayer({name:currArm+"G", layer:getMaxLayer(cakes)+0.5, open:false, transport: true});
-                        //armMovedUp = true;
-                        
-                        // Move backward
-                        result = await this.moveAtAngle({
-                            angle: forwardAngle,
-                            distance: -cakeBuildDistance,
-                            speed:      parameters.speed||this.app.goals.defaultSpeed,
-                            nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
-                        });
-                    }
-                        
-                    // Grab completed cake
-                    if( this.variables["arm"+currArm].value == "" 
-                     && (   cakes[cakeIdx].length==3 
-                            || (cakes[cakeIdx].length==2 && !this.variables["armAC"].value.startsWith("P") && !this.variables["armAB"].value.startsWith("P") && !this.variables["armBC"].value.startsWith("P") )
-                            || (cakes[cakeIdx].length==1 && !this.variables["armAC"].value.startsWith("Y") && !this.variables["armAB"].value.startsWith("Y") && !this.variables["armBC"].value.startsWith("Y") )
-                        )
-                    )
+        let hasTimeToSort = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-30*1000;
+        if(hasTimeToSort){
+            // For each full rotation
+            for(let cycle=0;cycle<4;cycle++){
+                console.log("Starting new cycle", cycle)
+                // For each 120° rotation
+                for(let index=0;index<3;index++){
+                    console.log("Starting new index in rotation", index)
+                    // Check end of construction
+                    if(cycle!=0)
                     {
-                        // Grab finished cake
-                        await this.setArmToLayer({name:currArm+"G", layer:0, open:true, transport: false});
-                        // TODO make sure we reached arm height
-                        await utils.sleep(1500);
-                        
-                        // Move Forward
-                        result = await this.moveAtAngle({
-                            angle: forwardAngle,
-                            distance: cakeBuildDistance+50,
-                            speed:      parameters.speed||this.app.goals.defaultSpeed,
-                            nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
-                        });
-                        if(!result) return result;
-                        
-                        // Pack the cake
-                        await this.setArmToLayer({name:currArm+"G", layer:0, open:false, transport: false, duration:250});
-                        await utils.sleep(250);
-                        await this.setArmToLayer({name:currArm+"G", layer:0, open:true, transport: false});
-                        
-                        // Move Forward
-                        let extendedForwardDistance = 50;
-                        result = await this.moveAtAngle({
-                            angle: forwardAngle,
-                            distance: extendedForwardDistance,
-                            speed:      parameters.speed||this.app.goals.defaultSpeed,
-                            nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
-                        });
-                        if(!result) return result;
-                        
-                        // Double close the arm to grab cake
-                        await this.setArmToLayer({name:currArm+"G", layer:0, open:false, transport: false, duration:200});
-                        await utils.sleep(200);
-                        await this.setArmToLayer({name:currArm+"G", layer:0, open:true, transport: false});
-                        await utils.sleep(100);
-                        await this.setArmToLayer({name:currArm+"G", layer:0, open:false, transport: true});
-                        await utils.sleep(100);
-                        
-                        // Move cake to cherry (if has cherry)
-                        if(this.variables["cherry"+currArm].value>0){
-                            await this.setArmToLayer({name:currArm+"G", layer:this.cherryLayer+(3-cakes[cakeIdx].length), open:false, transport: false});
+                        let finished = true;
+                        for(let c of cakes){
+                            if(c!="") finished = false;
                         }
-                        this.variables["arm"+currArm].value = cakes[cakeIdx];
-                        cakes[cakeIdx] = "";
-                        console.log("--> ",  this.variables["arm"+currArm].value, cakes[cakeIdx], this.variables["arm"+currArm].value)
-                        // Move backward
-                        result = await this.moveAtAngle({
-                            angle: forwardAngle,
-                            distance: -(cakeBuildDistance+50+extendedForwardDistance),
-                            speed:      parameters.speed||this.app.goals.defaultSpeed,
+                        if(finished) break;
+                    }
+                    // Rotate 120° (unsledd it's the first iteration)
+                    if(cycle!=0 || index!=0){
+                        targetAngle -= 120;
+                        console.log("Rotation to", targetAngle)
+                        result = await this.rotateToAngle({
+                            angle:targetAngle,
+                            speed:      rotationSpeed,//parameters.speed||this.app.goals.defaultSpeed,
                             nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
                             nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
                         });
-                        if(!result) return result;
                     }
-                    
-                    //Move arm up before rotation
-                    /*if(!armMovedUp){
-                        await this.setArmToLayer({name:currArm+"G", layer:getMaxLayer(cakes)+0.5, open:false, transport: true});
-                        if(armIdx == 2) await utils.sleep(500); // last arm to move so rotation needs to be delayed a bit
-                    }*/
-                    
-                    console.log("Finished with arm", armIdx, this.variables, cakes);
+                    // For each arm
+                    for(let armIdx=0;armIdx<3;armIdx++){
+                        if(this.modules.arm) await this.modules.arm.setLed({ brightness: 100, color: 100*armIdx});
+                        // Resolve target color on the associated cake
+                        let currArm = armList[armIdx];
+                        let cakeIdx = (armIdx + index)%3;
+                        let targetColor = cakeOrder[cakes[cakeIdx].length];
+                        let forwardAngle = this.angle - armIdx * 120;
+                        let armMovedUp = false;
+                        // If arm has target color, and is not holding an already-built cake
+                        if( this.variables["arm"+currArm].value.startsWith(targetColor) && ! this.variables["arm"+currArm].value.startsWith("BYP")){
+                            // Make sure arm it at target height
+                            let targetLayer = armDepositLayer[currArm]+armClearanceLayerOffset;
+                            await this.setArmToLayer({name:currArm+"G", layer:targetLayer, open:false, transport: false});
+                            //let layerHeight = this.layerToHeight({layer: targetLayer, transport: false})
+                            //if(this.modules.arm) await this.modules.arm.waitServo({ name: currArm+"L", position: layerHeight, precision: 5, timeout: 2000});
+                            
+                            //Move Forward
+                            result = await this.moveAtAngle({
+                                angle: forwardAngle,
+                                distance: cakeBuildDistance,
+                                speed:      moveSpeed,//parameters.speed||this.app.goals.defaultSpeed,
+                                nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
+                                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                            });
+                            if(!result) return result;
+                            
+                            // Deposit cake layer
+                            await this.setArmToLayer({name:currArm+"G", layer:armDepositLayer[currArm], open:false, transport: true, wait: true});
+                            //await utils.sleep(200);
+                            // Open and lift to next layer
+                            await this.setArmToLayer({name:currArm+"G", layer:armDepositLayer[currArm]+1, open:true, transport: false, wait: true});
+                            //await utils.sleep(750);
+                            // Grab next layer and move to clearance
+                            await this.setArmToLayer({name:currArm+"G", layer:armDepositLayer[currArm]+1+armClearanceLayerOffset, open:false, transport: false});
+                            
+                            // Update cake and arm content
+                            cakes[cakeIdx] += targetColor;
+                            this.variables["arm"+currArm].value =  this.variables["arm"+currArm].value.substring(1);
+                            //// Move to next layer
+                            //await this.setArmToLayer({name:currArm+"G", layer:getMaxLayer(cakes)+0.5, open:false, transport: true});
+                            //armMovedUp = true;
+                            
+                            // Move backward
+                            result = await this.moveAtAngle({
+                                angle: forwardAngle,
+                                distance: -cakeBuildDistance,
+                                speed:      moveSpeed,//parameters.speed||this.app.goals.defaultSpeed,
+                                nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
+                                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                            });
+                        }
+                            
+                        // Grab completed cake
+                        if( this.variables["arm"+currArm].value == "" 
+                         && (   cakes[cakeIdx].length==3 
+                                || (cakes[cakeIdx].length==2 && !this.variables["armAC"].value.startsWith("P") && !this.variables["armAB"].value.startsWith("P") && !this.variables["armBC"].value.startsWith("P") )
+                                || (cakes[cakeIdx].length==1 && !this.variables["armAC"].value.startsWith("Y") && !this.variables["armAB"].value.startsWith("Y") && !this.variables["armBC"].value.startsWith("Y") )
+                            )
+                        )
+                        {
+                            // Grab finished cake
+                            await this.setArmToLayer({name:currArm+"G", layer:0, open:true, transport: false});
+                            if(this.modules.arm) await this.modules.arm.waitServo({ name: currArm+"L", position: this.layerToHeight({layer:0, transport: false}), precision: 5, timeout: 2000});
+                            
+                            // Move Forward
+                            result = await this.moveAtAngle({
+                                angle: forwardAngle,
+                                distance: cakeBuildDistance+50,
+                                speed:      moveSpeed,//parameters.speed||this.app.goals.defaultSpeed,
+                                nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
+                                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                            });
+                            if(!result) return result;
+                            
+                            // Pack the cake
+                            await this.setArmToLayer({name:currArm+"G", layer:0, open:false, transport: false, duration:250});
+                            await utils.sleep(250);
+                            await this.setArmToLayer({name:currArm+"G", layer:0, open:true, transport: false});
+                            
+                            // Move Forward
+                            let extendedForwardDistance = 100;
+                            result = await this.moveAtAngle({
+                                angle: forwardAngle,
+                                distance: extendedForwardDistance,
+                                speed:      moveSpeed,//parameters.speed||this.app.goals.defaultSpeed,
+                                nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
+                                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                            });
+                            if(!result) return result;
+                            
+                            // Double close the arm to grab cake
+                            await this.setArmToLayer({name:currArm+"G", layer:0, open:false, transport: false, duration:200});
+                            await utils.sleep(200);
+                            await this.setArmToLayer({name:currArm+"G", layer:0, open:true, transport: false});
+                            await utils.sleep(50);
+                            await this.setArmToLayer({name:currArm+"G", layer:0, open:false, transport: true});
+                            await utils.sleep(50);
+                            
+                            // Move cake to cherry (if has cherry)
+                            if(this.variables["cherry"+currArm].value>0){
+                                await this.setArmToLayer({name:currArm+"G", layer:this.cherryLayer+(3-cakes[cakeIdx].length), open:false, transport: false});
+                            }
+                            this.variables["arm"+currArm].value = cakes[cakeIdx];
+                            cakes[cakeIdx] = "";
+                            console.log("--> ",  this.variables["arm"+currArm].value, cakes[cakeIdx], this.variables["arm"+currArm].value)
+                            // Move backward
+                            result = await this.moveAtAngle({
+                                angle: forwardAngle,
+                                distance: -(cakeBuildDistance+50+extendedForwardDistance),
+                                speed:      moveSpeed,//parameters.speed||this.app.goals.defaultSpeed,
+                                nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
+                                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                            });
+                            if(!result) return result;
+                        }
+                        
+                        //Move arm up before rotation
+                        /*if(!armMovedUp){
+                            await this.setArmToLayer({name:currArm+"G", layer:getMaxLayer(cakes)+0.5, open:false, transport: true});
+                            if(armIdx == 2) await utils.sleep(500); // last arm to move so rotation needs to be delayed a bit
+                        }*/
+                        
+                        console.log("Finished with arm", armIdx, this.variables, cakes);
+                    }
                 }
             }
         }
         
-        // Do not deposit during tests for now
-        if(parameters.doNotMoveToSite){
-            return result;
+        // Lift arms to cheries
+        for(let currArm of armList){
+            let armVar = this.variables["arm"+currArm];
+            let cherryVar = this.variables["cherry"+currArm];
+            if(armVar.value != "" && cherryVar.value>0 && !armVar.value.endsWith("C")){
+                let targetCherryLayer = this.cherryLayer+(3-armVar.value.length)
+                await this.setArmToLayer({name:currArm+"G", layer:targetCherryLayer, open:false, transport: false});
+            }
         }
         
+        let hasRearCakes = this.variables["armAB"].value!="" || this.variables["armBC"].value!="";
+        targetAngle = targetAccess.angle;
+        if(hasRearCakes) targetAngle = targetAccess.angle - 180;
+        
+        // Move to plate
+        this.app.logger.log("  -> Moving to plate "+targetPlate.name);
+        if(!parameters.doNotMoveToSite){
+            result = await this.moveToPosition({
+                x:          targetAccess.x,
+                y:          targetAccess.y,
+                angle:      targetAngle,
+                speed:      parameters.speed||this.app.goals.defaultSpeed,
+                nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
+                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+            });
+            if(!result) return result;
+        }
+        else {
+            // Only fix orientation
+            result = await this.rotateToAngle({
+                angle:targetAngle,
+                speed:      rotationSpeed,//parameters.speed||this.app.goals.defaultSpeed,
+                nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
+                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+            });
+            if(!result) return result;
+            
+        }
+        //await utils.sleep(1500); // Make sure arms are lifted high enough
         
         // Release cherries
         for(let currArm of armList){
             let armVar = this.variables["arm"+currArm];
             let cherryVar = this.variables["cherry"+currArm];
-            await this.setArmToLayer({name:currArm+"G", layer:0, open:false, transport: true});
-            if(armVar.value != "" && cherryVar.value>0){
-                // Lower arm while releasing cherry
+            if(armVar.value != "" && cherryVar.value>0 && !armVar.value.endsWith("C")){
+                // Release cherry
+                let targetCherryLayer = this.cherryLayer+(3-armVar.value.length)
+                await this.setArmToLayer({name:currArm+"G", layer:targetCherryLayer, open:false, transport: false, wait: true});
                 await this.distributeCherry({name:currArm+"D", index:1});
                 this.variables["arm"+currArm].value += "C";
                 this.variables["cherry"+currArm].value -= 1;
             }
         }
-        this.app.logger.log("Cherry on Cake");
+        this.app.logger.log("Cherries on Cake");
         
-        // Move back to plate at opposite angle
-        result = await this.moveToPosition({
-            x:          targetAccess.x,
-            y:          targetAccess.y,
-            angle:      targetAccess.angle+180,
-            speed:      parameters.speed||this.app.goals.defaultSpeed,
-            nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
-        });
-        if(!result) return result;
-        
-        // Release 2 back cackes
-        // Move backward
-        result = await this.moveAtAngle({
-            angle: targetAccess.angle,
-            distance: 300,
-            speed:      parameters.speed||this.app.goals.defaultSpeed,
-            nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
-        });
-        if(!result) return result;
-        // Open Arms in specific way
-        if(this.modules.arm) await this.modules.arm.setServo({ name: "ABB", angle: 200});
-        if(this.modules.arm) await this.modules.arm.setServo({ name: "ABA", angle: 200});
-        if(this.modules.arm) await this.modules.arm.setServo({ name: "BCB", angle: 200});
-        if(this.modules.arm) await this.modules.arm.setServo({ name: "BCC", angle: 200});
-        this.addCakePoints({cake:this.variables["armAB"].value});
-        this.addCakePoints({cake:this.variables["armBC"].value});
-        this.variables["armAB"].value = "";
-        this.variables["armBC"].value = "";
-        targetPlate.cakes = true;
-        // Wiggle left
-        result = await this.moveAtAngle({
-            angle: targetAccess.angle+90,
-            distance: 50,
-            speed:      parameters.speed||this.app.goals.defaultSpeed,
-            nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
-        });
-        if(!result) return result;
-        // Wiggle right
-        result = await this.moveAtAngle({
-            angle: targetAccess.angle-90,
-            distance: 100,
-            speed:      parameters.speed||this.app.goals.defaultSpeed,
-            nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
-        });
-        if(!result) return result;
-        // Move back to plate at opposite angle
-        result = await this.moveToPosition({
-            x:          targetAccess.x,
-            y:          targetAccess.y,
-            angle:      targetAccess.angle+180,
-            speed:      parameters.speed||this.app.goals.defaultSpeed,
-            nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
-        });
-        if(!result) return result;
-        // Release front cake
-        // Rotate to face plate
-        result = await this.moveToPosition({
-            x:          targetAccess.x,
-            y:          targetAccess.y,
-            angle:      targetAccess.angle,
-            speed:      parameters.speed||this.app.goals.defaultSpeed,
-            nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
-        });
-        await this.setArmGrabOpen({name: "ACG"});
+        if(hasRearCakes){
+            // Move back to plate at opposite angle
+            /*result = await this.moveToPosition({
+                x:          targetAccess.x,
+                y:          targetAccess.y,
+                angle:      targetAccess.angle+180,
+                speed:      parameters.speed||this.app.goals.defaultSpeed,
+                nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
+                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+            });
+            if(!result) return result;*/
+            
+            await this.setArmToLayer({name:"ABG", layer:0, open:false, transport: true});
+            await this.setArmToLayer({name:"BCG", layer:0, open:false, transport: true});
+            
+            // Release 2 back cackes
+            // Move backward
+            result = await this.moveAtAngle({
+                angle: targetAccess.angle,
+                distance: 300,
+                speed:      parameters.speed||this.app.goals.defaultSpeed,
+                nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
+                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+            });
+            if(!result) return result;
+            // Lower arms
+            await this.setArmToLayer({name:"BCG", layer:0, open:false, transport: true, wait:true});
+            await this.setArmToLayer({name:"ABG", layer:0, open:false, transport: true, wait:true});
+            //await utils.sleep(2200); // Make sure arms are lifted high enough
+            
+            // Open Arms in specific way
+            if(this.modules.arm) await this.modules.arm.setServo({ name: "ABB", angle: 200});
+            if(this.modules.arm) await this.modules.arm.setServo({ name: "ABA", angle: 200});
+            if(this.modules.arm) await this.modules.arm.setServo({ name: "BCB", angle: 200});
+            if(this.modules.arm) await this.modules.arm.setServo({ name: "BCC", angle: 200});
+            this.addCakePoints({cake:this.variables["armAB"].value});
+            this.addCakePoints({cake:this.variables["armBC"].value});
+            this.variables["armAB"].value = "";
+            this.variables["armBC"].value = "";
+            targetPlate.cakes = true;
+            // Wiggle left
+            result = await this.moveAtAngle({
+                angle: targetAccess.angle+90,
+                distance: 25,
+                speed:      moveSpeed,//parameters.speed||this.app.goals.defaultSpeed,
+                nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
+                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+            });
+            if(!result) return result;
+            // Wiggle right
+            result = await this.moveAtAngle({
+                angle: targetAccess.angle-90,
+                distance: 50,
+                speed:      moveSpeed,//parameters.speed||this.app.goals.defaultSpeed,
+                nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
+                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+            });
+            if(!result) return result;
+            // Move back to plate at opposite angle
+            if(!parameters.doNotMoveToSite){
+                result = await this.moveToPosition({
+                    x:          targetAccess.x,
+                    y:          targetAccess.y,
+                    angle:      targetAccess.angle+180,
+                    speed:      moveSpeed,//parameters.speed||this.app.goals.defaultSpeed,
+                    nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
+                    nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                });
+                if(!result) return result;
+                // Release front cake
+                // Rotate to face plate
+                result = await this.moveToPosition({
+                    x:          targetAccess.x,
+                    y:          targetAccess.y,
+                    angle:      targetAccess.angle,
+                    speed:      parameters.speed||this.app.goals.defaultSpeed,
+                    nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
+                    nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                });
+            }
+            else {
+                // move backward (approx actual move)
+                result = await this.moveAtAngle({
+                    angle: targetAccess.angle+180,
+                    distance: 300,
+                    speed:      parameters.speed||this.app.goals.defaultSpeed,
+                    nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
+                    nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                });
+                if(!result) return result;
+                result = await this.rotateToAngle({
+                    angle:      targetAccess.angle,
+                    speed:      parameters.speed||this.app.goals.defaultSpeed,
+                    nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
+                    nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                });
+                if(!result) return result;
+            }
+        }
         this.addCakePoints({cake:this.variables["armAC"].value});
         this.variables["armAC"].value = "";
+        
+        // Lower arm
+        await this.setArmToLayer({name:"ACG", layer:0, open:false, transport: true});
+        //await utils.sleep(2200); // Make sure arms are lifted high enough
+        
         // Move forward
         result = await this.moveAtAngle({
             angle: targetAccess.angle,
-            distance: 100,
-            speed:      parameters.speed||this.app.goals.defaultSpeed,
+            distance: 250,
+            speed:      moveSpeed,//parameters.speed||this.app.goals.defaultSpeed,
             nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
             nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
         });
         if(!result) return result;
+        await this.setArmToLayer({name:"ACG", layer:0, open:false, transport: true, wait: true});
+        await this.setArmGrabOpen({name: "ACG", duration: 500});
         // Return to access position to clear the cake
-        result = await this.moveToPosition({
-            x:          targetAccess.x,
-            y:          targetAccess.y,
-            angle:      targetAccess.angle,
+        result = await this.moveAtAngle({
+            angle: targetAccess.angle+180,
+            distance: 200,
             speed:      parameters.speed||this.app.goals.defaultSpeed,
             nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
             nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
         });
-        
+        /*if(!parameters.doNotMoveToSite){
+            result = await this.moveToPosition({
+                x:          targetAccess.x,
+                y:          targetAccess.y,
+                angle:      targetAccess.angle,
+                speed:      parameters.speed||this.app.goals.defaultSpeed,
+                nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
+                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+            });
+        }*/
         //Close arms
         this.setArmsPacked({});
         
