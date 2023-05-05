@@ -84,8 +84,8 @@
                             <button class="btn btn-success mx-1" v-if="!intelligence.running && !intelligence.hasBeenRun" v-on:click="runMatch()" v-bind:disabled="communication.client.connected === false">Run Match</button>                            
                             <button class="btn btn-danger mx-1" v-if="intelligence.running" v-on:click="stopMatch()" v-bind:disabled="communication.client.connected === false">Stop Match</button>                            
                         </div>
-                        <div v-if="intelligence.currentTime>0 || communication.client.connected === false">
-                            <span v-if="intelligence.currentTime>0" class="text-primary mx-2 font-weight-bold">{{intelligence.currentTime}}s</span>
+                        <div>
+                            <span v-if="communication.client.connected === true" class="d-block text-primary mx-2 font-weight-bold" style="width:75px">{{intelligence.currentTime}}s</span>
                             <span v-if="communication.client.connected === false" class="text-danger mx-2 font-weight-bold">Not connected</span>
                         </div>
                     </div>
@@ -96,24 +96,24 @@
                         <div class="card p-1">y:{{robot.y}}</div>
                         <div class="card p-1">angle:{{robot.angle}}</div>
                     </div>
-                    <div class="d-flex flex-wrap mt-1" style="justify-content: space-evenly;">
+                    <!--<div class="d-flex flex-wrap mt-1" style="justify-content: space-evenly;">
                         <div class="card p-1">speed:{{robot.speed}}</div>
                         <div class="card p-1">angleSpeed:{{robot.angleSpeed}}</div>
                         <div class="card p-1">slowdown:{{robot.slowdown}}</div>
-                    </div>
+                    </div>-->
 
-                    <div class="d-flex flex-wrap" style="font-size:0.8em;justify-content: space-evenly;">
+                    <!--<div class="d-flex flex-wrap" style="font-size:0.8em;justify-content: space-evenly;">
                         <div class="card p-2 text-center" v-for="(variable, name, index) in robot.variables" style="min-width: 5em;">
                             <span>{{name}}</span>
                             <span v-if="variable.max==undefined">{{variable.value}}</span>
                             <span v-if="variable.max!=undefined">{{variable.value}}/{{variable.max}}</span>
                         </div>
-                    </div>
+                    </div>-->
                     
                     
 
                     <!--Console-->
-                    <div id="logConsole" class="row justify-content-center mt-2 flex-grow-1 overflow-auto">
+                    <div id="logConsole" class="row justify-content-center mt-2 flex-grow-1 overflow-auto" style="max-height:236px">
                         <div class="col w-100 bg-dark p-2 m-0" style="font-family: monospace;line-height: 1;">
                             <span v-for="log in logs" class="d-block text-white text-break">
                                 {{log}}

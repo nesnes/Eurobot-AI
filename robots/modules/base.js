@@ -1,6 +1,8 @@
 'use strict';
 const utils = require("../../utils")
 
+delete require.cache[require.resolve('./robotLink')]; //Delete require() cache
+const Robotlink = require('./robotLink');
 
 module.exports = class Base {
     constructor(app) {
@@ -8,9 +10,20 @@ module.exports = class Base {
         this.address = 7;
         this.xySupported = null;
         this.pathSupported = null;
+        this.link = new Robotlink(app, "MovingBaseTDS");
     }
     
     async init(){
+        await this.link.init().catch((e)=>{
+            this.link.close();
+            this.link = null;
+        })
+        if(this.link && this.link.connected){
+            this.app.logger.log("Base link OK");
+        }
+        else{
+            this.app.logger.log("==> ERROR: Base link not connected");
+        }
         //this.send();
     }
 
@@ -29,7 +42,7 @@ module.exports = class Base {
                     x:{ legend:"x (mm)", type:"number", min:0, max:3000, value:1500 },
                     y:{ legend:"y (mm)", type:"number", min:0, max:2000, value:1000 },
                     angle:{ legend:"angle (°)", type:"number", min:-180, max:180, value:0 },
-                    speed:{ legend:"speed (m/s)", type:"range", min: 0, max: 1.5, value:0.5, step:0.1 },
+                    speed:{ legend:"speed (m/s)", type:"range", min: 0, max: 2.5, value:0.5, step:0.1 },
                     nearDist:{ legend:"near distance (mm)", type:"number", min: 0, max: 1000, value:0 },
                     nearAngle:{ legend:"near angle (°)", type:"number", min:0, max:180, value:0 }
                 },
@@ -51,24 +64,24 @@ module.exports = class Base {
     }
 
     async enableMove(){
-        if(this.app.robot.modules.robotLink)
-            return await this.app.robot.modules.robotLink.sendMessage(this.address, "move enable");
+        if(this.link)
+            return await this.link.sendMessage(this.address, "move enable");
     }
 
     async disableMove(){
-        if(this.app.robot.modules.robotLink)
-            return await this.app.robot.modules.robotLink.sendMessage(this.address, "move disable");
+        if(this.link)
+            return await this.link.sendMessage(this.address, "move disable");
     }
 
     async setPosition(params){
         let msg = "pos set "+Math.round(params.x)+" "+Math.round(params.y)+" "+Math.round(params.angle);
-        if(this.app.robot.modules.robotLink)
-            return await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
+        if(this.link)
+            return await this.link.sendMessage(this.address, msg);
     }
 
     async getStatus(){
-        if(this.app.robot.modules.robotLink){
-            let response = await this.app.robot.modules.robotLink.sendMessage(this.address, "status get");
+        if(this.link){
+            let response = await this.link.sendMessage(this.address, "status get");
             if(!response) return false;
             let posArray = response.split(" ");
             if(posArray.length == 6 && ["run","near","end"].includes(posArray[0])){
@@ -88,35 +101,35 @@ module.exports = class Base {
             +" "+Math.round(parseFloat(""+params.speed)*10)
             +" "+Math.round(nearDist)
             +" "+Math.round(nearAngle);
-        if(this.app.robot.modules.robotLink)
-            return await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
+        if(this.link)
+            return await this.link.sendMessage(this.address, msg);
     }
 
     async getMoveStatus(){
-        if(this.app.robot.modules.robotLink)
-            return await this.app.robot.modules.robotLink.sendMessage(this.address, "move status");
+        if(this.link)
+            return await this.link.sendMessage(this.address, "move status");
     }
 
     async getSpeed(){
-        if(this.app.robot.modules.robotLink)
-            return await this.app.robot.modules.robotLink.sendMessage(this.address, "speed get");
+        if(this.link)
+            return await this.link.sendMessage(this.address, "speed get");
     }
 
     async break(){
-        if(this.app.robot.modules.robotLink)
-            return await this.app.robot.modules.robotLink.sendMessage(this.address, "move break");
+        if(this.linkk)
+            return await this.link.sendMessage(this.address, "move break");
     }
 
     async touchBorder(params){
         let msg = "move RM "+Math.round(params.distance)+" "+Math.round(parseFloat(""+params.speed)*10);
-        if(this.app.robot.modules.robotLink)
-            return await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
+        if(this.link)
+            return await this.link.sendMessage(this.address, msg);
     }
 
     async supportXY(){
         if(this.xySupported !== null) return this.xySupported;
-        if(this.app.robot.modules.robotLink){
-            var support = await this.app.robot.modules.robotLink.sendMessage(this.address, "support XY");
+        if(this.link){
+            var support = await this.link.sendMessage(this.address, "support XY");
             if(support.includes("1")) result = true;
             this.xySupported = result;
         }
@@ -127,8 +140,8 @@ module.exports = class Base {
         return false;
         let result = false;
         if(this.pathSupported !== null) return this.pathSupported;
-        if(this.app.robot.modules.robotLink){
-            var support = await this.app.robot.modules.robotLink.sendMessage(this.address, "support Path");
+        if(this.link){
+            var support = await this.link.sendMessage(this.address, "support Path");
             if(support.includes("1")) result = true;
             this.pathSupported = result;
         }
@@ -150,8 +163,8 @@ module.exports = class Base {
             +" "+Math.round(parseFloat(""+point.speed)*10)
             //+" "+Math.round(point.nearDist||0)
             //+" "+Math.round(point.nearAngle||0); // need to be implemented in base firmware for paths
-            if(this.app.robot.modules.robotLink){
-                result = await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
+            if(this.link){
+                result = await this.link.sendMessage(this.address, msg);
                 console.log(msg, result)
             }
         }
@@ -159,23 +172,24 @@ module.exports = class Base {
     }
 
     async enableManual(){
-        if(this.app.robot.modules.robotLink)
-            return await this.app.robot.modules.robotLink.sendMessage(this.address, "manual enable");
+        if(this.link)
+            return await this.link.sendMessage(this.address, "manual enable");
     }
 
     async disableManual(){
-        if(this.app.robot.modules.robotLink)
-            return await this.app.robot.modules.robotLink.sendMessage(this.address, "manual disable");
+        if(this.link)
+            return await this.link.sendMessage(this.address, "manual disable");
     }
 
     async moveManual(params){
         let msg = "manual set "+Math.floor(params.moveAngle)+" "+Math.floor(parseFloat(""+params.moveSpeed)*10)+" "+Math.floor(params.angleSpeed);
-        if(this.app.robot.modules.robotLink)
-            return await this.app.robot.modules.robotLink.sendMessage(this.address, msg);
+        if(this.link)
+            return await this.link.sendMessage(this.address, msg);
     }
 
 
     async close(){
         await this.break()
+        if(this.link) await this.link.close()
     }
 }

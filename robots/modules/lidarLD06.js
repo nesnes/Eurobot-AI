@@ -12,14 +12,15 @@ module.exports = class LidarLD06 {
         this.serial = null;
         this.packet = null;
         this.borderMargin = 100;
-        this.minDistance = 150;
+        this.minDistance = 140;
         this.maxDistance = 3200;
+        this.minConfidence = 200; // Actually remove some spotlight interferences
         this.rawMeasures = [];
         this.measures = [];
         this.angleOffset = 0;
         this.lastSendTime = 0;
-        this.rejectedAngles = [{from:47, to:73}, {from:167, to:193}, {from:287, to:313}]
-        if(process.platform=="linux") this.port = "/dev/lidar"; //Raspberry/Linux
+        this.rejectedAngles = [{from:356, to:360},{from:0, to:4},  {from:116, to:124},  {from:236, to:244}];//[{from:47, to:73}, {from:167, to:193}, {from:287, to:313}]
+        if(process.platform=="linux") this.port = "/dev/ttyUSB0";//"/dev/lidar"; //Raspberry/Linux
         if(process.platform=="darwin") this.port = "/dev/cu.usbserial-A9QG4MTI"; //Mac
         //if(process.platform=="darwin") this.port = "/dev/cu.usbserial-001K39BS"; //Mac
         if(process.platform=="win32") this.port = "COM5"; //Windows
@@ -89,6 +90,7 @@ module.exports = class LidarLD06 {
             let remove = false;
             if(this.rawMeasures[i].d>this.maxDistance) remove = true;
             if(this.rawMeasures[i].d<this.minDistance) remove = true;
+            if(this.rawMeasures[i].c<this.minConfidence) remove = true;
             if(!remove){
                 let rayAngle = this.rawMeasures[i].a + angle;
                 let x = this.rawMeasures[i].d;

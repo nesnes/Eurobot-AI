@@ -5,7 +5,7 @@ const Goals = require('./goals');
 module.exports = class GoalsTest extends Goals{
     constructor(app) {
         super(app);
-        this.defaultSpeed=0.5; //m/s 0.6
+        this.defaultSpeed=0.4; //m/s 0.6
         this.moveSpeed = 0.4; //m/s 0.5
         this.defaultNearDist=50;//50mm
         this.defaultNearAngle=10;//10°
@@ -19,7 +19,7 @@ module.exports = class GoalsTest extends Goals{
                     name: "Wait for start",
                     method: "waitForStart"
                 },
-                { name: "Score secondaire", method: "addScore", parameters:{ score: 42 } },
+                { name: "Score sortie zone", method: "addScore", parameters:{ score: 1 } },
             ]
         };
         
@@ -63,6 +63,87 @@ module.exports = class GoalsTest extends Goals{
             };
         }
         
+        let simpleGrabCake = (element=null, iterations=0)=>{
+            return {
+                name: "Simple grab cake",
+                condition: ()=>{
+                    let hasArmFree = this.app.robot.variables.armAC.value == "" || this.app.robot.variables.armAB.value == "" || this.app.robot.variables.armBC.value == "";
+                    let hasTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-15*1000;
+                    let endReached = this.app.robot.variables.endReached.value;
+                    return hasArmFree && hasTimeLeft && !endReached;
+                },                
+                executionCount: iterations,
+                actions: [
+                    {
+                        name: "Grab cake",
+                        method: "grabCake",
+                        parameters:{ component: element, speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
+                    }
+                ]
+            };
+        }
+        
+        let depositeCake = (plateTypes)=>{
+            return {
+                name: "Deposit cake",
+                condition: ()=>{
+                    let hasCakes = this.app.robot.variables.armAC.value != "" || this.app.robot.variables.armAB.value != "" || this.app.robot.variables.armBC.value != "";
+                    let hasAllCakes = this.app.robot.variables.armAC.value != "" && this.app.robot.variables.armAB.value != "" && this.app.robot.variables.armBC.value != "";
+                    let hasMuchTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-20*1000;
+                    let hasSomeTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-10*1000;
+                    let endReached = this.app.robot.variables.endReached.value;
+                    
+                    let canDepositAndBuild = hasAllCakes && hasMuchTimeLeft;
+                    let canDepositRandom = hasCakes && !hasMuchTimeLeft && hasSomeTimeLeft;
+                    return !endReached && (canDepositAndBuild || canDepositRandom);
+                },                
+                executionCount: 0,
+                actions: [
+                    {
+                        name: "Deposit cake",
+                        method: "depositCake",
+                        parameters:{ platesTypes: plateTypes, speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
+                    }
+                ]
+            };
+        }
+        
+        let depositeCakeSimple = (plateTypes)=>{
+            return {
+                name: "Deposit cake",
+                condition: ()=>{
+                    let hasCakes = this.app.robot.variables.armAC.value != "" || this.app.robot.variables.armAB.value != "" || this.app.robot.variables.armBC.value != "";
+                    let hasSomeTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-10*1000;
+                    let endReached = this.app.robot.variables.endReached.value;
+                    return !endReached && hasCakes && hasSomeTimeLeft;
+                },                
+                executionCount: 0,
+                actions: [
+                    {
+                        name: "Deposit cake",
+                        method: "depositCakeSimple",
+                        parameters:{ platesTypes: plateTypes, speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
+                    }
+                ]
+            };
+        }
+        
+        let moveToEndZone = {
+            name: "Move to End",
+            condition: ()=>{
+                let isEnd = (this.app.intelligence.currentTime >= this.app.intelligence.matchDuration-20*1000);//9
+                let endReached = this.app.robot.variables.endReached.value;
+                return isEnd && !endReached;
+            },                
+            executionCount: 1,
+            actions: [
+                { name: "Return to end zone", method: "returnToEndZone", parameters:{ } },
+                // Store End reached
+                { name: "Score end zone", method: "addScore", parameters:{ score: 15 } },
+                { name: "Store in variable", method: "setVariable", parameters:{ name:"endReached", value:1 } },
+            ]
+        };
+        
         
         
         let moveTest = {
@@ -88,7 +169,17 @@ module.exports = class GoalsTest extends Goals{
 
         this.list = [
             waitForStart,
-            moveTest
+            simpleGrabCake(null, 1),
+            simpleGrabCake(null, 1),
+            simpleGrabCake(null, 1),
+            //depositeCake("plateProtected", 1),
+            depositeCake(),
+            //depositeCakeSimple("plateProtected", 1),
+            depositeCakeSimple(),
+            depositeCakeSimple(),
+            moveToEndZone
+            
+            //moveTest
         ]
     }
 }

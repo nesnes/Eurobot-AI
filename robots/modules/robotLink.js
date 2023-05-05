@@ -4,8 +4,9 @@ const SerialPort = require('serialport')
 const util = require('util');
 
 module.exports = class Robotlink {
-    constructor(app) {
+    constructor(app, id="") {
         this.app = app;
+        this.id = id;
         this.port = "";
         this.baudrate = 115200;
         this.connected = false;
@@ -13,24 +14,47 @@ module.exports = class Robotlink {
         this.buffer = "";
         this.inputMessages = [];
         this.useAddressing = false;
-        if(process.platform=="linux") this.port = "/dev/robot"; //Raspberry/Linux
-        if(process.platform=="darwin") this.port = "/dev/cu.usbmodem80144101"; //Mac
-        if(process.platform=="win32") this.port = ""; //Windows
+        if(process.platform=="linux") this.portList = ["/dev/ttyACM0","/dev/ttyACM1"/*,"/dev/ttyAMA0","/dev/ttyAMA1"*/]; //Raspberry/Linux
+        if(process.platform=="darwin") this.portList = ["/dev/cu.usbmodem80144101"]; //Mac
+        if(process.platform=="win32") this.portList = [""]; //Windows
     }
     
     async init(){
         //this.serial = new SerialPort('COM9', { baudRate: this.baudrate, autoOpen: false });
-        this.serial = new SerialPort(this.port, { baudRate: this.baudrate, autoOpen: false });
-        //Connection loop
-        let tries = 0;
-        while(tries++<5){
-            this.serial.open((e)=>{console.log('link OK')});
-            await utils.sleep(500);
-            if(this.serial.isOpen) break;
+        console.log("Robotlink is searching for", this.id);
+        // Try to connect to each port, checking for ID
+        for(let path of this.portList)
+        {
+            //console.log("Checcking", path);
+            if(this.serial && this.serial.isOpen) this.serial.close()
+            if(this.serial) this.serial.destroy()
+            this.port = path;
+            this.serial = new SerialPort(this.port, { baudRate: this.baudrate, autoOpen: false });
+            //Connection loop
+            let tries = 0;
+            while(tries++<5){
+                this.serial.open((e)=>{});
+                await utils.sleep(100);
+                if(this.serial.isOpen) break;
+            }
+            if(this.serial.isOpen) {
+                this.serial.on('data', (data)=>{
+                    for(let d of data)  this.onData(d);
+                })
+                if(this.id != ""){
+                    let answer = await this.sendMessage(0, "id", 1);
+                    console.log("answer from", this.port, ":", answer);
+                    if(answer === this.id){
+                        console.log("Link", this.id, "connected to", this.port)
+                        this.connected = true;
+                        break;
+                    }
+                }
+                else{
+                    this.connected = true;
+                }
+            }
         }
-        this.serial.on('data', (data)=>{
-            for(let d of data)  this.onData(d);
-        })
     }
 
     /*getDescription(){
@@ -41,7 +65,7 @@ module.exports = class Robotlink {
     }*/
 
     async close(){
-        //console.log("close robotlink")
+        console.log("close robotlink", this.id);
         if(this.serial && this.serial.isOpen) this.serial.close()
         if(this.serial) this.serial.destroy()
         let timeout = 10*1000;
@@ -53,6 +77,8 @@ module.exports = class Robotlink {
                 timeout-=sleep;
             }
         }
+        this.serial = null;
+        this.connected = false;
     }
 
     async sendMessage(address, message, timeout=1){
@@ -61,7 +87,7 @@ module.exports = class Robotlink {
         let msgOut = "";
         if(this.useAddressing) msgOut += "s "+address+" ";
         msgOut += message+"\r\n";
-        console.log(msgOut)
+        //console.log(msgOut)
         this.serial.write(msgOut);
         //Wait for answer
         let sleep = 0.005;

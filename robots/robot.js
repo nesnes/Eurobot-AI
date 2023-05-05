@@ -34,14 +34,14 @@ module.exports = class Robot {
         //this.color = "";
         this.radius = 0; // mm
         this.modules = {
-            robotLink: null,
+            //robotLink: null,
             lidar: null,
             base: null
         };
         
         let robotConnected = true;
         if(!this.app.parameters.simulate){
-            this.modules.robotLink = new Robotlink(app);
+            //this.modules.robotLink = new Robotlink(app);
             this.modules.base = new Base(app);
             this.modules.controlPanel = new ControlPanel(app);
         }
@@ -79,12 +79,12 @@ module.exports = class Robot {
             })
         }
         
-        if(this.modules.robotLink){
+        /*if(this.modules.robotLink){
             await this.modules.robotLink.init().catch((e)=>{
                 this.app.logger.log("==> RobotLink not connected",e);
                 this.modules.robotLink = null;
             })
-        }
+        }*/
         if(this.modules.base){
             await this.modules.base.init().catch((e)=>{
                 this.modules.base = null;
@@ -100,7 +100,7 @@ module.exports = class Robot {
                 this.modules.lidarLocalisation = null;
             })
         }
-        if(!this.modules.robotLink) this.app.logger.log("/!\\ ROBOT NOT CONNECTED");
+        //if(!this.modules.robotLink) this.app.logger.log("/!\\ ROBOT NOT CONNECTED");
         if(this.app.parameters.simulate) this.app.logger.log("/!\\ RUNNING SIMULATION");
         //await this.initMatch();
         this.send();
@@ -112,7 +112,8 @@ module.exports = class Robot {
         if(this.modules.lidar) await this.modules.lidar.close();
         if(this.modules.lidarLoc) await this.modules.lidarLoc.close();
         if(this.modules.lidarLocalisation) await this.modules.lidarLocalisation.close();
-        if(this.modules.robotLink) await this.modules.robotLink.close();
+        //if(this.modules.robotLink) await this.modules.robotLink.close();
+        if(this.modules.base) await this.modules.base.close();
         if(this.modules.controlPanel) await this.modules.controlPanel.close();
     }
 
@@ -139,8 +140,8 @@ module.exports = class Robot {
         this.lastTarget.x = this.x;
         this.lastTarget.y = this.y;
         this.lastTarget.angle = this.angle;
-        if(this.modules.base) await this.modules.base.enableMove();
         if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle});
+        //if(this.modules.base) await this.modules.base.enableMove();
         if(this.modules.base) await this._updatePositionAndMoveStatus();
         //Other specific init actions should be defined in year-dedicated robot file
         this.send();
@@ -213,6 +214,7 @@ module.exports = class Robot {
         if(this.modules.controlPanel){
             await this.modules.controlPanel.setScore({score:this.score});
         }
+        this.app.logger.log("Score: "+this.score);
         return true;
     }
     async addScore(parameters){ 
@@ -238,18 +240,17 @@ module.exports = class Robot {
     
     async waitForStart(parameters){
         let matchStopped = false;
-        await this.initMatch();
         if(!this.app.parameters.simulate && this.modules.controlPanel){
             let state = "waiting" // waiting / ready / go
-            let status = await this.modules.controlPanel.getColorStart();
-            if(this.app.map && this.app.map.teams)
-                this.team = this.app.map.teams[status.color];
+            let status = await this.modules.controlPanel.getStart();
+            /*if(this.app.map && this.app.map.teams)
+                this.team = this.app.map.teams[status.color];*/
             await this.initMatch();
             this.send();
             //Wait for the starter to be positioned and pulled
             let changed = false;
             do {
-                status = await this.modules.controlPanel.getColorStart();
+                status = await this.modules.controlPanel.getStart();
                 console.log("status", status, "state", state);
                 if(status){
                     if(state=="waiting" && !status.start){
@@ -260,12 +261,12 @@ module.exports = class Robot {
                         state = "go"
                         changed = true;
                     }
-                    let color = parseInt(""+status.color);
+                    /*let color = parseInt(""+status.color);
                     if(this.app.map && this.app.map.teams && this.team != this.app.map.teams[color]){
                         this.team = this.app.map.teams[color];
                         await this.initMatch();
                         changed = true;
-                    }
+                    }*/
                     if(changed){
                         this.send();
                         changed = false;
@@ -277,6 +278,9 @@ module.exports = class Robot {
                     this.app.intelligence.startMatchTimer();//Restarts Match timer
                 }
             } while(state!="go" && !matchStopped);
+        }
+        else{
+            await this.initMatch();
         }
         if(!matchStopped) this.app.logger.log("GO");
         this.send();
@@ -340,20 +344,36 @@ module.exports = class Robot {
         
         this.app.logger.log("  -> moving to "+component.name);
         let success = false
-        if("access" in component){
-            let angle = component.access.angle;
-            if("angle" in parameters) angle = parameters.angle;
-            let offsetX = parameters.offsetX||0;
-            let offsetY = parameters.offsetY||0;
-            success = await this.moveToPosition({
-                x:component.access.x + offsetX,
-                y:component.access.y + offsetY,
-                angle:angle,
-                speed:parameters.speed,
-                nearDist:parameters.nearDist||0,
-                nearAngle:parameters.nearAngle||0
-            });
+        // Find best access point
+        let accessList = []
+        if("access" in component) accessList.push(component.access)
+        if(!parameters.preventOtherAccess && "otherAccess" in component) accessList.push(...component.otherAccess)
+        let access = null;
+        let minLength = 99999999999;
+        for(let acc of accessList){
+            let path = this.app.map.findPath(this.x, this.y, acc.x, acc.y);
+            if(path.length<2) continue;
+            if(!this.isMovementPossible(path[1][0], path[1][1])) continue;
+            let pathLength = this.app.map.getPathLength(path);
+            if(pathLength<minLength){
+                minLength = pathLength;
+                access = acc;
+            }
         }
+        if(access == null) return false;
+        // Move to access point
+        let angle = access.angle;
+        if("angle" in parameters) angle = parameters.angle;
+        let offsetX = parameters.offsetX||0;
+        let offsetY = parameters.offsetY||0;
+        success = await this.moveToPosition({
+            x:access.x + offsetX,
+            y:access.y + offsetY,
+            angle:angle,
+            speed:parameters.speed,
+            nearDist:parameters.nearDist||0,
+            nearAngle:parameters.nearAngle||0
+        });
         this.send();
         //await utils.sleep(500);
         return success
@@ -522,11 +542,12 @@ module.exports = class Robot {
         if(!isNaN(x) && !isNaN(y)) this._updateMovementAngle(x,y);
         if(!this.modules.lidar) return true;
         if(this.disableColisions) return true;
+        let collisionCountTarget = 10;
         let collisionCount = 0;
         let slowdownCount = 0;
         let angleA = utils.normAngle(this.movementAngle-this.collisionAngle/2);
         let angleB = utils.normAngle(this.movementAngle+this.collisionAngle/2);
-        console.log("Detect between", angleA, angleB, this.modules.lidar.measures.length)
+        //console.log("Detect between", angleA, angleB, this.modules.lidar.measures.length)
         let lastCollisionAngle = 0;
         for(let measure of this.modules.lidar.measures){
             //Check for collisions
@@ -534,15 +555,15 @@ module.exports = class Robot {
             //let inCollisionRange = (angleA<=measureAngle && measureAngle<=angleB)
             let inCollisionRange = utils.angleInRange( angleA, angleB, measureAngle );
             if(measure.d>0 && measure.d<this.collisionDistance){
-                console.log("angleInRange(", angleA, angleB, measureAngle, ") =", inCollisionRange)
+                //console.log("angleInRange(", angleA, angleB, measureAngle, ") =", inCollisionRange)
             }
             if(inCollisionRange && measure.d>0 && measure.d<this.collisionDistance){
                 if(utils.angleInRange( lastCollisionAngle-0.25, lastCollisionAngle+0.25, measureAngle )) continue; // too close rays means interference
                 lastCollisionAngle = measureAngle;
                 collisionCount++;
-                if(collisionCount>=10){
+                if(collisionCount>=collisionCountTarget){
                     //Add obstacle on map
-                    let obstacleRadius = 150;
+                    let obstacleRadius = 165;
                     let obstacleTimeout = 2000; //will be removed from map in N milliseconds
                     console.log("collision detected");
                     this.app.logger.log("collision detected");
@@ -624,7 +645,7 @@ module.exports = class Robot {
         let sleep = 100;
         let success = true;
         let moveStatus = "";
-        this.app.logger.log(`-> move coordinates ${x} ${y} ${angle} ${speed}, near ${nearDist} ${nearAngle}`);
+        //this.app.logger.log(`-> move coordinates ${x} ${y} ${angle} ${speed}, near ${nearDist} ${nearAngle}`);
 
         //Update position and check obstacles
         await this._updatePositionAndMoveStatus();
@@ -680,7 +701,7 @@ module.exports = class Robot {
         else {
             //Not path support on base, run sections one by one
             for(let i=0;i<path.length;i++){
-                this.app.logger.log(`-> move path ${i+1}/${path.length}`);
+                //this.app.logger.log(`-> move path ${i+1}/${path.length}`);
                 success = success && await this._performMovement(path[i].x, path[i].y, path[i].angle, path[i].speed, path[i].nearDist, path[i].nearAngle)
                 
                 if(!success) break

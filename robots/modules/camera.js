@@ -1,7 +1,5 @@
 'use strict';
 const utils = require("../../utils")
-//const { Worker } = require('worker_threads')
-//const { Worker } = require('process-worker')
 const spawn = require('child_process').spawn
 
 module.exports = class Camera {
@@ -18,7 +16,7 @@ module.exports = class Camera {
     
     async init(){
         console.log("init")
-        var w = spawn("node",["./robots/modules/cameraWorker.js"], {detached: true, stdio: ['pipe', 'pipe', 'pipe', 'ipc']});
+        var w = spawn("node",["./robots/modules/cameraWorker2.js"], {detached: true, stdio: ['pipe', 'pipe', 'pipe', 'ipc']});
         process.on("exit",()=>{w.kill();})
         this.worker = w;
         this.worker.on("message",msg=>{ this.onWorkerMessage(msg); })
@@ -30,8 +28,8 @@ module.exports = class Camera {
         return {
             functions:{
                 detectArucos: {},
-                detectBuoys: {},
-                detectWeathervane: {},
+               // detectBuoys: {},
+               // detectWeathervane: {},
             }
         }
     }
@@ -50,10 +48,11 @@ module.exports = class Camera {
             setTimeout(resolve, 2000)
         })
         this.pendingArucos = null;
+        console.log(this.arucos)
         return this.arucos
     }
 
-    async detectBuoys(){
+    /*async detectBuoys(){
         this.detections = [];
         if(this.worker) this.worker.send({action:"detectBuoys"});
         await new Promise(resolve=>{
@@ -73,7 +72,7 @@ module.exports = class Camera {
         })
         this.pendingOrientation = null;
         return this.orientation
-    }
+    }*/
 
     onWorkerMessage(msg){
         try{
@@ -81,14 +80,14 @@ module.exports = class Camera {
                 this.arucos = msg.arucos;
                 if(this.pendingArucos) this.pendingArucos();
             }
-            if(msg.type=="detections"){
+            /*if(msg.type=="detections"){
                 this.detections = msg.detections;
                 if(this.pendingDetection) this.pendingDetection();
             }
             if(msg.type=="weathervane"){
                 this.orientation = msg.orientation;
                 if(this.pendingOrientation) this.pendingOrientation();
-            }
+            }*/
             if(msg.type=="image") this.sendImage(msg);
         }catch(e){console.log(e)}
     }

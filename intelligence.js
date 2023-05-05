@@ -6,7 +6,7 @@ module.exports = class Intelligence {
         this.app = app;
         this.startTime = 0;
         this.currentTime = 0;
-        this.matchDuration = 100*1000; // 100 second
+        this.matchDuration = 98*1000; // 100 second but DO need to reduce to ensure stop
         this.hasBeenRun = false;
         this.stopExecution = true;
     }
@@ -134,6 +134,7 @@ module.exports = class Intelligence {
         }
         goal.status = success?"done":"failed";
         if(success) goal.executionCount--;
+        else await utils.sleep(50); // avoid error burst on locked action list
         this.app.goals.send(); //Notify UI
         //Run on-error actions
         if(!success && goal.onError && goal.onError.length){

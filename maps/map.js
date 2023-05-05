@@ -43,6 +43,16 @@ module.exports = class Map {
         return component;
     }
 
+    getComponentList(type, team){
+        let componentList = [];
+        for(const item of this.app.map.components){
+            if(item.type == type && item.team == team){
+                componentList.push(item);
+            }
+        }
+        return componentList;
+    }
+
     addComponent(cmp){
         cmp.insertTime = new Date().getTime();
         this.app.map.components.push(cmp);
@@ -243,6 +253,16 @@ module.exports = class Map {
         //let newPath = PF.Util.smoothenPath(grid, path);
         //this.app.logger.log(JSON.stringify(newPath));
         return smoothPath;
+    }
+    
+    getPathLength(path){
+        let pathLength = 0;
+        for(let i=1;i<path.length;i++){
+            let dx = path[i-1][0]-path[i][0];
+            let dy = path[i-1][1]-path[i][1];
+            pathLength += Math.sqrt(dx*dx + dy*dy);
+        }
+        return pathLength;
     }
 
 }

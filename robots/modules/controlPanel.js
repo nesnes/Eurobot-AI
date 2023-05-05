@@ -10,7 +10,7 @@ module.exports = class ControlPanel {
         this.address = 9;
         this.color = 0;
         this.start = 0;
-        this.pendingColorStart = null;
+        this.pendingStart = null;
         this.score = 0;
     }
     
@@ -20,7 +20,6 @@ module.exports = class ControlPanel {
         this.worker = w;
         this.worker.on("message",msg=>{ this.onWorkerMessage(msg); })
         this.worker.on("error",(e)=>{console.log("controlPanelWorker process reported an error. Could happen if simulation a robot, not blocking.", e)});
-        setTimeout(()=>{this.setColors();}, 1000);
         //this.send();
     }
 
@@ -41,31 +40,26 @@ module.exports = class ControlPanel {
     
     onWorkerMessage(msg){
         try{
-            if(msg.type=="colorStart"){
-                this.color = msg.color;
+            if(msg.type=="start"){
                 this.start = msg.start;
-                if(this.pendingColorStart) this.pendingColorStart();
+                if(this.pendingStart) this.pendingStart();
             }
         }catch(e){console.log(e)}
     }
     
-    async setColors() {
-        if(this.worker && this.app.map && this.app.map.teams) 
-            this.worker.send({action:"setColors", colors:this.app.map.teams});
-    }
 
-    async getColorStart(){
-        if(this.worker) this.worker.send({action:"getColorStart"});
+    async getStart(){
+        if(this.worker) this.worker.send({action:"getStart"});
         await new Promise(resolve=>{
-            this.pendingColorStart = resolve;
+            this.pendingStart = resolve;
             setTimeout(resolve, 250);
         })
-        this.pendingColorStart = null;
-        return {color:this.color, start:this.start};
+        this.pendingStart = null;
+        return {start:this.start};
     }
 
     async setScore(params){
-        this.app.logger.log("score set "+params.score);
-        if(this.worker) this.worker.send({action:"setScore", score:params.score});
+        /*this.app.logger.log("score set "+params.score);
+        if(this.worker) this.worker.send({action:"setScore", score:params.score});*/
     }
 }
