@@ -17,11 +17,11 @@
 #endif
 #ifdef MODE_SERIAL
   #define COMUNICATION_BUFFER_IN_SIZE 127
-  #define COMUNICATION_BUFFER_OUT_SIZE 127
+  #define COMUNICATION_BUFFER_OUT_SIZE 4096
 #endif
 
 char comunication_InBuffer[COMUNICATION_BUFFER_IN_SIZE];
-char comunication_OutBuffer[COMUNICATION_BUFFER_IN_SIZE];
+char comunication_OutBuffer[COMUNICATION_BUFFER_OUT_SIZE];
 boolean comunication_ReceiveFlag = false; //When data is available in input buffer
 boolean comunication_msgAvailableFlag = false;//When validated message is available in input buffer
 boolean comunication_SendFlag = false;

@@ -35,9 +35,13 @@ void initActuators() {
 }
 
 void updateServos() {
-  for (size_t i=0;i<actuators.size();i++) {
+  /*for (size_t i=0;i<actuators.size();i++) {
     actuators.at(i)->update();
-  }
+  }*/
+  static uint16_t actuatorIdx = 0;
+  if(actuatorIdx>=actuators.size()) actuatorIdx = 0;
+  actuators.at(actuatorIdx)->update();  
+  actuatorIdx++;
 }
 
 Actuator* getActuator(const char* name) {

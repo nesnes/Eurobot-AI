@@ -4,12 +4,21 @@
 #include <ServoEasing.hpp> //https://github.com/ArminJo/ServoEasing //Used in actruators but forward hpp include required here
 
 #include <Chrono.h>    //https://github.com/SofaPirate/Chrono
-#include <Adafruit_NeoPixel.h>
+Chrono updateActuators;
+#include "LD06.h"
+LD06 lidar(&Serial1);
+
+#include "Localisation.h"
+LidarLocalisation loc;
+LidarLocPosition robotPosition{2700, -300, 0};
+bool abortPositionMatch = false;
+//#define LOCALISATION_DEBUG
 
 #define LED_PIN 13
 bool ledValue = true;
 Chrono updateLed;
 
+#include <Adafruit_NeoPixel.h>
 #define NEOPIXEL_COUNT 12
 Adafruit_NeoPixel neopixels(NEOPIXEL_COUNT, 33, NEO_GRB + NEO_KHZ800);
 Chrono updateNeopixel;
@@ -21,22 +30,86 @@ void setup() {
   initActuators();      // Init servo and pumps
   neopixels.begin();
   neopixels.show();
+
+  lidar.init();
+  lidar.setUpsideDown(true);
+  lidar.setMinConfidence(200);
+  lidar.setMinDistance(200);//mm
+  lidar.setMaxDistance(4000);//mm
+
+  // Create rectangle map
+  loc.addLineToMap({{0,0}, {3000,0}});
+  loc.addLineToMap({{3000,0}, {3000,-2000}});
+  loc.addLineToMap({{3000,-2000}, {0,-2000}});
+  loc.addLineToMap({{0,-2000}, {0,0}});
 }
 
 void loop() {
+  // Answer orders from IA
   executeOrder();
-  updateServos();
 
+  // Update each actuator one-by-one
+  if(updateActuators.hasPassed(5)){
+    updateActuators.restart();
+    updateServos(); // update 1 servo at a time = ~400us
+  }
+  
   if (updateLed.hasPassed(500)) { // blink led
     updateLed.restart();
     ledValue = !ledValue;
     digitalWrite(LED_PIN, ledValue);
+    //lidar.teleplot();
   }
 
-  if(updateNeopixel.hasPassed(100)) {
-    neopixels.show();
-  }
+  // Update lidar
+  bool isNewScan = lidar.run();
+  
+  // Run localisation
+  runLocalisation(isNewScan);  
+}
 
+void runLocalisation(bool isNewScan){
+  uint16_t pointCloudSkipping = 2; // will only match cloud every N points (to speed compuation, to match more candidates)
+  if(isNewScan){
+    // Extract best position from last scan
+    LidarLocPositionCandidate candidate = loc.getBestCandidate();
+    if(!abortPositionMatch && candidate.score > 0){
+      // Store new robot position
+      robotPosition.x = candidate.position.x;
+      robotPosition.y = candidate.position.y;
+      robotPosition.angle = candidate.position.angle;
+    }
+#ifdef LOCALISATION_DEBUG
+    Serial.println(String()+">candidateCount:"+loc.getCandidateCount());
+    loc.teleplot(Serial, robotPosition, (LidarLocMeasure*)lidar.getPoints(), lidar.getPointCount(), pointCloudSkipping);
+#endif
+    loc.clearCandidates();
+    abortPositionMatch = false;
+  }
+  else {
+    //Generate position candidates to match against current lidar cloud
+    LidarLocPosition testPosition;
+    auto startTime = micros();
+
+    // Generate very close position
+    testPosition = loc.generateRandomPosition(robotPosition, 20, 5); //mm  and deg
+    loc.evaluateCandidate(testPosition, (LidarLocMeasure*)lidar.getPoints(), lidar.getPointCount(), pointCloudSkipping);
+
+    // Generate close position
+    for(int i=0;i<2;i++){
+      testPosition = loc.generateRandomPosition(robotPosition, 100, 30); //mm  and deg
+      loc.evaluateCandidate(testPosition, (LidarLocMeasure*)lidar.getPoints(), lidar.getPointCount(), pointCloudSkipping);
+    }
+
+    // Generate far position
+    testPosition = loc.generateRandomPosition(robotPosition, 400, 120); //mm  and deg
+    loc.evaluateCandidate(testPosition, (LidarLocMeasure*)lidar.getPoints(), lidar.getPointCount(), pointCloudSkipping);
+    
+    auto endTime = micros();
+#ifdef LOCALISATION_DEBUG
+    Serial.println(String()+">candidatesTimeUs:"+(endTime-startTime));
+#endif
+  }  
 }
 
 void executeOrder() {
@@ -109,6 +182,39 @@ void executeOrder() {
         neopixels.setPixelColor(i, neopixels.ColorHSV(v[i]<<8));
       }
       neopixels.setBrightness(b);
+      neopixels.show();
+    }
+    else if (strstr(comunication_InBuffer, "L ")) { //get lidar scan
+      uint16_t pointDivider = 1, pointOffset = 0, maxDist = 3000;
+      sscanf(comunication_InBuffer, "L %u %u %u", &pointDivider, &pointOffset, &maxDist);
+      if(pointDivider==0) pointDivider = 1;
+      // Create lidar msg
+      int bufferIndex = sprintf(comunication_OutBuffer, "L");
+      for(int i=0;i<lidar.getPointCount()  && bufferIndex<COMUNICATION_BUFFER_OUT_SIZE-20 ;i+=pointDivider){
+        LD06Point* point =  lidar.getPoint(i);
+        if(point->distance<maxDist){
+          bufferIndex += sprintf(comunication_OutBuffer+bufferIndex, " %i,%.2f", point->distance, point->angle);
+        }
+      }
+      comunication_write();//async
+    }
+    else if (strstr(comunication_InBuffer, "support pos")) { //get position
+      sprintf(comunication_OutBuffer, "support 1");
+      comunication_write();//async
+    }
+    else if (strstr(comunication_InBuffer, "X")) { //get position
+      sprintf(comunication_OutBuffer, "X %i %i %i", (int)(robotPosition.x), (int)(-robotPosition.y), (int)(robotPosition.angle*100.f));
+      comunication_write();//async
+    }
+    else if (strstr(comunication_InBuffer, "Y ")) { //get position
+      sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
+      comunication_write();//async
+      int x_pos = (int)(robotPosition.x), y_pos = (int)(robotPosition.y), angle_pos = (int)(robotPosition.angle*100.f);
+      sscanf(comunication_InBuffer, "Y %i %i %i", &x_pos, &y_pos, &angle_pos);
+      robotPosition.x = (float)(x_pos);
+      robotPosition.y = (float)(-y_pos);
+      robotPosition.angle = (float)(angle_pos)/100.f;
+      abortPositionMatch = true;
     }
     else {
       sprintf(comunication_OutBuffer, "ERROR");
