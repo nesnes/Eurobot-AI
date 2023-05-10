@@ -90,7 +90,7 @@ public:
   }
 
   int getPosition() override {
-    int pos = map(driver->ReadPos(id), 0, 1024, 0, 300);
+    int pos = map(driver->ReadPos(id), 0, 1024, 0, 300) + offset;
     return reversed ? 300 - pos : pos;
   }
 
@@ -123,7 +123,7 @@ public:
   }
 
   int getPosition() override {
-    int pos = map(driver->ReadPos(id), 0, 4096, 0, 360);
+    int pos = map(driver->ReadPos(id), 0, 4096, 0, 360) + offset;
     return reversed ? 360 - pos : pos;
   }
 

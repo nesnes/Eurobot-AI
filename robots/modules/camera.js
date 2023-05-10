@@ -49,6 +49,7 @@ module.exports = class Camera {
         })
         this.pendingArucos = null;
         console.log(this.arucos)
+        if(this.arucos.length>0) console.log(this.arucos[0].corners)
         return this.arucos
     }
 

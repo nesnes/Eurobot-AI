@@ -47,7 +47,14 @@ camera.on('data', function(frame) {
         // Detect aruco markers
         let markers = []
         markers = detector.detectFromGray(actualImageGray);
+        for(let marker of markers){
+            marker.center = {
+                x: marker.corners.center.x / actualImageGray.size().width,
+                y: marker.corners.center.y / actualImageGray.size().height
+            }
+        }
         console.log(markers)
+        if(markers.length>0) console.log(markers[0].corners)
         sendMessage({type:"arucos", arucos:markers});
         sendImage("preview", actualImageRGB);
     }

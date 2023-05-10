@@ -505,6 +505,7 @@ module.exports = class Robot {
             angle: endAngle,
             speed:parameters.speed,
             preventPathFinding: true,
+            nearDist: parameters.nearDist,
             nearAngle: parameters.nearAngle
         });
     }
