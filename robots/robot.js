@@ -57,8 +57,11 @@ module.exports = class Robot {
         this.collisionDistance = 200; // distance of objects to trigger a break (usually radius + ~100mm)
         this.slowdownAngle = 150; // angle used to check obstacles from lidar around movement direction
         this.slowdownDistance = 0; // distance of object to slow down the robot (greater than collisionDistance)
+        this.slowdownDistanceOffset = 200; // multiplied by speed in m/s and added to slowdownDistance
         this.slowdown = false;
+        this.slowDownSpeed = 0.3;
         this.disableColisions = !!this.app.parameters.disableColisions;
+        this.disableLocalisation = !!this.app.parameters.disableLocalisation;
         this.lastPositionUpdateTime=0;
         this.funnyActionTimeout = null;
 
@@ -123,6 +126,8 @@ module.exports = class Robot {
             this.x = preset.x;
             this.y = preset.y;
             this.angle = preset.angle;
+            if(this.modules.arm && await this.modules.arm.supportPosition()) await this.modules.arm.setPosition({x:this.x, y:this.y, angle:this.angle});
+            if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle, resetTarget:1});
         }
         if('team' in preset){
             this.team = preset.team;
@@ -140,7 +145,8 @@ module.exports = class Robot {
         this.lastTarget.x = this.x;
         this.lastTarget.y = this.y;
         this.lastTarget.angle = this.angle;
-        if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle});
+        if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle, resetTarget:1});
+        if(this.modules.arm && await this.modules.arm.supportPosition()) await this.modules.arm.setPosition({x:this.x, y:this.y, angle:this.angle});
         //if(this.modules.base) await this.modules.base.enableMove();
         if(this.modules.base) await this._updatePositionAndMoveStatus();
         //Other specific init actions should be defined in year-dedicated robot file
@@ -169,7 +175,7 @@ module.exports = class Robot {
             collisionAngle: this.collisionAngle,
             collisionDistance: this.collisionDistance,
             slowdownAngle: this.slowdownAngle,
-            slowdownDistance: this.slowdownDistance,
+            slowdownDistance: this.slowdownDistance+(Math.abs(this.speed)*this.slowdownDistanceOffset),
             slowdown: this.slowdown
         }
         this.app.mqttServer.publish({
@@ -250,6 +256,7 @@ module.exports = class Robot {
             //Wait for the starter to be positioned and pulled
             let changed = false;
             do {
+                await this.findLocalisation();
                 status = await this.modules.controlPanel.getStart();
                 console.log("status", status, "state", state);
                 if(status){
@@ -316,19 +323,31 @@ module.exports = class Robot {
     }
     
     async findLocalisation(parameters){
+        if(this.disableLocalisation) return false;
+        let foundPosition = null;
         if(this.modules.lidarLocalisation){
             let count = parameters.count||2;
             for(let i=0;i<count;i++){
                 let found = await this.modules.lidarLocalisation.resolvePosition();
-                if(found){
-                    this._updatePosition(
-                        this.modules.lidarLocalisation.x,
-                        this.modules.lidarLocalisation.y,
-                        this.modules.lidarLocalisation.angle);
+                if(found) {
+                    foundPosition = {
+                        x: this.modules.lidarLocalisation.x,
+                        y: this.modules.lidarLocalisation.y,
+                        angle: this.modules.lidarLocalisation.angle
+                    };
                 }
-                else return false;
             }
-            if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle});
+        }
+        else if(this.modules.arm && await this.modules.arm.supportPosition()){
+            foundPosition = await this.modules.arm.getPosition();
+            if(foundPosition && !foundPosition.isNew) foundPosition = null;
+        }
+        if(foundPosition){
+            //console.log("Found position", foundPosition);
+            this._updatePosition(foundPosition.x, foundPosition.y, foundPosition.angle);
+            let resetTarget = 1;
+            if(parameters && ("resetTarget" in parameters) && !parameters.resetTarget) resetTarget = 0;
+            if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle, resetTarget:resetTarget});
             this.send();
         }
         return true;
@@ -452,7 +471,8 @@ module.exports = class Robot {
         this.lastTarget.x = this.x;
         this.lastTarget.y = this.y;
         this.lastTarget.angle = this.angle;
-        if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle});
+        if(this.modules.arm && await this.modules.arm.supportPosition()) await  this.modules.arm.setPosition({x:this.x, y:this.y, angle:this.angle});
+        if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle, resetTarget:1});
         if(this.modules.base) await this._updatePositionAndMoveStatus();
         return true;
     }
@@ -596,9 +616,10 @@ module.exports = class Robot {
                 utils.normAngle(this.movementAngle+this.slowdownAngle/2),
                 utils.normAngle(measure.a+this.angle)
             );
-            if(inSlowdownRange && measure.d>0 && measure.d<this.slowdownDistance) slowdownCount++
+            let slowDist = this.slowdownDistance+(Math.abs(this.speed)*this.slowdownDistanceOffset);
+            if(inSlowdownRange && measure.d>0 && measure.d<slowDist) slowdownCount++
         }
-        this.slowdown = slowdownCount>=3;
+        this.slowdown = slowdownCount>=collisionCountTarget*0.6;
         return true
     }
 
@@ -627,7 +648,9 @@ module.exports = class Robot {
     }*/
 
     async _updatePositionAndMoveStatus(){
+        
         let moveStatus = "end";
+        await this.findLocalisation({resetTarget:0});
         let status = await this.modules.base.getStatus();
         //console.log(status)
         if(status && typeof status === "object"){
@@ -637,13 +660,16 @@ module.exports = class Robot {
             this.angle = status.angle;
             this.speed = status.speed;
         }
+        
+        if(this.slowdown) this.modules.base.setSpeedLimit({speed:this.slowDownSpeed});
+        else this.modules.base.setSpeedLimit({speed:0});
+        
         this.send();
         return moveStatus;
     }
 
     async _performMovement(x, y, angle, speed, nearDist=0, nearAngle=0){
-        let moveSpeed = this.slowdown?0.1:speed;
-        let sleep = 100;
+        let sleep = 30;
         let success = true;
         let moveStatus = "";
         //this.app.logger.log(`-> move coordinates ${x} ${y} ${angle} ${speed}, near ${nearDist} ${nearAngle}`);
@@ -665,7 +691,6 @@ module.exports = class Robot {
         do{
             await utils.sleep(sleep);
             if(this.app.intelligence.hasBeenRun && this.app.intelligence.isMatchFinished()) success = false;
-            moveSpeed = this.slowdown?0.1:speed;
             if(!this.isMovementPossible(x,y)) success = false;
             moveStatus = await this._updatePositionAndMoveStatus();
         } while(success && moveStatus && moveStatus.includes("run")) // "near" and "end" status will stop the loop (but not the robot)
@@ -676,7 +701,7 @@ module.exports = class Robot {
 
     async moveAlongPath(params){
         let path=params.path;
-        let sleep = 100;
+        let sleep = 30;
         var success = true;
         if(!path.length) return false;
         if(this.modules.base && await this.modules.base.supportPath()){
@@ -691,11 +716,8 @@ module.exports = class Robot {
             do{
                 await utils.sleep(sleep);
                 if(this.app.intelligence.hasBeenRun && this.app.intelligence.isMatchFinished()) success = false;
-                //moveSpeed = this.slowdown?0.1:speed;
                 if(!this.isMovementPossible()) success = false;
-                //console.log("move possible", success)
                 moveStatus = await this._updatePositionAndMoveStatus();
-                console.log(success, moveStatus, path)
             } while(success && moveStatus && moveStatus.includes("run"))
             if(!success) this.modules.base.break();
         }

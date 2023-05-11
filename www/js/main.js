@@ -258,6 +258,12 @@ function runModuleFunction(moduleName, funcName, parameters={}){
     var payload = {command: "runModuleFunction", moduleName: moduleName, funcName: funcName, params: params};
     communication.client.publish("/control", JSON.stringify(payload))
 }
+function onMapComponentClick(item){
+    if('startPosition' in item){
+        var payload = {command: "runModuleFunction", moduleName: "robot", funcName: "selectStartPosition", params: item.startPosition};
+        communication.client.publish("/control", JSON.stringify(payload))
+    }
+}
 
 
 function loadFiles(){

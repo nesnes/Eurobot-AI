@@ -34,7 +34,7 @@
                             <!--Map components-->
                             <template v-for="item in map.components">
                                 <template v-if="item.shape.type == 'rectangle'">
-                                    <g>
+                                    <g v-on:click="onMapComponentClick(item)">
                                         <title>{{item.name}} - {{item.type}} - {{item.team}}</title>
                                         <rect v-bind:x="item.shape.x" v-bind:y="item.shape.y" v-bind:width="item.shape.width" v-bind:height="item.shape.height" v-bind:style="{ fill: item.shape.color }" style="stroke-width:1;stroke:rgb(0,0,0);opacity: 0.9;" />
                                     </g>
@@ -178,6 +178,10 @@
                             <div class="form-check">
                                 <input type="checkbox" class="form-check-input" id="cb-collisions" v-model="appParams.disableColisions">
                                 <label class="form-check-label" for="cb-collisions">Disable collisions</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="cb-localisation" v-model="appParams.disableLocalisation">
+                                <label class="form-check-label" for="cb-localisation">Disable localisation</label>
                             </div>
                         </div>
                     </div>

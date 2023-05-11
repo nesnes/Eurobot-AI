@@ -47,6 +47,9 @@ module.exports = class Base {
                     nearAngle:{ legend:"near angle (°)", type:"number", min:0, max:180, value:0 }
                 },
                 getSpeed: {},
+                setSpeedLimit:{
+                    speed:{ legend:"speed (m/s)", type:"range", min: 0, max: 2.5, value:0.3, step:0.1 }
+                },
                 break: {},
                 touchBorder:{
                     distance:{ legend:"distance (m)", type:"number", min:-1000, max:1000, value:150 },
@@ -74,7 +77,16 @@ module.exports = class Base {
     }
 
     async setPosition(params){
-        let msg = "pos set "+Math.round(params.x)+" "+Math.round(params.y)+" "+Math.round(params.angle);
+        let resetTarget = 1;
+        if("resetTarget" in params && !params.resetTarget) resetTarget = 0;
+        let msg = "pos set "+Math.round(params.x)+" "+Math.round(params.y)+" "+Math.round(params.angle)+" "+resetTarget;
+        if(this.link)
+            return await this.link.sendMessage(this.address, msg);
+    }
+
+    async setSpeedLimit(params){
+        if(!("speed" in params)) return false;
+        let msg = "speed limit "+Math.round(parseFloat(""+params.speed)*10);
         if(this.link)
             return await this.link.sendMessage(this.address, msg);
     }

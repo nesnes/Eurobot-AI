@@ -8,6 +8,9 @@ module.exports = class Arm {
     constructor(app) {
         this.app = app;
         this.address = 6;
+        this.positionSupported = null;
+        this.position = null;
+        this.lastSendTime=0;
         this.link = new Robotlink(app, "Actuators2023");
     }
     
@@ -42,9 +45,26 @@ module.exports = class Arm {
                 },
                 setLed: {   brightness:{ legend:"brightness", type:"range", min:0, max:255, value:150, step:1 },
                             color:{ type:"range", min:0, max:255, value:0, step:1 }
-                }
+                },
+                getPosition:{}
             }
         }
+    }
+
+    send(force=false){
+        let now = new Date().getTime();
+        if(!force && now - this.lastSendTime < 250) return;//send max every 250ms
+        this.lastSendTime = now;
+        let payload = {
+            x: this.position.x,
+            y: this.position.y,
+            angle: this.position.angle
+        }
+        this.app.mqttServer.publish({
+            topic: '/lidar/localisation',
+            payload: JSON.stringify(payload),
+            qos: 0, retain: false
+        });
     }
     
     async setPose4(params){
@@ -150,6 +170,43 @@ module.exports = class Arm {
         if(this.link)
             result =  await this.link.sendMessage(this.address, msg);
         return result;
+    }
+
+    async supportPosition(){
+        let result = false;
+        if(this.positionSupported !== null) return this.positionSupported;
+        if(this.link){
+            let support = await this.link.sendMessage(this.address, "support pos");
+            if(support.includes("1")) result = true;
+            this.positionSupported = result;
+        }
+        return result;
+    }
+
+    async setPosition(params){
+        let msg = "Y "+Math.round(params.x)+" "+Math.round(params.y)+" "+Math.round(params.angle*100);
+        this.position = {x: params.x, y: params.y, angle: params.angle};
+        this.send(true);
+        if(this.link)
+            return await this.link.sendMessage(this.address, msg);
+    }
+    
+    async getPosition(){
+        if(this.link){
+            let response = await this.link.sendMessage(this.address, "X");
+            if(!response) return false;
+            let posArray = response.split(" ");
+            if(posArray.length == 4 && posArray[0]=="X"){
+                let newPosition = {x: parseInt(posArray[1]), y: parseInt(posArray[2]), angle: parseInt(posArray[3])/100, isNew: true};
+                if(this.position && this.position.x == newPosition.x && this.position.y == newPosition.y && this.position.angle == newPosition.angle){
+                    newPosition.isNew = false;
+                }
+                this.position = newPosition;
+                this.send();
+                return this.position;
+            }
+            return response;
+        }
     }
 
     async close(){

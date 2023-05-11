@@ -50,14 +50,16 @@ module.exports = class Robot2020 extends Robot{
             //foundInSite: { value: 0, max: 3 },
             //foundInOppositSite: { value: 0, max: 3 },
         }
-        this.collisionAngle = 115;
+        this.collisionAngle = 120;
         this.collisionDistance = this.radius+250;
+        this.slowdownAngle = 90;
         this.slowdownDistance = this.collisionDistance+100;
+        this.slowdownDistanceOffset = 300; // multiplied by speed in m/s and added to slowdownDistance
 
         if(!this.app.parameters.simulate){
             this.modules.lidar = new Lidar(app)
             this.modules.lidarLoc = new LidarLoc(app);
-            this.modules.lidarLocalisation = new LidarLocalisation(app)
+            //this.modules.lidarLocalisation = new LidarLocalisation(app)
             this.modules.arm = new Arm(app);
             this.modules.camera = new Camera(app);
         }
@@ -132,12 +134,12 @@ module.exports = class Robot2020 extends Robot{
     async endMatch(){
         await super.endMatch();
         
-        if(this.modules.arm) await this.modules.arm.setServo({ name: "ABB", angle: 170});
-        if(this.modules.arm) await this.modules.arm.setServo({ name: "ABA", angle: 170});
-        if(this.modules.arm) await this.modules.arm.setServo({ name: "ACA", angle: 170});
-        if(this.modules.arm) await this.modules.arm.setServo({ name: "ACC", angle: 170});
-        if(this.modules.arm) await this.modules.arm.setServo({ name: "BCB", angle: 170});
-        if(this.modules.arm) await this.modules.arm.setServo({ name: "BCC", angle: 170});
+        if(this.modules.arm) await this.modules.arm.setServo({ name: "ABB", angle: 170, duration: 400, wait:false});
+        if(this.modules.arm) await this.modules.arm.setServo({ name: "ABA", angle: 170, duration: 400, wait:false});
+        if(this.modules.arm) await this.modules.arm.setServo({ name: "ACA", angle: 170, duration: 400, wait:false});
+        if(this.modules.arm) await this.modules.arm.setServo({ name: "ACC", angle: 170, duration: 400, wait:false});
+        if(this.modules.arm) await this.modules.arm.setServo({ name: "BCB", angle: 170, duration: 400, wait:false});
+        if(this.modules.arm) await this.modules.arm.setServo({ name: "BCC", angle: 170, duration: 400, wait:false});
         
         while (!this.app.intelligence.stopExecution)
         {
@@ -334,7 +336,6 @@ module.exports = class Robot2020 extends Robot{
         
         let speed = parameters.speed||this.app.goals.defaultSpeed;
         for(let i=0;i<5;i++){
-            if(this.modules.arm) await this.modules.arm.setLed({ brightness: 50, color: 25*i});
             let result = await this.rotateToAngle({ angle: 90, speed });
             result = await this.rotateToAngle({ angle: 180, speed });
             result = await this.rotateToAngle({ angle: -90, speed });
@@ -641,12 +642,21 @@ module.exports = class Robot2020 extends Robot{
             await this.setArmToLayer({name:currentArm+"G", layer:armDepositLayer[currentArm]+armClearanceLayerOffset, open:false, transport: false});
         }
         
+        
+        let hasTimeToSort = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-30*1000;
+        
         // Move to plate
         if(!parameters.doNotMoveToSite){
             this.app.logger.log("  -> Moving to plate "+targetPlate.name);
+            let buildOffsetX = 0;
+            let buildOffsetY = 0;
+            // Apply offset to have room for cacke build
+            if(hasTimeToSort && targetPlate.type=="plateBottomSide" && targetPlate.team=="blue") buildOffsetY = 200;
+            if(hasTimeToSort && targetPlate.type=="plateBottomSide" && targetPlate.team=="green") buildOffsetY = -200;
+            if(hasTimeToSort && targetPlate.type=="plateProtected") buildOffsetX = 200;
             result = await this.moveToPosition({
-                x:          targetAccess.x,
-                y:          targetAccess.y,
+                x:          targetAccess.x+buildOffsetX,
+                y:          targetAccess.y+buildOffsetY,
                 angle:      targetAccess.angle,
                 speed:      parameters.speed||this.app.goals.defaultSpeed,
                 nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
@@ -671,7 +681,6 @@ module.exports = class Robot2020 extends Robot{
         let rotationSpeed = 0.7;
         let moveSpeed = 0.5;
         let cakeBuildDistance = 140;
-        let hasTimeToSort = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-30*1000;
         if(hasTimeToSort){
             // For each full rotation
             for(let cycle=0;cycle<3;cycle++){
@@ -732,7 +741,6 @@ module.exports = class Robot2020 extends Robot{
                     }
                     // For each arm
                     for(let armIdx=0;armIdx<3;armIdx++){
-                        if(this.modules.arm) await this.modules.arm.setLed({ brightness: 100, color: 100*armIdx});
                         // Resolve target color on the associated cake
                         let currArm = armList[armIdx];
                         let cakeIdx = (armIdx + index)%3;
@@ -1304,9 +1312,10 @@ module.exports = class Robot2020 extends Robot{
             };
             targetCackeTypes = [];
             let armList = [this.variables.armAC.value, this.variables.armAB.value, this.variables.armBC.value];
-            if(!armList.includes("PPP")) targetCackeTypes.push("cakePink");
-            if(!armList.includes("YYY")) targetCackeTypes.push("cakeYellow");
-            if(!armList.includes("BBB")) targetCackeTypes.push("cakeBrown");
+            
+            if(!armList.some((a)=>a.includes("P"))) targetCackeTypes.push("cakePink");
+            if(!armList.some((a)=>a.includes("Y"))) targetCackeTypes.push("cakeYellow");
+            if(!armList.some((a)=>a.includes("B"))) targetCackeTypes.push("cakeBrown");
         }
         if(targetCackeTypes.length == 0) return false;
         console.log(targetCackeTypes);

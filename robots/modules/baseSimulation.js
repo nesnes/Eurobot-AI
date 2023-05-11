@@ -15,6 +15,7 @@ module.exports = class Base {
         this.speed = 0.2;
         this.angleSpeed = 0.2;
         this.moveBreak = false;
+        this.speedLimit = 0;
     }
     
     async init(){
@@ -71,6 +72,12 @@ module.exports = class Base {
         this.angle = Math.round(params.angle);
         return true;
     }
+    
+
+    async setSpeedLimit(params){
+        if(!("speed" in params)) return false;
+        this.speedLimit = Math.abs(params.speed);
+    }
 
     async getStatus(){
         return {status: this.moveStatus, x: parseInt(""+this.x), y: parseInt(""+this.y), angle: parseInt(""+this.angle), speed: parseInt(""+this.speed)}
@@ -86,12 +93,16 @@ module.exports = class Base {
             let dy = startY-params.y;
             let dangle = startAngle-params.angle;
             let distance = Math.sqrt(dx*dx + dy*dy);
-            let moveSpeed = this.slowdown?0.1:params.speed;
+            let moveSpeed = params.speed;
             let sleep = 100;
             let distanceDone = 0;
             while(distanceDone<distance){
                 if(this.app.intelligence.hasBeenRun && this.app.intelligence.isMatchFinished()) return false;
-                moveSpeed = this.slowdown?0.1:params.speed;
+                moveSpeed = params.speed;
+                if(this.speedLimit>0.01){
+                    if(params.speed>0) moveSpeed = Math.min(this.speedLimit, params.speed);
+                    else moveSpeed = Math.max(this.speedLimit, params.speed);
+                }
                 distanceDone += (sleep/1000)*moveSpeed*1000
                 let ratio = distanceDone/distance;
                 if(ratio>1) ratio = 1;
