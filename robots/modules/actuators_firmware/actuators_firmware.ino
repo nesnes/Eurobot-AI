@@ -206,7 +206,7 @@ void executeOrder() {
       sprintf(comunication_OutBuffer, "X %i %i %i", (int)(robotPosition.x), (int)(-robotPosition.y), (int)(robotPosition.angle*100.f));
       comunication_write();//async
     }
-    else if (strstr(comunication_InBuffer, "Y ")) { //get position
+    else if (strstr(comunication_InBuffer, "Y ")) { //set position
       sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
       comunication_write();//async
       int x_pos = (int)(robotPosition.x), y_pos = (int)(robotPosition.y), angle_pos = (int)(robotPosition.angle*100.f);

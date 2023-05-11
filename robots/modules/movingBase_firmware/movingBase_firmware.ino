@@ -209,7 +209,7 @@ bool manualMode = false;
 
 //In meters, degrees, m/s and °/s
 double xStart = 0, yStart = 0, angleStart = 0;
-double xTarget = 0, yTarget = 0, angleTarget = 0, speedTarget = 3.5, angleSpeedTarget = 50;
+double xTarget = 0, yTarget = 0, angleTarget = 0, speedTarget = 3.5, angleSpeedTarget = 50, angleSpeedFactor = 180;
 
 typedef struct {
   float x = 0;
@@ -230,6 +230,7 @@ bool runTargetPath = false;
 double targetMovmentAngle = 0;
 double targetSpeed_mps = 0.0;// m/s
 double targetAngleSpeed_dps = 0;// °/s
+double speedLimit_mps = 0.0;//m/s
 
 double targetAngleError = 1.5; //° 1.0
 double targetPosError = 0.015; //meters 0.005
@@ -265,14 +266,16 @@ void executeOrder() {
     else if (strstr(comunication_InBuffer, "pos set ")) {
       sprintf(comunication_OutBuffer, "pos OK");//max 29 Bytes
       comunication_write();//async
-      int x_pos = 0, y_pos = 0, angle_pos = 0;
-      sscanf(comunication_InBuffer, "pos set %i %i %i", &y_pos, &x_pos, &angle_pos);
+      int x_pos = 0, y_pos = 0, angle_pos = 0, reset_target = 1;
+      sscanf(comunication_InBuffer, "pos set %i %i %i %i", &y_pos, &x_pos, &angle_pos, &reset_target);
       setXPos((float)(x_pos) / 1000.0f);
       setYPos((float)(y_pos) / 1000.0f);
       setAnglePos(angle_pos);
-      xTarget = getXPos();
-      yTarget = getYPos();
-      angleTarget = getAnglePos();
+      if(reset_target){
+        xTarget = getXPos();
+        yTarget = getYPos();
+        angleTarget = getAnglePos();
+      }
       updateAsserv();
     }
     else if (strstr(comunication_InBuffer, "pos getXY")) {
@@ -295,7 +298,8 @@ void executeOrder() {
       yTarget = (float)(i_y_pos) / 1000.0f;
       angleTarget = (float)(i_angle);
       speedTarget = (float)(i_speed_pos) / 10.0f;
-      angleSpeedTarget = speedTarget * 180.f;
+      angleSpeedTarget = speedTarget * angleSpeedFactor;
+      speedLimit_mps = 0;
       nearTranslationError = (float)(i_near_dist) / 1000.0f;
       nearAngleError = (float)(i_near_angle);
       nearTarget = false;
@@ -319,6 +323,7 @@ void executeOrder() {
         targetReached = false;
         targetPathIndex = 0;
         targetPathSize = 0;
+        speedLimit_mps = 0;
         runTargetPath = false;
       }
       if (action == 0 || action == 1 || action == 2 || action == 3) { //add
@@ -327,7 +332,7 @@ void executeOrder() {
         targetPath[idx].y = (float)(i_y_pos) / 1000.0f;
         targetPath[idx].angle = (float)(i_angle);
         speedTarget = (float)(i_speed_pos) / 10.0f;
-        angleSpeedTarget = speedTarget * 180.f;
+        angleSpeedTarget = speedTarget * angleSpeedFactor;
         targetPathSize++;
       }
       if ((action == 2 || action == 3) && targetPathSize) { //run
@@ -356,12 +361,20 @@ void executeOrder() {
       sprintf(comunication_OutBuffer, "speed %.1f", targetSpeed_mps);
       comunication_write();//async
     }
+    else if (strstr(comunication_InBuffer, "speed limit")) {
+      sprintf(comunication_OutBuffer, "speed OK");
+      comunication_write();//async
+      int speedLimitInput = 0;
+      sscanf(comunication_InBuffer, "speed limit %i", &speedLimitInput);
+      speedLimit_mps = abs((float)(speedLimitInput) / 10.f);
+    }
     else if (strstr(comunication_InBuffer, "move break")) {
       sprintf(comunication_OutBuffer, "move OK");
       comunication_write();//async
       emergencyStop = true;
       targetSpeed_mps = 0;
       targetAngleSpeed_dps = 0;
+      speedLimit_mps = 0;
     }
     else if (strstr(comunication_InBuffer, "move RM")) {
       int i_distance = 0, i_vitesse = 4;
@@ -401,6 +414,7 @@ void executeOrder() {
       targetMovmentAngle = i_move_angle;
       targetSpeed_mps = (float)(i_move_speed) / 10.0f;
       targetAngleSpeed_dps = i_angle_speed;
+      speedLimit_mps = 0.f;
       emergencyStop = false;
       runTargetPath = false;
     }
@@ -484,6 +498,15 @@ void updateAsserv() {
   double rotationFromStart = angleDiff(angleStart, getAnglePos());
 
   targetAngleSpeed_dps = applySpeedRamp(rotationFromStart, rotationError, slowDownAngle, angleSpeedTarget, angleMinSpeed);
+  // Apply speed limit
+  if(speedLimit_mps>0.01) {
+    // translation speed
+    if(targetSpeed_mps>0) targetSpeed_mps = min(targetSpeed_mps, speedLimit_mps);
+    else targetSpeed_mps = max(targetSpeed_mps, -speedLimit_mps);
+    // Rotation speed
+    if(targetAngleSpeed_dps>0) targetAngleSpeed_dps = min(targetAngleSpeed_dps, speedLimit_mps*angleSpeedFactor);
+    else targetAngleSpeed_dps = max(targetAngleSpeed_dps, -speedLimit_mps*angleSpeedFactor);
+  }
 
   nearTarget = (!runTargetPath and translationError <= nearTranslationError and fabs(rotationError) <= nearAngleError);
 
