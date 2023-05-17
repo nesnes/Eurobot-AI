@@ -51,9 +51,9 @@ module.exports = class Robot2020 extends Robot{
             //foundInOppositSite: { value: 0, max: 3 },
         }
         this.collisionAngle = 120;
-        this.collisionDistance = this.radius+250;
+        this.collisionDistance = this.radius+350;
         this.slowdownAngle = 90;
-        this.slowdownDistance = this.collisionDistance+100;
+        this.slowdownDistance = this.collisionDistance+200;
         this.slowdownDistanceOffset = 300; // multiplied by speed in m/s and added to slowdownDistance
 
         if(!this.app.parameters.simulate){
@@ -66,8 +66,8 @@ module.exports = class Robot2020 extends Robot{
         
         this.armCloseAngle = 131;
         this.armGrabtHeight = 29;
-        this.cherryLayer = 2.6;
-        this.maxLayer = 3.2;
+        this.cherryLayer = 3.1;
+        this.maxLayer = 3.6;
     }
 
     async init(){
@@ -99,11 +99,17 @@ module.exports = class Robot2020 extends Robot{
         
         // Set arms at default position
         if(this.modules.arm) await this.modules.arm.setLed({ brightness: 0, color: 0});
-        if(this.modules.arm) await this.modules.arm.setPose({ name: "ACG", a1:40, a2:150, a3:150, a4:150 });
-        if(this.modules.arm) await this.modules.arm.setPose({ name: "ABG", a1:40, a2:150, a3:150, a4:150 });
-        if(this.modules.arm) await this.modules.arm.setPose({ name: "BCG", a1:40, a2:150, a3:150, a4:150 });
-        await utils.sleep(1500);
+        //if(this.modules.arm) await this.modules.arm.setPose({ name: "ACG", a1:40, a2:150, a3:150, a4:150 });
+        //if(this.modules.arm) await this.modules.arm.setPose({ name: "ABG", a1:40, a2:150, a3:150, a4:150 });
+        //if(this.modules.arm) await this.modules.arm.setPose({ name: "BCG", a1:40, a2:150, a3:150, a4:150 });
+        
+        //await this.setArmToLayer({name:"ACG", layer:3.2, open:false, transport: false, duration: 200, packed: true});
+        //await this.setArmToLayer({name:"ABG", layer:3.2, open:false, transport: false, duration: 200, packed: true});
+        //await this.setArmToLayer({name:"BCG", layer:3.2, open:false, transport: false, duration: 200, packed: true});
+        
         this.setArmsPacked({});
+        await utils.sleep(1500);
+        //this.setArmsPacked({});
         
         if(this.modules.base) await this.modules.base.enableMove();
         
@@ -225,7 +231,17 @@ module.exports = class Robot2020 extends Robot{
     
     
     async setArmsPacked(parameters){
-        // Set arms half closed
+        let armList = ["AC", "AB", "BC"]
+        if("armList" in parameters) armList = parameters.armList;
+        if(armList.length == 0) return true;
+        for(let targetArm of armList) {
+            await this.setArmToLayer({name:targetArm+"G", layer:3.2, open:true, transport: false, duration: 200});
+        }
+        await utils.sleep(300);
+        for(let targetArm of armList) {
+            await this.setArmToLayer({name:targetArm+"G", layer:3.2, open:false, transport: false, duration: 200, packed: true});
+        }
+        /*// Set arms half closed
         if(this.modules.arm) await this.modules.arm.setPose({ name: "ACG", a1:40, a2:150, a3:150, a4:40 });
         if(this.modules.arm) await this.modules.arm.setPose({ name: "ABG", a1:40, a2:150, a3:150, a4:40 });
         if(this.modules.arm) await this.modules.arm.setPose({ name: "BCG", a1:40, a2:150, a3:150, a4:40 });
@@ -233,8 +249,20 @@ module.exports = class Robot2020 extends Robot{
         // Set arms fully closed
         if(this.modules.arm) await this.modules.arm.setPose({ name: "ACG", a1:40, a2:150, a3:60, a4:40 });
         if(this.modules.arm) await this.modules.arm.setPose({ name: "ABG", a1:40, a2:150, a3:60, a4:40 });
-        if(this.modules.arm) await this.modules.arm.setPose({ name: "BCG", a1:40, a2:150, a3:60, a4:40 });
+        if(this.modules.arm) await this.modules.arm.setPose({ name: "BCG", a1:40, a2:150, a3:60, a4:40 });*/
         return true;
+    }
+    
+    async packEmptyArms(parameters){
+        let armList = ["AC", "AB", "BC"]
+        let packList = [];
+        if("armList" in parameters) armList = parameters.armList;
+        for(let targetArm of armList) {
+            if(this.variables["arm"+targetArm].value == ""){
+                packList.push(targetArm);
+            }
+        }
+        return await this.setArmsPacked({armList:packList});
     }
     
     async setArmGrabOpen(parameters){
@@ -274,6 +302,7 @@ module.exports = class Robot2020 extends Robot{
         //open
         let targetArmAngle = this.armCloseAngle;
         if(parameters.open) targetArmAngle += 20;
+        if(parameters.packed) targetArmAngle = 110;
         console.log(parameters)
         let pose = Object.assign({ name: "ACG", a1:targetHeight, a2:150, a3:targetArmAngle, a4:targetArmAngle }, parameters);
         if(this.modules.arm) await this.modules.arm.setPose(pose);
@@ -308,12 +337,10 @@ module.exports = class Robot2020 extends Robot{
     }
     
     async distributeCherry(parameters){
-        console.log("------> distribute",parameters )
         if(!parameters.name) return false;
         let targetAngle = 160;
         if(parameters.index==2) targetAngle = 180;
         let pose = Object.assign({ name: "ACD", angle: targetAngle, duration: 0}, parameters);
-        console.log("------> distribute set servo", pose )
         if(this.modules.arm) await this.modules.arm.setServo(pose);
         return true;
     }
@@ -336,10 +363,10 @@ module.exports = class Robot2020 extends Robot{
         
         let speed = parameters.speed||this.app.goals.defaultSpeed;
         for(let i=0;i<5;i++){
-            let result = await this.rotateToAngle({ angle: 90, speed });
-            result = await this.rotateToAngle({ angle: 180, speed });
-            result = await this.rotateToAngle({ angle: -90, speed });
-            result = await this.rotateToAngle({ angle: 0, speed });
+            let result = await this.rotateToAngle({ angle: 90, speed, preventLocalisation: true });
+            result = await this.rotateToAngle({ angle: 180, speed, preventLocalisation: true });
+            result = await this.rotateToAngle({ angle: -90, speed, preventLocalisation: true });
+            result = await this.rotateToAngle({ angle: 0, speed, preventLocalisation: true });
             await utils.sleep(3000);
         }
         
@@ -360,7 +387,8 @@ module.exports = class Robot2020 extends Robot{
             distance:   parameters.distance,
             speed:      parameters.speed||this.app.goals.defaultSpeed,
             nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+            preventLocalisation: true
         });
         
         return true;
@@ -462,6 +490,10 @@ module.exports = class Robot2020 extends Robot{
                 nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
             });
             if(!result) return result;
+            result = await this.moveCorrectPosition({
+                speed: parameters.speed||this.app.goals.defaultSpeed
+            });
+            if(!result) return result;
         }
         
         // Select arm to be used
@@ -525,7 +557,8 @@ module.exports = class Robot2020 extends Robot{
                 distance: offsetForward,
                 speed: 0.5,
                 nearDist:   offsetForward/2,
-                nearAngle:  5
+                nearAngle:  5,
+                preventLocalisation: true
             });
             if(!result) return result;
         }
@@ -553,7 +586,8 @@ module.exports = class Robot2020 extends Robot{
             distance: 250,
             speed:      0.4,//parameters.speed||this.app.goals.defaultSpeed,
             nearDist:   50,
-            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+            preventLocalisation: true
         });
         if(!result) return result;
         
@@ -568,7 +602,8 @@ module.exports = class Robot2020 extends Robot{
             distance: 150,
             speed:      0.3,//parameters.speed||this.app.goals.defaultSpeed,
             nearDist:   30,
-            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+            preventLocalisation: true
         });
         if(!result) return result;
         
@@ -663,6 +698,10 @@ module.exports = class Robot2020 extends Robot{
                 nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
             });
             if(!result) return result;
+            result = await this.moveCorrectPosition({
+                speed: parameters.speed||this.app.goals.defaultSpeed
+            });
+            if(!result) return result;
         }
         
         // Start deposit sequence, turn on itself and deposit cake layers when required
@@ -678,8 +717,8 @@ module.exports = class Robot2020 extends Robot{
             return max;
         }
         
-        let rotationSpeed = 0.7;
-        let moveSpeed = 0.5;
+        let rotationSpeed = 0.4;
+        let moveSpeed = 0.3;
         let cakeBuildDistance = 140;
         if(hasTimeToSort){
             // For each full rotation
@@ -703,7 +742,8 @@ module.exports = class Robot2020 extends Robot{
                             angle:targetAngle,
                             speed:      rotationSpeed,//parameters.speed||this.app.goals.defaultSpeed,
                             nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                            preventLocalisation: true
                         });
                     }
                     // special case with 6 brown cake in AC (brown rush)
@@ -716,7 +756,8 @@ module.exports = class Robot2020 extends Robot{
                             distance: 300,
                             speed:      moveSpeed,//parameters.speed||this.app.goals.defaultSpeed,
                             nearDist:   100,
-                            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                            preventLocalisation: true
                         });
                         if(!result) return result;
                         await this.setArmToLayer({name:"ACG", layer:0, open:false, transport: false, wait: true});
@@ -734,7 +775,8 @@ module.exports = class Robot2020 extends Robot{
                             distance: -300,
                             speed:      moveSpeed,//parameters.speed||this.app.goals.defaultSpeed,
                             nearDist:   100,
-                            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                            preventLocalisation: true
                         });
                         if(!result) return result;
                         await this.setArmToLayer({name:"ACG", layer:0, open:false, transport: true});
@@ -765,7 +807,8 @@ module.exports = class Robot2020 extends Robot{
                                 distance: cakeBuildDistance + layerDistOffset,
                                 speed:      moveSpeed,//parameters.speed||this.app.goals.defaultSpeed,
                                 nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                                preventLocalisation: true
                             });
                             if(!result) return result;
                             
@@ -797,7 +840,8 @@ module.exports = class Robot2020 extends Robot{
                                 distance: -cakeBuildDistance - layerDistOffset,
                                 speed:      moveSpeed,//parameters.speed||this.app.goals.defaultSpeed,
                                 nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                                preventLocalisation: true
                             });
                         }
                             
@@ -817,9 +861,10 @@ module.exports = class Robot2020 extends Robot{
                             result = await this.moveAtAngle({
                                 angle: forwardAngle,
                                 distance: cakeBuildDistance+50,
-                                speed:      moveSpeed/3,//parameters.speed||this.app.goals.defaultSpeed,
+                                speed:      0.2,//parameters.speed||this.app.goals.defaultSpeed,
                                 nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                                preventLocalisation: true
                             });
                             if(!result) return result;
                             
@@ -833,9 +878,10 @@ module.exports = class Robot2020 extends Robot{
                             result = await this.moveAtAngle({
                                 angle: forwardAngle,
                                 distance: extendedForwardDistance,
-                                speed:      moveSpeed/3,//parameters.speed||this.app.goals.defaultSpeed,
+                                speed:      0.2,//parameters.speed||this.app.goals.defaultSpeed,
                                 nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                                preventLocalisation: true
                             });
                             if(!result) return result;
                             
@@ -865,7 +911,8 @@ module.exports = class Robot2020 extends Robot{
                                 distance: -(cakeBuildDistance+50+extendedForwardDistance),
                                 speed:      moveSpeed,//parameters.speed||this.app.goals.defaultSpeed,
                                 nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                                preventLocalisation: true
                             });
                             if(!result) return result;
                         }
@@ -967,7 +1014,8 @@ module.exports = class Robot2020 extends Robot{
                 distance: 300,
                 speed:      parameters.speed||this.app.goals.defaultSpeed,
                 nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                preventLocalisation: true
             });
             if(!result) return result;
             // Lower arms
@@ -997,7 +1045,8 @@ module.exports = class Robot2020 extends Robot{
                 distance: 25,
                 speed:      moveSpeed,//parameters.speed||this.app.goals.defaultSpeed,
                 nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                preventLocalisation: true
             });
             if(!result) return result;
             // Wiggle right
@@ -1006,7 +1055,8 @@ module.exports = class Robot2020 extends Robot{
                 distance: 50,
                 speed:      moveSpeed,//parameters.speed||this.app.goals.defaultSpeed,
                 nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                preventLocalisation: true
             });
             if(!result) return result;
             // Move back to plate at opposite angle
@@ -1017,7 +1067,8 @@ module.exports = class Robot2020 extends Robot{
                     angle:      targetAccess.angle+180,
                     speed:      moveSpeed,//parameters.speed||this.app.goals.defaultSpeed,
                     nearDist:   150,
-                    nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                    nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                    preventLocalisation: true
                 });
                 if(!result) return result;
                 if(hasFrontCake){
@@ -1028,7 +1079,8 @@ module.exports = class Robot2020 extends Robot{
                         angle:      targetAccess.angle,
                         speed:      parameters.speed||this.app.goals.defaultSpeed,
                         nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                        nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                        nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                        preventLocalisation: true
                     });
                 }
             }
@@ -1039,14 +1091,16 @@ module.exports = class Robot2020 extends Robot{
                     distance: 300,
                     speed:      parameters.speed||this.app.goals.defaultSpeed,
                     nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                    nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                    nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                    preventLocalisation: true
                 });
                 if(!result) return result;
                 result = await this.rotateToAngle({
                     angle:      targetAccess.angle,
                     speed:      parameters.speed||this.app.goals.defaultSpeed,
                     nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                    nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                    nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                    preventLocalisation: true
                 });
                 if(!result) return result;
             }
@@ -1066,7 +1120,8 @@ module.exports = class Robot2020 extends Robot{
                 distance: 200,
                 speed:      moveSpeed,//parameters.speed||this.app.goals.defaultSpeed,
                 nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                preventLocalisation: true
             });
             if(!result) return result;
             await this.setArmToLayer({name:"ACG", layer:0, open:false, transport: true, wait: true});
@@ -1079,7 +1134,8 @@ module.exports = class Robot2020 extends Robot{
                 distance: 200,
                 speed:      parameters.speed||this.app.goals.defaultSpeed,
                 nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                preventLocalisation: true
             });
             /*if(!parameters.doNotMoveToSite){
                 result = await this.moveToPosition({
@@ -1166,6 +1222,10 @@ module.exports = class Robot2020 extends Robot{
             nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
         });
         if(!result) return result;
+        result = await this.moveCorrectPosition({
+            speed: parameters.speed||this.app.goals.defaultSpeed
+        });
+        if(!result) return result;
         await utils.sleep(1500); // Make sure arms are lifted high enough
         
         // Release cherries
@@ -1202,7 +1262,8 @@ module.exports = class Robot2020 extends Robot{
                 distance: 300,
                 speed:      parameters.speed||this.app.goals.defaultSpeed,
                 nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                preventLocalisation: true
             });
             if(!result) return result;
             // Lower arms
@@ -1225,7 +1286,8 @@ module.exports = class Robot2020 extends Robot{
                 distance: 25,
                 speed:      parameters.speed||this.app.goals.defaultSpeed,
                 nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                preventLocalisation: true
             });
             if(!result) return result;
             // Wiggle right
@@ -1234,7 +1296,8 @@ module.exports = class Robot2020 extends Robot{
                 distance: 50,
                 speed:      parameters.speed||this.app.goals.defaultSpeed,
                 nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                preventLocalisation: true
             });
             if(!result) return result;
             // Move back to plate at opposite angle
@@ -1244,7 +1307,8 @@ module.exports = class Robot2020 extends Robot{
                 angle:      targetAccess.angle+180,
                 speed:      parameters.speed||this.app.goals.defaultSpeed,
                 nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                preventLocalisation: true
             });
             if(!result) return result;
             // Release front cake
@@ -1255,7 +1319,8 @@ module.exports = class Robot2020 extends Robot{
                 angle:      targetAccess.angle,
                 speed:      parameters.speed||this.app.goals.defaultSpeed,
                 nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                preventLocalisation: true
             });
         }
         this.addCakePoints({cake:this.variables["armAC"].value});
@@ -1271,7 +1336,8 @@ module.exports = class Robot2020 extends Robot{
             distance: 250,
             speed:      parameters.speed||this.app.goals.defaultSpeed,
             nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+            preventLocalisation: true
         });
         if(!result) return result;
         await this.setArmGrabOpen({name: "ACG", duration: 500});
@@ -1282,7 +1348,8 @@ module.exports = class Robot2020 extends Robot{
             angle:      targetAccess.angle,
             speed:      parameters.speed||this.app.goals.defaultSpeed,
             nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+            preventLocalisation: true
         });
         
         //Close arms
@@ -1296,9 +1363,8 @@ module.exports = class Robot2020 extends Robot{
         return true;
     }
     
-    async removeFromMap(parameters){
-        if(parameters.list) parameters.list.forEach((e)=>this.app.map.removeComponent(this.app.map.getComponent(e, this.team)))
-        return true;
+    async addToMap(parameters){
+        
     }
     
     async grabCake(parameters){
@@ -1407,7 +1473,7 @@ module.exports = class Robot2020 extends Robot{
         
         // Open arm
         for(let currArm of targetArmList){
-            await this.setArmToLayer({name:"ACG", layer:0, open:false, transport: true, duration: 250, wait:false});
+            await this.setArmToLayer({name:currArm+"G", layer:0, open:false, transport: true, duration: 250, wait:false});
             //await utils.sleep(2200); // Make sure arms are lifted high enough
         
             //this.setArmGrabOpen({name: currArm+"G", duration: 250, wait:false});
@@ -1426,29 +1492,39 @@ module.exports = class Robot2020 extends Robot{
             nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
         });
         if(!result) return result;
+        result = await this.moveCorrectPosition({
+            speed: parameters.speed||this.app.goals.defaultSpeed
+        });
+        if(!result) return result;
         
         // Move toward cake(s)
         result = await this.moveAtAngle({
             angle: accessAngle,
-            distance: 300,
+            distance: 250,
             speed:      parameters.speed||this.app.goals.defaultSpeed,
             nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+            preventLocalisation: true
         });
         if(!result) return result;
         
         // Approach each cake for double pick
         for(let currArm of targetArmList){
-            let approachAngle = grabOrientation;
-            if(secondComponent && currArm=="AB") approachAngle = grabOrientation + 30;
-            if(secondComponent && currArm=="BC") approachAngle = grabOrientation - 30;
+            let distance = 100;
+            let approachAngle = accessAngle;
+            if(secondComponent){
+                distance = -100
+                if(currArm=="AB") approachAngle = grabOrientation + 30;
+                if(currArm=="BC") approachAngle = grabOrientation - 30;
+            }
             this.setArmGrabClose({name: currArm+"G", duration: 500, wait:false});
             result = await this.moveAtAngle({
                 angle: approachAngle,
-                distance: -50,
+                distance: distance,
                 speed:      0.3,
                 nearDist:   this.app.goals.defaultNearDist,
-                nearAngle:  this.app.goals.defaultNearAngle
+                nearAngle:  this.app.goals.defaultNearAngle,
+                preventLocalisation: true
             });
             if(!result) return result;
             this.setArmGrabOpen({name: currArm+"G"});
@@ -1456,18 +1532,21 @@ module.exports = class Robot2020 extends Robot{
             this.setArmGrabClose({name: currArm+"G"});
             await utils.sleep(100);
             this.setArmTransport({name: currArm+"G"});
-            await utils.sleep(100);
-            result = await this.moveAtAngle({
-                angle: approachAngle,
-                distance: 50,
-                speed:      parameters.speed||this.app.goals.defaultSpeed,
-                nearDist:   this.app.goals.defaultNearDist,
-                nearAngle:  this.app.goals.defaultNearAngle
-            });
+            if(secondComponent){
+                result = await this.moveAtAngle({
+                    angle: approachAngle,
+                    distance: -distance,
+                    speed:      parameters.speed||this.app.goals.defaultSpeed,
+                    nearDist:   this.app.goals.defaultNearDist,
+                    nearAngle:  this.app.goals.defaultNearAngle,
+                    preventLocalisation: true
+                });
+            }
         }
         
         // Close arm
         let hasAnyCake = false;
+        await utils.sleep(150); // time to close arms before cacke check
         for(let currArm of targetArmList){
             let hasCake = await this.isArmHoldingCake({name:currArm+"G"});
             hasAnyCake |= hasCake;
@@ -1491,7 +1570,7 @@ module.exports = class Robot2020 extends Robot{
                 if(comp.type=="cakeBrown") { varValue = "BBB"; }
                 this.setVariable({name:"arm"+currArm, value:varValue, side:0});
             }
-            this.app.map.removeComponent(comp);
+            this.removeFromMap({component: comp});
         }
         
         /*if(component.type!="cakeBrown" && !secondComponent){
@@ -1553,20 +1632,9 @@ module.exports = class Robot2020 extends Robot{
         await utils.sleep(100);
         await this.setArmToLayer({name:targetArm+"G", layer:3.1, open:false, transport: true, wait:true});
         let hasCake = await this.isArmHoldingCake({name:targetArm+"G"});
-        if(closestCake) this.app.map.removeComponent(closestCake);
+        if(closestCake) this.removeFromMap({component:closestCake});
         if(!hasCake) return false;
         this.setVariable({name:"arm"+targetArm, value:"BBB"});
-        // Move forward
-        /*result = await this.moveAtAngle({
-            angle: this.angle,
-            distance: 21,
-            speed:      parameters.speed||this.app.goals.defaultSpeed,
-            nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
-        });
-        if(!result) return result;
-        await this.setArmToLayer({name:targetArm+"G", layer:3.1, open:false, transport: true, wait: true});
-        */
         
         // Move over brown
         result = await this.moveAtAngle({
@@ -1575,6 +1643,10 @@ module.exports = class Robot2020 extends Robot{
             speed:      0.3,
             nearDist:   this.app.goals.defaultNearDist,
             nearAngle:  this.app.goals.defaultNearAngle
+        });
+        if(!result) return result;
+        result = await this.moveCorrectPosition({
+            speed: parameters.speed||this.app.goals.defaultSpeed
         });
         if(!result) return result;
         
@@ -1588,7 +1660,8 @@ module.exports = class Robot2020 extends Robot{
             distance: -100,
             speed:      0.3,
             nearDist:   50,
-            nearAngle:  this.app.goals.defaultNearAngle
+            nearAngle:  this.app.goals.defaultNearAngle,
+            preventLocalisation: true
         });
         if(!result) return result;
         
@@ -1602,7 +1675,12 @@ module.exports = class Robot2020 extends Robot{
             distance: 200,
             speed:      0.3,
             nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+            preventLocalisation: true
+        });
+        //if(!result) return result;
+        result = await this.moveCorrectPosition({
+            speed: parameters.speed||this.app.goals.defaultSpeed
         });
         //if(!result) return result;
         
@@ -1618,7 +1696,7 @@ module.exports = class Robot2020 extends Robot{
         
         
         closestCake = findClosestCake(this.x, this.y, this.app.map.getComponentList("cakeBrown"));
-        if(closestCake) this.app.map.removeComponent(closestCake);
+        if(closestCake) this.removeFromMap({component:closestCake});
         hasCake = await this.isArmHoldingCake({name:targetArm+"G"});
         if(hasCake){
             this.setVariable({name:"arm"+targetArm, value:"BBBBBB"});
@@ -1689,6 +1767,10 @@ module.exports = class Robot2020 extends Robot{
             nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
         });
         if(!result) return result;
+        result = await this.moveCorrectPosition({
+            speed: parameters.speed||this.app.goals.defaultSpeed
+        });
+        if(!result) return result;
         
         // Move forward
         result = await this.moveAtAngle({
@@ -1696,7 +1778,8 @@ module.exports = class Robot2020 extends Robot{
             distance: 200,
             speed:      parameters.speed||this.app.goals.defaultSpeed,
             nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+            preventLocalisation: true
         });
         if(!result) return result;
         return result;
@@ -2477,6 +2560,7 @@ module.exports = class Robot2020 extends Robot{
                 preventPathFinding: true,
                 angle: 0,
                 speed: 0.3,
+                preventLocalisation: true
                 //nearDist: this.app.goals.defaultNearDist,
                 //nearAngle: this.app.goals.defaultNearAngle
             });

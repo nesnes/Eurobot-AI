@@ -42,6 +42,15 @@ module.exports = class Intelligence {
         this.app.goals = new Goals(this.app);
         this.app.goals.init();
         this.app.logger.log("Goals loaded");
+        
+        //Load multicast
+        let multicastFile='./multicast';
+        delete require.cache[require.resolve(multicastFile)]; //Delete require() cache
+        const Multicast = require(multicastFile);
+        this.app.multicast = new Multicast(this.app);
+        this.app.multicast.init();
+        this.app.logger.log("Multicast loaded");
+        
 
         this.send();
         this.updateInterval = setInterval(()=>this.updateMatchTime(),150);
@@ -69,6 +78,7 @@ module.exports = class Intelligence {
     async close(){
         if(this.updateInterval) clearInterval(this.updateInterval);
         if(this.app.robot) await this.app.robot.close();
+        if(this.app.multicast) await this.app.multicast.close();
     }
 
     stopMatch(){

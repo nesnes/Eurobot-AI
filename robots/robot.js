@@ -63,6 +63,7 @@ module.exports = class Robot {
         this.disableColisions = !!this.app.parameters.disableColisions;
         this.disableLocalisation = !!this.app.parameters.disableLocalisation;
         this.lastPositionUpdateTime=0;
+        this.lastPositionMulticastTime=0;
         this.funnyActionTimeout = null;
 
     }
@@ -128,6 +129,7 @@ module.exports = class Robot {
             this.angle = preset.angle;
             if(this.modules.arm && await this.modules.arm.supportPosition()) await this.modules.arm.setPosition({x:this.x, y:this.y, angle:this.angle});
             if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle, resetTarget:1});
+            if(this.modules.base) await this._updatePositionAndMoveStatus(true);
         }
         if('team' in preset){
             this.team = preset.team;
@@ -148,7 +150,7 @@ module.exports = class Robot {
         if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle, resetTarget:1});
         if(this.modules.arm && await this.modules.arm.supportPosition()) await this.modules.arm.setPosition({x:this.x, y:this.y, angle:this.angle});
         //if(this.modules.base) await this.modules.base.enableMove();
-        if(this.modules.base) await this._updatePositionAndMoveStatus();
+        if(this.modules.base) await this._updatePositionAndMoveStatus(true);
         //Other specific init actions should be defined in year-dedicated robot file
         this.send();
     }
@@ -256,7 +258,7 @@ module.exports = class Robot {
             //Wait for the starter to be positioned and pulled
             let changed = false;
             do {
-                await this.findLocalisation();
+                await this.findLocalisation({});
                 status = await this.modules.controlPanel.getStart();
                 console.log("status", status, "state", state);
                 if(status){
@@ -391,14 +393,35 @@ module.exports = class Robot {
             angle:angle,
             speed:parameters.speed,
             nearDist:parameters.nearDist||0,
-            nearAngle:parameters.nearAngle||0
+            nearAngle:parameters.nearAngle||0,
+            preventLocalisation: parameters.preventLocalisation
         });
         this.send();
         //await utils.sleep(500);
         return success
     }
+    
+    async moveCorrectPosition(parameters){
+        let wait = 300;
+        if("wait" in parameters) wait = parameters.wait;
+        await this.findLocalisation({resetTarget:0});
+        await utils.sleep(wait);
+        await this.findLocalisation({resetTarget:0});
+        let success = await this.moveToPosition({
+            x: this.lastTarget.x,
+            y: this.lastTarget.y,
+            angle: this.lastTarget.angle,
+            speed: 0.3,
+            nearDist:0,
+            nearAngle:0,
+            preventLocalisation: false
+        });
+        await this.findLocalisation({resetTarget:0});
+        return success;
+    }
 
     async moveToPosition(parameters){
+        let preventLocalisation = parameters.preventLocalisation || false;
         let path = [];
         if(parameters.preventPathFinding) {
             //path.push([this.x, this.y])
@@ -421,7 +444,7 @@ module.exports = class Robot {
                 let angle = startAngle-(dangle*(i++/(path.length)))
                 paramPath.push({x:p[0], y:p[1], angle:angle, speed:parameters.speed, nearDist:parameters.nearDist, nearAngle:parameters.nearAngle});
             }
-            return await this.moveAlongPath({path:paramPath})
+            return await this.moveAlongPath({path:paramPath, preventLocalisation})
             //return await this._performPath(path, parameters.x, parameters.y, parameters.angle, parameters.speed)
         }
         return false
@@ -436,7 +459,8 @@ module.exports = class Robot {
             endAngle: ("angle" in parameters)?parameters.angle:this.lastTarget.angle,
             speed: parameters.speed,
             nearDist: parameters.nearDist,
-            nearAngle: parameters.nearAngle
+            nearAngle: parameters.nearAngle,
+            preventLocalisation: parameters.preventLocalisation
         });
     }
 
@@ -447,7 +471,8 @@ module.exports = class Robot {
             endAngle: ("angle" in parameters)?parameters.angle:this.lastTarget.angle,
             speed:parameters.speed,
             nearDist: parameters.nearDist,
-            nearAngle: parameters.nearAngle
+            nearAngle: parameters.nearAngle,
+            preventLocalisation: parameters.preventLocalisation
         });
     }
     
@@ -462,7 +487,8 @@ module.exports = class Robot {
             angle: moveAngle,
             distance: parameters.distance,
             endAngle: this.lastTarget.angle,
-            speed: parameters.speed
+            speed: parameters.speed,
+            preventLocalisation: true
         });
         if("newX" in parameters) this.x = parameters.newX
         if("newY" in parameters) this.y = parameters.newY;
@@ -473,7 +499,7 @@ module.exports = class Robot {
         this.lastTarget.angle = this.angle;
         if(this.modules.arm && await this.modules.arm.supportPosition()) await  this.modules.arm.setPosition({x:this.x, y:this.y, angle:this.angle});
         if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle, resetTarget:1});
-        if(this.modules.base) await this._updatePositionAndMoveStatus();
+        if(this.modules.base) await this._updatePositionAndMoveStatus(true);
         return true;
     }
     
@@ -484,7 +510,8 @@ module.exports = class Robot {
             endAngle: ("angle" in parameters)?parameters.angle:this.lastTarget.angle,
             speed:parameters.speed,
             nearDist: parameters.nearDist,
-            nearAngle: parameters.nearAngle
+            nearAngle: parameters.nearAngle,
+            preventLocalisation: parameters.preventLocalisation
         });
     }
 
@@ -496,7 +523,8 @@ module.exports = class Robot {
             endAngle: angle,
             speed:parameters.speed,
             nearDist: 0,
-            nearAngle: parameters.nearAngle
+            nearAngle: parameters.nearAngle,
+            preventLocalisation: parameters.preventLocalisation
         });
     }
 
@@ -526,7 +554,8 @@ module.exports = class Robot {
             speed:parameters.speed,
             preventPathFinding: true,
             nearDist: parameters.nearDist,
-            nearAngle: parameters.nearAngle
+            nearAngle: parameters.nearAngle,
+            preventLocalisation: parameters.preventLocalisation
         });
     }
 
@@ -563,7 +592,7 @@ module.exports = class Robot {
         if(!isNaN(x) && !isNaN(y)) this._updateMovementAngle(x,y);
         if(!this.modules.lidar) return true;
         if(this.disableColisions) return true;
-        let collisionCountTarget = 10;
+        let collisionCountTarget = 7;
         let collisionCount = 0;
         let slowdownCount = 0;
         let angleA = utils.normAngle(this.movementAngle-this.collisionAngle/2);
@@ -597,13 +626,15 @@ module.exports = class Robot {
                     let y2 = y1*rayCos + x1*raySin;
                     x2 += this.x;
                     y2 += this.y;
-                    this.app.map.addComponent({
-                        name: "Detected Obstacle",
-                        type: "obstacle",
-                        isSolid: true,
-                        shape: { type: "circle", x:x2, y:y2, radius: obstacleRadius, color: "orange" },
-                        timeout: obstacleTimeout
-                    })
+                    this.addToMap({
+                        component:{
+                            name: "Detected Obstacle",
+                            type: "obstacle",
+                            isSolid: true,
+                            shape: { type: "circle", x:x2, y:y2, radius: obstacleRadius, color: "orange" },
+                            timeout: obstacleTimeout
+                        }
+                    });
                     return false;
                 }
             }
@@ -647,10 +678,12 @@ module.exports = class Robot {
         return success
     }*/
 
-    async _updatePositionAndMoveStatus(){
+    async _updatePositionAndMoveStatus(preventLocalisation=false){
         
         let moveStatus = "end";
-        await this.findLocalisation({resetTarget:0});
+        if(!preventLocalisation) {
+            await this.findLocalisation({resetTarget:0});
+        }
         let status = await this.modules.base.getStatus();
         //console.log(status)
         if(status && typeof status === "object"){
@@ -664,18 +697,30 @@ module.exports = class Robot {
         if(this.slowdown) this.modules.base.setSpeedLimit({speed:this.slowDownSpeed});
         else this.modules.base.setSpeedLimit({speed:0});
         
+        let now = new Date().getTime();
+        if(this.app.multicast && now - this.lastPositionMulticastTime > 1000){
+            this.lastPositionMulticastTime = now;
+            this.app.multicast.sendAddComponent({
+                name: "Robot friend",
+                type: "robotfriend",
+                isSolid: true,
+                shape: { type: "circle", x:this.x, y:this.y, radius: this.radius + 50, color: "green" },
+                timeout: 1000
+            });
+        }
+        
         this.send();
         return moveStatus;
     }
 
-    async _performMovement(x, y, angle, speed, nearDist=0, nearAngle=0){
+    async _performMovement(x, y, angle, speed, nearDist=0, nearAngle=0, preventLocalisation=false){
         let sleep = 30;
         let success = true;
         let moveStatus = "";
         //this.app.logger.log(`-> move coordinates ${x} ${y} ${angle} ${speed}, near ${nearDist} ${nearAngle}`);
 
         //Update position and check obstacles
-        await this._updatePositionAndMoveStatus();
+        await this._updatePositionAndMoveStatus(preventLocalisation);
         if(!this.isMovementPossible(x,y)) return false;
         if(!this.modules.base){
             this._updatePosition(x,y,angle, true);
@@ -692,7 +737,7 @@ module.exports = class Robot {
             await utils.sleep(sleep);
             if(this.app.intelligence.hasBeenRun && this.app.intelligence.isMatchFinished()) success = false;
             if(!this.isMovementPossible(x,y)) success = false;
-            moveStatus = await this._updatePositionAndMoveStatus();
+            moveStatus = await this._updatePositionAndMoveStatus(preventLocalisation);
         } while(success && moveStatus && moveStatus.includes("run")) // "near" and "end" status will stop the loop (but not the robot)
         if(!success) this.modules.base.break();
         this.send();
@@ -702,11 +747,12 @@ module.exports = class Robot {
     async moveAlongPath(params){
         let path=params.path;
         let sleep = 30;
+        let preventLocalisation = params.preventLocalisation || false;
         var success = true;
         if(!path.length) return false;
         if(this.modules.base && await this.modules.base.supportPath()){
             //Update position and check obstacles
-            await this._updatePositionAndMoveStatus();
+            await this._updatePositionAndMoveStatus(preventLocalisation);
             if(!this.isMovementPossible(path[0].x,path[0].y)) return false;
 
             //Start the move
@@ -717,7 +763,7 @@ module.exports = class Robot {
                 await utils.sleep(sleep);
                 if(this.app.intelligence.hasBeenRun && this.app.intelligence.isMatchFinished()) success = false;
                 if(!this.isMovementPossible()) success = false;
-                moveStatus = await this._updatePositionAndMoveStatus();
+                moveStatus = await this._updatePositionAndMoveStatus(preventLocalisation);
             } while(success && moveStatus && moveStatus.includes("run"))
             if(!success) this.modules.base.break();
         }
@@ -725,7 +771,7 @@ module.exports = class Robot {
             //Not path support on base, run sections one by one
             for(let i=0;i<path.length;i++){
                 //this.app.logger.log(`-> move path ${i+1}/${path.length}`);
-                success = success && await this._performMovement(path[i].x, path[i].y, path[i].angle, path[i].speed, path[i].nearDist, path[i].nearAngle)
+                success = success && await this._performMovement(path[i].x, path[i].y, path[i].angle, path[i].speed, path[i].nearDist, path[i].nearAngle, preventLocalisation)
                 
                 if(!success) break
             }
@@ -737,5 +783,24 @@ module.exports = class Robot {
         //if(success) this._updatePosition(x,y,angle, true);
         this.send();
         return success
+    }
+    
+    async addToMap(parameters){
+        if(!parameters.component) return false;
+        this.app.map.addComponent(parameters.component)
+        if(this.app.multicast){
+            this.app.multicast.sendAddComponent(parameters.component);
+        }
+        return true;
+    }
+    
+    async removeFromMap(parameters){
+        //if(parameters.list) parameters.list.forEach((e)=>this.app.map.removeComponent(this.app.map.getComponent(e, this.team)))
+        if(!parameters.component) return false;
+        this.app.map.removeComponent(parameters.component);
+        if(this.app.multicast){
+            this.app.multicast.sendRemoveComponent(parameters.component);
+        }
+        return true;
     }
 }

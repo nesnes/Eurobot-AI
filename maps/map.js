@@ -52,6 +52,20 @@ module.exports = class Map {
         }
         return componentList;
     }
+    
+    getComponentByName(name, type="", team=""){
+        let component = null;
+        for(const item of this.app.map.components){
+            if(item.name == name
+            && (!type || item.type == type)
+            && (!team || item.team == team)
+            ){
+                component = item;
+                break;
+            }
+        }
+        return component;
+    }
 
     addComponent(cmp){
         cmp.insertTime = new Date().getTime();

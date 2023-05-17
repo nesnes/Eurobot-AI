@@ -149,7 +149,7 @@ module.exports = class Arm {
 
     async setLed(params){
         //this.app.logger.log("set led");
-        const ledCount = 12;
+        const ledCount = 24;
         let colors = [];
         if(!("brightness" in params)) params.brightness = 255;
         if("colors" in params && Array.isArray(params.colors)){
@@ -158,12 +158,10 @@ module.exports = class Arm {
             }
         }
         if("color" in params){
-            for(let i=0;i<ledCount;i++){
-                colors.push(params.color);
-            }
+            colors.push(params.color);
         }
         let msg = "p "+params.brightness;
-        for(let i=0;i<ledCount;i++){
+        for(let i=0;i<colors.length;i++){
             msg += " "+colors[i];
         }
         let result = true;
@@ -198,7 +196,7 @@ module.exports = class Arm {
             let posArray = response.split(" ");
             if(posArray.length == 4 && posArray[0]=="X"){
                 let newPosition = {x: parseInt(posArray[1]), y: parseInt(posArray[2]), angle: parseInt(posArray[3])/100, isNew: true};
-                if(this.position && this.position.x == newPosition.x && this.position.y == newPosition.y && this.position.angle == newPosition.angle){
+                if(this.position && this.position.x == newPosition.x && this.position.y == newPosition.y){
                     newPosition.isNew = false;
                 }
                 this.position = newPosition;

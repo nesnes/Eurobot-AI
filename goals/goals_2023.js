@@ -7,8 +7,8 @@ module.exports = class GoalsTest extends Goals{
         super(app);
         this.defaultSpeed=0.3; //m/s 0.6
         this.moveSpeed = 0.3; //m/s 0.5
-        this.defaultNearDist=50;//50mm
-        this.defaultNearAngle=10;//10°
+        this.defaultNearDist=20;//50mm
+        this.defaultNearAngle=3;//10°
         
         let waitForStart = {
             name: "Wait for start",
@@ -40,7 +40,8 @@ module.exports = class GoalsTest extends Goals{
                         method: "findAndGrabCake",
                         parameters:{ plateList: elementList }
                     }
-                ]
+                ],
+                onError: [ { name:"pack arms", method:"packEmptyArms", parameters:{}}]
             };
         };
         
@@ -61,7 +62,8 @@ module.exports = class GoalsTest extends Goals{
                         method: "rushBrownFromCenter",
                         parameters:{ }
                     }
-                ]
+                ],
+                onError: [ { name:"pack arms", method:"packEmptyArms", parameters:{}}]
             };
         };
         
@@ -81,7 +83,8 @@ module.exports = class GoalsTest extends Goals{
                         method: "grabCake",
                         parameters:{ component: element, speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     }
-                ]
+                ],
+                onError: [ { name:"pack arms", method:"packEmptyArms", parameters:{}}]
             };
         }
         
@@ -106,7 +109,8 @@ module.exports = class GoalsTest extends Goals{
                         method: "depositCake",
                         parameters:{ plateTypes: plateTypes, speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     }
-                ]
+                ],
+                onError: [ { name:"pack arms", method:"packEmptyArms", parameters:{}}]
             };
         }
         
@@ -126,7 +130,8 @@ module.exports = class GoalsTest extends Goals{
                         method: "depositCakeSimple",
                         parameters:{ plateTypes: plateTypes, speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     }
-                ]
+                ],
+                onError: [ { name:"pack arms", method:"packEmptyArms", parameters:{}}]
             };
         }
         
