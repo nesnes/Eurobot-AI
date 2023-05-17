@@ -10,9 +10,16 @@ LD06 lidar(&Serial1);
 
 #include "Localisation.h"
 LidarLocalisation loc;
-LidarLocPosition robotPosition{2700, -300, 0};
+LidarLocPosition robotPosition{500, -500, 0};
 bool abortPositionMatch = false;
 //#define LOCALISATION_DEBUG
+
+
+#include "imu.h"
+#define IMU_CS_PIN 10
+MPU9250 imu(SPI, IMU_CS_PIN);
+unsigned long lastImuUpdate = 0;
+float imuYawOffset = 0;
 
 #define LED_PIN 13
 bool ledValue = true;
@@ -36,6 +43,11 @@ void setup() {
   lidar.setMinConfidence(200);
   lidar.setMinDistance(200);//mm
   lidar.setMaxDistance(4000);//mm
+
+  imu.begin();
+  imu.setGyroRange(MPU9250::GYRO_RANGE_250DPS);
+  imu.setDlpfBandwidth(MPU9250::DLPF_BANDWIDTH_184HZ);
+  imu.setSrd(0); // 1000 / (1 + diviseur) Hz
 
   // Create rectangle map
   loc.addLineToMap({{0,0}, {3000,0}});
@@ -68,22 +80,49 @@ void loop() {
   runLocalisation(isNewScan);  
 }
 
+bool validateCandidate(LidarLocPositionCandidate const& candidate){
+  return candidate.score > 0
+      &&  120 < candidate.position.x && candidate.position.x <  2880
+      && -120 > candidate.position.y && candidate.position.y > -2880;
+}
+
 void runLocalisation(bool isNewScan){
+  // Update IMU yaw tracking
+  unsigned long timeDiff = micros() - lastImuUpdate;
+  if(timeDiff<10000){
+    imu.readSensor();
+    imuYawOffset -= (180.0/PI) * imu.getGyroX_rads() * (float)(timeDiff * 1e-6);
+  }
+  lastImuUpdate = micros();
+  
+  // Update Lidar tracking
   uint16_t pointCloudSkipping = 2; // will only match cloud every N points (to speed compuation, to match more candidates)
   if(isNewScan){
     // Extract best position from last scan
-    LidarLocPositionCandidate candidate = loc.getBestCandidate();
+    LidarLocPositionCandidate candidate = loc.getBestCandidate(validateCandidate);
     if(!abortPositionMatch && candidate.score > 0){
       // Store new robot position
       robotPosition.x = candidate.position.x;
       robotPosition.y = candidate.position.y;
       robotPosition.angle = candidate.position.angle;
+      robotPosition.angle += imuYawOffset;
+      imuYawOffset = 0;
     }
+    if(abortPositionMatch) imuYawOffset = 0;
 #ifdef LOCALISATION_DEBUG
+    Serial.println(String()+">robotPosition.x:"+robotPosition.x);
+    Serial.println(String()+">robotPosition.y:"+robotPosition.y);
+    Serial.println(String()+">robotPosition.angle:"+robotPosition.angle);
+    Serial.println(String()+">candidateScore:"+candidate.score);
     Serial.println(String()+">candidateCount:"+loc.getCandidateCount());
-    loc.teleplot(Serial, robotPosition, (LidarLocMeasure*)lidar.getPoints(), lidar.getPointCount(), pointCloudSkipping);
+    loc.teleplot(Serial, robotPosition, pointCloudSkipping);
 #endif
     loc.clearCandidates();
+    // Push new cloud to localisation
+    loc.clearCloud();
+    for(uint16_t i=0;i<lidar.getPointCount();i++){
+      loc.addCloudPoint(lidar.getPoints()[i].distance, lidar.getPoints()[i].angle, robotPosition, 150);
+    }
     abortPositionMatch = false;
   }
   else {
@@ -93,17 +132,25 @@ void runLocalisation(bool isNewScan){
 
     // Generate very close position
     testPosition = loc.generateRandomPosition(robotPosition, 20, 5); //mm  and deg
-    loc.evaluateCandidate(testPosition, (LidarLocMeasure*)lidar.getPoints(), lidar.getPointCount(), pointCloudSkipping);
+    loc.evaluateCandidate(testPosition, pointCloudSkipping);
+    
+    // Generate very close position
+    testPosition = loc.generateRandomPosition(robotPosition, 50, 10); //mm  and deg
+    loc.evaluateCandidate(testPosition, pointCloudSkipping);
 
     // Generate close position
     for(int i=0;i<2;i++){
-      testPosition = loc.generateRandomPosition(robotPosition, 100, 30); //mm  and deg
-      loc.evaluateCandidate(testPosition, (LidarLocMeasure*)lidar.getPoints(), lidar.getPointCount(), pointCloudSkipping);
+      testPosition = loc.generateRandomPosition(robotPosition, 150, 10); //mm  and deg
+      loc.evaluateCandidate(testPosition, pointCloudSkipping);
     }
 
     // Generate far position
-    testPosition = loc.generateRandomPosition(robotPosition, 400, 120); //mm  and deg
-    loc.evaluateCandidate(testPosition, (LidarLocMeasure*)lidar.getPoints(), lidar.getPointCount(), pointCloudSkipping);
+    testPosition = loc.generateRandomPosition(robotPosition, 300, 10); //mm  and deg
+    loc.evaluateCandidate(testPosition, pointCloudSkipping);
+
+    // Generate far position
+    testPosition = loc.generateRandomPosition(robotPosition, 500, 10); //mm  and deg
+    loc.evaluateCandidate(testPosition, pointCloudSkipping);
     
     auto endTime = micros();
 #ifdef LOCALISATION_DEBUG
