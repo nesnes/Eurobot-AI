@@ -114,7 +114,7 @@ module.exports = class Map2020 extends Map{
                 access:{ x:1875, y:1475, angle:90 },
                 avoidOffset: -85,
                 startPosition: {x: 1875, y: 1775, angle: -90, team: "blue"},
-                endAccess:[{ x:1575, y:1775, angle:0 }, { x:2175, y:1775, angle:180 }, { x:1875, y:1475, angle:90 }]
+                endAccess:[/*{ x:1575, y:1775, angle:0 },*/ { x:2175, y:1775, angle:180 }/*, { x:1875, y:1475, angle:90 }*/]
             },{
                 name: "Plate Middle Bottom Green",
                 type: "plateMiddleBottom",
@@ -123,7 +123,7 @@ module.exports = class Map2020 extends Map{
                 access:{ x:1875, y:525, angle:-90 },
                 avoidOffset: -85,
                 startPosition: {x: 1875, y: 225, angle: 90, team: "green"},
-                endAccess:[{ x:1575, y:225, angle:0 }, { x:2175, y:225, angle:180 }, { x:1875, y:525, angle:-90 }]
+                endAccess:[/*{ x:1575, y:225, angle:0 },*/ { x:2175, y:225, angle:180 }/*, { x:1875, y:525, angle:-90 }*/]
             },
 
             //Plates Bottom Side
@@ -132,7 +132,7 @@ module.exports = class Map2020 extends Map{
                 type: "plateBottomSide",
                 team: "blue",
                 shape: { type: "rectangle", x:2550, y:0, width: 450,  height: 450, color: "blue" },
-                access:{ x:2475, y:225, angle:0 },
+                access:{ x:2475, y:250, angle:0 },
                 avoidOffset: -85,
                 startPosition: {x: 2775, y: 225, angle:180, team: "blue"},
                 endAccess:[{ x:2475, y:225, angle:0 }, { x:2775, y:525, angle:-90 }]
@@ -141,7 +141,7 @@ module.exports = class Map2020 extends Map{
                 type: "plateBottomSide",
                 team: "green",
                 shape: { type: "rectangle", x:2550, y:1550, width: 450,  height: 450, color: "green" },
-                access:{ x:2475, y:1775, angle:0 },
+                access:{ x:2475, y:1750, angle:0 },
                 avoidOffset: -85,
                 startPosition: {x: 2775, y: 1775, angle: 180, team: "green"},
                 endAccess:[{ x:2475, y:1775, angle:0 }, { x:2775, y:1475, angle:90 }]

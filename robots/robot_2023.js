@@ -51,8 +51,8 @@ module.exports = class Robot2020 extends Robot{
             //foundInSite: { value: 0, max: 3 },
             //foundInOppositSite: { value: 0, max: 3 },
         }
-        this.collisionAngle = 120;
-        this.collisionDistance = this.radius+275;
+        this.collisionAngle = 90;
+        this.collisionDistance = this.radius+250;
         this.slowdownAngle = 90;
         this.slowdownDistance = this.collisionDistance+250;
         this.slowdownDistanceOffset = 300; // multiplied by speed in m/s and added to slowdownDistance
@@ -67,7 +67,7 @@ module.exports = class Robot2020 extends Robot{
         
         this.armCloseAngle = 131;
         this.armGrabtHeight = 29;
-        this.cherryLayer = 2.95;
+        this.cherryLayer = 3.0;
         this.maxLayer = 3.6;
     }
 
@@ -114,6 +114,12 @@ module.exports = class Robot2020 extends Robot{
         
         if(this.modules.base) await this.modules.base.enableMove();
         
+        if(this.name == "Robot Nesnes TDS"){
+            this.setVariable({name:"cherryAC", value:1});
+            this.setVariable({name:"cherryAB", value:2});
+            this.setVariable({name:"cherryBC", value:2});
+        }
+        
         /*await this.setArmDefault({ name: "ACG", duration: 0, wait: false});
         await this.setArmDefault({ name: "ABG", duration: 0, wait: false});
         await this.setArmDefault({ name: "BCG", duration: 0, wait: false});
@@ -140,6 +146,16 @@ module.exports = class Robot2020 extends Robot{
 
     async endMatch(){
         await super.endMatch();
+        
+        if(this.variables.endReached){
+            this.app.logger.log("Adding end zone point");
+            if(this.name == "Robot Nesnes TDS") this.addScore(8);
+            else this.addScore(7);
+        }
+        if(this.name == "Robot Nesnes TDS"){
+            this.app.logger.log("Adding funny action point");
+            this.addScore(5);
+        }
         
         if(this.modules.arm) await this.modules.arm.setServo({ name: "ABB", angle: 170, duration: 400, wait:false});
         if(this.modules.arm) await this.modules.arm.setServo({ name: "ABA", angle: 170, duration: 400, wait:false});
@@ -287,8 +303,11 @@ module.exports = class Robot2020 extends Robot{
         let targetArmAngle = this.armCloseAngle;
         if(parameters.open) targetArmAngle += 20;
         if(parameters.packed) targetArmAngle = 110;
+        let cherryAngle = 150;
+        if(parameters.cherry == 1) cherryAngle = 160;
+        if(parameters.cherry == 2) cherryAngle = 180;
         console.log(parameters)
-        let pose = Object.assign({ name: "ACG", a1:targetHeight, a2:150, a3:targetArmAngle, a4:targetArmAngle }, parameters);
+        let pose = Object.assign({ name: "ACG", a1:targetHeight, a2:cherryAngle, a3:targetArmAngle, a4:targetArmAngle }, parameters);
         if(this.modules.arm) await this.modules.arm.setPose(pose);
         if(parameters.wait){
             if(this.modules.arm){
@@ -326,6 +345,7 @@ module.exports = class Robot2020 extends Robot{
         if(parameters.index==2) targetAngle = 180;
         let pose = Object.assign({ name: "ACD", angle: targetAngle, duration: 0}, parameters);
         if(this.modules.arm) await this.modules.arm.setServo(pose);
+        await utils.sleep(300);
         return true;
     }
     
@@ -662,7 +682,10 @@ module.exports = class Robot2020 extends Robot{
         }
         
         
-        let hasTimeToSort = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-35*1000;
+        let preventBuild = false;
+        if("preventBuild" in parameters) preventBuild = parameters.preventBuild;
+        
+        let hasTimeToSort = !preventBuild && this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-35*1000;
         
         // Move to plate
         if(!parameters.doNotMoveToSite){
@@ -702,9 +725,6 @@ module.exports = class Robot2020 extends Robot{
             }
             return max;
         }
-        
-        let preventBuild = false;
-        if("preventBuild" in parameters) preventBuild = parameters.preventBuild;
         
         let rotationSpeed = 0.5;
         let moveSpeed = 0.4;
@@ -968,12 +988,19 @@ module.exports = class Robot2020 extends Robot{
                 // Release cherry
                 let targetCherryLayer = this.cherryLayer+(3-armVar.value.length)
                 await this.setArmToLayer({name:currArm+"G", layer:targetCherryLayer, open:false, transport: false, wait: true});
-                if(cherryVar.value == 2){
+                let cherryIdx = 1;
+                if(cherryVar.value == 1) cherryIdx = 2;
+                
+                await this.setArmToLayer({name:currArm+"G", layer:targetCherryLayer, open:false, cherry:cherryIdx, transport: false, wait: true});
+                await utils.sleep(250);
+                await this.setArmToLayer({name:currArm+"G", layer:targetCherryLayer-1, open:false, cherry:cherryIdx, transport: false, wait: true});
+                
+                /*if(cherryVar.value == 2){
                     await this.distributeCherry({name:currArm+"D", index:1});
                 }
                 if(cherryVar.value == 1){
                     await this.distributeCherry({name:currArm+"D", index:2});
-                }
+                }*/
                 this.variables["arm"+currArm].value += "C";
                 this.variables["cherry"+currArm].value -= 1;
             }
@@ -1161,10 +1188,6 @@ module.exports = class Robot2020 extends Robot{
         return true;
     }
     
-    async addToMap(parameters){
-        
-    }
-    
     async grabCake(parameters){
         
         // Resolve color to be picked
@@ -1209,10 +1232,13 @@ module.exports = class Robot2020 extends Robot{
             if(accessList.length == 0) continue;
             for(let access of accessList){
                 let path = this.app.map.findPath(this.x, this.y, access.x, access.y);
+                console.log(comp.name, path.length, access)
                 if(path.length<2) continue;
+                console.log(comp.name, this.isMovementPossible(path[1][0], path[1][1]))
                 if(!this.isMovementPossible(path[1][0], path[1][1])) continue;
                 let pathLength = this.app.map.getPathLength(path);
-                if(pathLength<minLength){
+                console.log(comp.name, pathLength, "<", minLength);
+                if(pathLength<minLength && pathLength > 50){
                     minLength = pathLength;
                     targetAccess = access;
                     component = comp;
@@ -1719,6 +1745,29 @@ module.exports = class Robot2020 extends Robot{
         this.collisionDistance = collisionDistanceBackup;
         if(!result) return result;
         this.setVariable({name:"endReached", value:true});
+        
+        // Wait for other robot to reach zone
+        /*while(this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-200){ //ms            
+            //Search for other robot on map
+            let friendList = this.app.map.getComponentList("robotfriend");
+            for(friend in friendList){
+                console.log(friend)
+                let dx = x-friend.shape.x;
+                let dy = y-friend.shape.y;
+                let distance = Math.sqrt(dx*dx + dy*dy);
+                if(distance < 800){
+                    // add score
+                    this.app.logger.log("Adding 15 point for end zone with friend");
+                    this.addScore(15);
+                    break;
+                }
+            }
+            await utils.sleep(200);
+        }*/
+        this.app.logger.log("Adding end zone point");
+        if(this.name == "Robot Nesnes TDS") this.addScore(8);
+        else this.addScore(7);
+                    
         return result;
     }
     

@@ -127,6 +127,9 @@ module.exports = class Robot {
             this.x = preset.x;
             this.y = preset.y;
             this.angle = preset.angle;
+            this.lastTarget.x = preset.x;
+            this.lastTarget.y = preset.y;
+            this.lastTarget.angle = preset.angle;
             if(this.modules.arm && await this.modules.arm.supportPosition()) await this.modules.arm.setPosition({x:this.x, y:this.y, angle:this.angle});
             if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle, resetTarget:1});
             if(this.modules.base) await this._updatePositionAndMoveStatus(true);
@@ -592,7 +595,7 @@ module.exports = class Robot {
         if(!isNaN(x) && !isNaN(y)) this._updateMovementAngle(x,y);
         if(!this.modules.lidar) return true;
         if(this.disableColisions) return true;
-        let collisionCountTarget = 7;
+        let collisionCountTarget = 5;
         let collisionCount = 0;
         let slowdownCount = 0;
         let angleA = utils.normAngle(this.movementAngle-this.collisionAngle/2);
@@ -608,7 +611,7 @@ module.exports = class Robot {
                 //console.log("angleInRange(", angleA, angleB, measureAngle, ") =", inCollisionRange)
             }
             if(inCollisionRange && measure.d>0 && measure.d<this.collisionDistance){
-                if(utils.angleInRange( lastCollisionAngle-0.25, lastCollisionAngle+0.25, measureAngle )) continue; // too close rays means interference
+                //if(utils.angleInRange( lastCollisionAngle-0.25, lastCollisionAngle+0.25, measureAngle )) continue; // too close rays means interference
                 lastCollisionAngle = measureAngle;
                 collisionCount++;
                 if(collisionCount>=collisionCountTarget){
@@ -717,6 +720,8 @@ module.exports = class Robot {
         let sleep = 30;
         let success = true;
         let moveStatus = "";
+        
+        let moveStartTime = new Date().getTime();
         //this.app.logger.log(`-> move coordinates ${x} ${y} ${angle} ${speed}, near ${nearDist} ${nearAngle}`);
 
         //Update position and check obstacles
@@ -738,6 +743,11 @@ module.exports = class Robot {
             if(this.app.intelligence.hasBeenRun && this.app.intelligence.isMatchFinished()) success = false;
             if(!this.isMovementPossible(x,y)) success = false;
             moveStatus = await this._updatePositionAndMoveStatus(preventLocalisation);
+            if( (new Date().getTime()) - moveStartTime > 10*1000 ){
+                console.log("move is too long, abort")
+                success = false;
+            } 
+            
         } while(success && moveStatus && moveStatus.includes("run")) // "near" and "end" status will stop the loop (but not the robot)
         if(!success) this.modules.base.break();
         this.send();
@@ -745,6 +755,7 @@ module.exports = class Robot {
     }
 
     async moveAlongPath(params){
+        let moveStartTime = new Date().getTime();
         let path=params.path;
         let sleep = 30;
         let preventLocalisation = params.preventLocalisation || false;
@@ -764,6 +775,11 @@ module.exports = class Robot {
                 if(this.app.intelligence.hasBeenRun && this.app.intelligence.isMatchFinished()) success = false;
                 if(!this.isMovementPossible()) success = false;
                 moveStatus = await this._updatePositionAndMoveStatus(preventLocalisation);
+                
+                if( (new Date().getTime()) - moveStartTime > 10*1000 ){
+                    console.log("move is too long, abort")
+                    success = false;
+                } 
             } while(success && moveStatus && moveStatus.includes("run"))
             if(!success) this.modules.base.break();
         }
@@ -785,7 +801,8 @@ module.exports = class Robot {
         return success
     }
     
-    async addToMap(parameters){
+    addToMap(parameters){
+        console.log("Add to map", parameters);
         if(!parameters.component) return false;
         this.app.map.addComponent(parameters.component)
         if(this.app.multicast){

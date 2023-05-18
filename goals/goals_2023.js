@@ -5,8 +5,8 @@ const Goals = require('./goals');
 module.exports = class GoalsTest extends Goals{
     constructor(app) {
         super(app);
-        this.defaultSpeed=0.4; //m/s 0.6
-        this.moveSpeed = 0.4; //m/s 0.5
+        this.defaultSpeed=0.6; //m/s 0.4
+        this.moveSpeed = 0.6; //m/s 0.4
         this.defaultNearDist=20;//50mm
         this.defaultNearAngle=3;//10°
         
@@ -19,7 +19,6 @@ module.exports = class GoalsTest extends Goals{
                     name: "Wait for start",
                     method: "waitForStart"
                 },
-                //{ name: "Start score", method: "addScore", parameters:{ score: 1 } },
             ]
         };
         
@@ -29,7 +28,7 @@ module.exports = class GoalsTest extends Goals{
                 condition: ()=>{
                     let hasArmFree = this.app.robot.variables.armAC.value == "" || this.app.robot.variables.armAB.value == "" || this.app.robot.variables.armBC.value == "";
                     let hasTimeElapsed = this.app.intelligence.currentTime >= 50*1000;
-                    let hasTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-16*1000;
+                    let hasTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-28*1000;
                     let endReached = this.app.robot.variables.endReached.value;
                     return hasArmFree && hasTimeElapsed && hasTimeLeft && !endReached;
                 },                
@@ -72,7 +71,7 @@ module.exports = class GoalsTest extends Goals{
                 name: "Grab cake",
                 condition: ()=>{
                     let hasArmFree = this.app.robot.variables.armAC.value == "" || this.app.robot.variables.armAB.value == "" || this.app.robot.variables.armBC.value == "";
-                    let hasTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-15*1000;
+                    let hasTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-28*1000;
                     let endReached = this.app.robot.variables.endReached.value;
                     return hasArmFree && hasTimeLeft && !endReached;
                 },                
@@ -94,8 +93,8 @@ module.exports = class GoalsTest extends Goals{
                 condition: ()=>{
                     let hasCakes = this.app.robot.variables.armAC.value != "" || this.app.robot.variables.armAB.value != "" || this.app.robot.variables.armBC.value != "";
                     let hasAllCakes = this.app.robot.variables.armAC.value != "" && this.app.robot.variables.armAB.value != "" && this.app.robot.variables.armBC.value != "";
-                    let hasMuchTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-30*1000;
-                    let hasSomeTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-15*1000;
+                    let hasMuchTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-75*1000;
+                    let hasSomeTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-22*1000;
                     let endReached = this.app.robot.variables.endReached.value;
                     
                     let canDepositAndBuild = hasAllCakes && hasMuchTimeLeft;
@@ -126,7 +125,6 @@ module.exports = class GoalsTest extends Goals{
                 actions: [
                     { name: "Return to end zone", method: "returnToSpecificEndZone", parameters:{ plateTypes:plateTypes } },
                     // Store End reached
-                    { name: "Score end zone", method: "addScore", parameters:{ score: 15 } },
                     { name: "Store in variable", method: "setVariable", parameters:{ name:"endReached", value:1 } },
                 ],
                 //onError: [ { name:"Move to new end zone", method:"returnToEndZone", parameters:{ignoreSelected:true}}]
@@ -144,7 +142,6 @@ module.exports = class GoalsTest extends Goals{
             actions: [
                 { name: "Return to end zone", method: "returnToEndZone", parameters:{ } },
                 // Store End reached
-                { name: "Score end zone", method: "addScore", parameters:{ score: 15 } },
                 { name: "Store in variable", method: "setVariable", parameters:{ name:"endReached", value:1 } },
             ],
             onError: [ { name:"Move to new end zone", method:"returnToEndZone", parameters:{ignoreSelected:true}}]
@@ -185,33 +182,9 @@ module.exports = class GoalsTest extends Goals{
             actions: [
                 { name: "Return to end zone", method: "returnToEndZone", parameters:{ } },
                 // Store End reached
-                { name: "Score end zone", method: "addScore", parameters:{ score: 15 } },
                 { name: "Store in variable", method: "setVariable", parameters:{ name:"endReached", value:1 } },
             ],
             onError: [ { name:"Move to new end zone", method:"returnToEndZone", parameters:{ignoreSelected:true}}]
-        };
-        
-        
-        
-        let moveTest = {
-            name: "Move test",
-            condition: ()=>{
-                let endReached = this.app.robot.variables.endReached.value;
-                return !endReached;
-            },                
-            executionCount: 10,
-            actions: [
-                {
-                    name: "Move",
-                    method: "moveToComponent",
-                    parameters:{ component: "plateProtected", color:"green", speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
-                },
-                {
-                    name: "Move",
-                    method: "moveToComponent",
-                    parameters:{ component: "plateProtected", color:"blue", speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
-                }
-            ]
         };
 
         this.list = [
@@ -219,17 +192,26 @@ module.exports = class GoalsTest extends Goals{
             rushBrownCakes(),
             grabCake(null, 1),
             
-            // Deposit fisrt couple
+            // Deposit random
             depositeCake(["plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom", "plateBottomSide"], true), // not "plateProtected"
            
             grabCake(null, 1),
             grabCake(null, 1),
-            //findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom"]),
-            //findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom"]),
+            
+             // Deposit random
+            depositeCake(["plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom", "plateBottomSide"], true), // not "plateProtected"
+           
+            grabCake(null, 1),
+            grabCake(null, 1),
+            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom"]),
+            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom"]),
+            
+            depositeCake(["plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom", "plateBottomSide"], true), // not "plateProtected"
+           
             //findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom"]),
             ////depositeCake("plateProtected", 1),
-            depositeCake(["plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom", "plateBottomSide"]), // not "plateProtected"
-            depositeCake(["plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom", "plateBottomSide"]), // not "plateProtected"
+            //depositeCake(["plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom", "plateBottomSide"]), // not "plateProtected"
+            //depositeCake(["plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom", "plateBottomSide"]), // not "plateProtected"
            
             moveToSpecificEndZone(["plateMiddleBottom"]),
            
