@@ -5,8 +5,8 @@ const Goals = require('./goals');
 module.exports = class GoalsTest extends Goals{
     constructor(app) {
         super(app);
-        this.defaultSpeed=0.3; //m/s 0.6
-        this.moveSpeed = 0.3; //m/s 0.5
+        this.defaultSpeed=0.4; //m/s 0.6
+        this.moveSpeed = 0.4; //m/s 0.5
         this.defaultNearDist=20;//50mm
         this.defaultNearAngle=3;//10°
         
@@ -69,7 +69,7 @@ module.exports = class GoalsTest extends Goals{
         
         let grabCake = (element=null, iterations=0)=>{
             return {
-                name: "Simple grab cake",
+                name: "Grab cake",
                 condition: ()=>{
                     let hasArmFree = this.app.robot.variables.armAC.value == "" || this.app.robot.variables.armAB.value == "" || this.app.robot.variables.armBC.value == "";
                     let hasTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-15*1000;
@@ -88,7 +88,7 @@ module.exports = class GoalsTest extends Goals{
             };
         }
         
-        let depositeCake = (plateTypes)=>{
+        let depositeCake = (plateTypes, preventBuild=false)=>{
             return {
                 name: "Deposit cake",
                 condition: ()=>{
@@ -99,7 +99,7 @@ module.exports = class GoalsTest extends Goals{
                     let endReached = this.app.robot.variables.endReached.value;
                     
                     let canDepositAndBuild = hasAllCakes && hasMuchTimeLeft;
-                    let canDepositRandom = hasCakes && !hasMuchTimeLeft && hasSomeTimeLeft;
+                    let canDepositRandom = hasCakes && (preventBuild || !hasMuchTimeLeft) && hasSomeTimeLeft;
                     return !endReached && (canDepositAndBuild || canDepositRandom);
                 },                
                 executionCount: 0,
@@ -107,28 +107,7 @@ module.exports = class GoalsTest extends Goals{
                     {
                         name: "Deposit cake",
                         method: "depositCake",
-                        parameters:{ plateTypes: plateTypes, speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
-                    }
-                ],
-                onError: [ { name:"pack arms", method:"setArmsPacked", parameters:{}}]
-            };
-        }
-        
-        let depositeCakeSimple = (plateTypes)=>{
-            return {
-                name: "Deposit cake",
-                condition: ()=>{
-                    let hasCakes = this.app.robot.variables.armAC.value != "" || this.app.robot.variables.armAB.value != "" || this.app.robot.variables.armBC.value != "";
-                    let hasSomeTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-10*1000;
-                    let endReached = this.app.robot.variables.endReached.value;
-                    return !endReached && hasCakes && hasSomeTimeLeft;
-                },                
-                executionCount: 0,
-                actions: [
-                    {
-                        name: "Deposit cake",
-                        method: "depositCakeSimple",
-                        parameters:{ plateTypes: plateTypes, speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
+                        parameters:{ plateTypes: plateTypes, preventBuild: preventBuild, speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     }
                 ],
                 onError: [ { name:"pack arms", method:"setArmsPacked", parameters:{}}]
@@ -220,6 +199,10 @@ module.exports = class GoalsTest extends Goals{
             waitForStart,
             rushBrownCakes(),
             grabCake(null, 1),
+            
+            // Deposit fisrt couple
+            depositeCake(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"], true), // not "plateProtected"
+           
             grabCake(null, 1),
             grabCake(null, 1),
             //findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom"]),
@@ -228,9 +211,7 @@ module.exports = class GoalsTest extends Goals{
             ////depositeCake("plateProtected", 1),
             depositeCake(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]), // not "plateProtected"
             depositeCake(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]), // not "plateProtected"
-            ////depositeCakeSimple("plateProtected", 1),
-            ////depositeCakeSimple(),
-            ////depositeCakeSimple(),
+           
             moveToEndZone,
             moveToEndZone,
             moveToEndZoneUpdated
