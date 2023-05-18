@@ -19,7 +19,7 @@ module.exports = class GoalsTest extends Goals{
                     name: "Wait for start",
                     method: "waitForStart"
                 },
-                { name: "Score sortie zone + panier", method: "addScore", parameters:{ score: 6 } },
+                //{ name: "Start score", method: "addScore", parameters:{ score: 1 } },
             ]
         };
         
@@ -114,6 +114,25 @@ module.exports = class GoalsTest extends Goals{
             };
         }
         
+        let moveToSpecificEndZone = (plateTypes)=> {
+            return{
+                name: "Move to specific End",
+                condition: ()=>{
+                    let isEnd = (this.app.intelligence.currentTime >= this.app.intelligence.matchDuration-15*1000);//9
+                    let endReached = this.app.robot.variables.endReached.value;
+                    return isEnd && !endReached;
+                },                
+                executionCount: 1,
+                actions: [
+                    { name: "Return to end zone", method: "returnToSpecificEndZone", parameters:{ plateTypes:plateTypes } },
+                    // Store End reached
+                    { name: "Score end zone", method: "addScore", parameters:{ score: 15 } },
+                    { name: "Store in variable", method: "setVariable", parameters:{ name:"endReached", value:1 } },
+                ],
+                //onError: [ { name:"Move to new end zone", method:"returnToEndZone", parameters:{ignoreSelected:true}}]
+            }
+        };
+        
         let moveToEndZone = {
             name: "Move to End",
             condition: ()=>{
@@ -201,7 +220,7 @@ module.exports = class GoalsTest extends Goals{
             grabCake(null, 1),
             
             // Deposit fisrt couple
-            depositeCake(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"], true), // not "plateProtected"
+            depositeCake(["plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom", "plateBottomSide"], true), // not "plateProtected"
            
             grabCake(null, 1),
             grabCake(null, 1),
@@ -209,12 +228,14 @@ module.exports = class GoalsTest extends Goals{
             //findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom"]),
             //findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom"]),
             ////depositeCake("plateProtected", 1),
-            depositeCake(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]), // not "plateProtected"
-            depositeCake(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]), // not "plateProtected"
+            depositeCake(["plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom", "plateBottomSide"]), // not "plateProtected"
+            depositeCake(["plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom", "plateBottomSide"]), // not "plateProtected"
            
-            moveToEndZone,
-            moveToEndZone,
-            moveToEndZoneUpdated
+            moveToSpecificEndZone(["plateMiddleBottom"]),
+           
+            //moveToEndZone,
+            //moveToEndZone,
+            //moveToEndZoneUpdated
             
             //moveTest
         ]

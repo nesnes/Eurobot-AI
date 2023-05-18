@@ -1629,6 +1629,99 @@ module.exports = class Robot2020 extends Robot{
         return result;
     }
     
+    async returnToSpecificEndZone(parameters){
+        let result = true;
+        
+        // List deposit sites
+        let teamColor = parameters.color||this.team;
+        let plateList = []
+        let platesTypes = ["plateProtected", "plateMiddleTop", "plateMiddleBottom", "plateBottomSide", "plateBottom"];
+        if(parameters.plateTypes) platesTypes = parameters.plateTypes;
+        for(let type of platesTypes) {
+            plateList.push(...this.app.map.getComponentList(type, teamColor));
+        }
+        
+        
+        // Indentify closest deposit site
+        let targetPlate = null;
+        let targetAccess = null
+        let minLength = 99999999999;
+        for(let plate of plateList){
+            if(plate.cakes) continue;
+            let accessList = []
+            if(plate.access) accessList.push(plate.access);
+            if(plate.otherAccess) accessList.push(...plate.otherAccess);
+            if(plate.endAccess) accessList = [...plate.endAccess];
+            if(accessList.length == 0) continue;
+            for(let access of accessList){
+                let path = this.app.map.findPath(this.x, this.y, access.x, access.y);
+                if(path.length<2) continue;
+                if(!this.isMovementPossible(path[1][0], path[1][1])) continue;
+                let pathLength = this.app.map.getPathLength(path);
+                if (pathLength<minLength){
+                    minLength = pathLength;
+                    targetAccess = access;
+                    targetPlate = plate;
+                }
+            }
+        }
+        
+        if(targetPlate === null){
+            this.app.logger.log("  -> Target plate not found ");
+            return false
+        }
+        if(targetAccess === null){
+            this.app.logger.log("  -> No access found for component "+targetPlate.name);
+            return false
+        }
+        
+        await this.setArmsPacked({});
+        
+        // Move to plate
+        this.app.logger.log("  -> Moving to end zone "+targetPlate.name);
+        result = await this.moveToPosition({
+            x:          targetAccess.x,
+            y:          targetAccess.y,
+            angle:      targetAccess.angle,
+            speed:      parameters.speed||this.app.goals.defaultSpeed,
+            nearDist:   200,
+            nearAngle:  20
+        });
+        if(!result) return result;
+        
+        let collisionDistanceBackup = this.collisionDistance;
+        this.collisionDistance = this.radius;
+        result = await this.moveCorrectPosition({
+            speed: parameters.speed||this.app.goals.defaultSpeed
+        });
+        if(!result){
+            this.collisionDistance = collisionDistanceBackup;
+            return result;
+        }
+        
+        if(this.modules.arm){
+            await this.modules.arm.setServo({ name: "ACA", angle: 170, duration: 250, wait:false});
+            await this.modules.arm.setServo({ name: "ACC", angle: 170, duration: 250, wait:false});
+            await this.modules.arm.setServo({ name: "ABA", angle: 170, duration: 250, wait:false});
+            await this.modules.arm.setServo({ name: "ABB", angle: 170, duration: 250, wait:false});
+            await this.modules.arm.setServo({ name: "BCB", angle: 170, duration: 250, wait:false});
+            await this.modules.arm.setServo({ name: "BCC", angle: 170, duration: 250, wait:false});
+        }
+        // Move forward
+        result = await this.moveAtAngle({
+            angle: targetAccess.angle,
+            distance: 75,
+            speed:      parameters.speed||this.app.goals.defaultSpeed,
+            nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
+            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+            preventLocalisation: true
+        });
+        this.collisionDistance = collisionDistanceBackup;
+        if(!result) return result;
+        this.setVariable({name:"endReached", value:true});
+        return result;
+    }
+    
     /*async performEndingMove(parameters){
         if(this.variables.endZone.value==0) return false;
         let result = true;

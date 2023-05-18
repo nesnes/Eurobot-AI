@@ -104,7 +104,9 @@ module.exports = class Multicast {
         }
         const data = JSON.stringify(cmd);
         console.log("Multicast send", data);
-        this.socket.send(data, 0, data.length, this.port, this.address);
+        try{
+            this.socket.send(data, 0, data.length, this.port, this.address);
+        }catch(e){}
         return true;
     }
     
@@ -115,7 +117,9 @@ module.exports = class Multicast {
         cmd.command = "addComponent";
         const data = JSON.stringify(cmd);
         console.log("Multicast send", data);
-        this.socket.send(data, 0, data.length, this.port, this.address);
+        try{
+            this.socket.send(data, 0, data.length, this.port, this.address);
+        }catch(e){}
         return true;
     }
     
@@ -126,7 +130,9 @@ module.exports = class Multicast {
         cmd.command = "updateComponent";
         const data = JSON.stringify(cmd);
         console.log("Multicast send", data);
-        this.socket.send(data, 0, data.length, this.port, this.address);
+        try{
+            this.socket.send(data, 0, data.length, this.port, this.address);
+        }catch(e){}
         return true;
     }
 }
