@@ -1,4 +1,5 @@
 var dgram = require('dgram');
+const os = require("os");
 
 module.exports = class Multicast {
         constructor(app) {
@@ -14,6 +15,23 @@ module.exports = class Multicast {
           type: 'udp4',
           reuseAddr: true
         })
+        //Check IP
+        let hasNetwork = false;
+        const interfaces = os.networkInterfaces();
+        for (let key in interfaces) {
+            let ips = interfaces[key].filter((iface) => {
+                return iface.family === "IPv4" && iface.internal === false;
+            }).map((iface) => { return iface.address; });
+            for(let ip of ips){
+                hasNetwork=true;
+                this.app.logger.log("IP "+ip);
+            }
+        }
+        if(!hasNetwork){
+            this.app.logger.log("No Network for multicast");
+            return;
+        }
+        
         this.socket.bind(this.port)
         
         this.socket.on('message', (msg, remote) => {
@@ -28,12 +46,15 @@ module.exports = class Multicast {
         this.socket.on('error', (exception) => {
             console.log('Multicast Error :', exception);
         });
-        	
     }
     
     async close(){
-	if(this.socket) this.socket.dropMembership(this.address);
-        if(this.socket) this.socket.close();
+        try{
+	        if(this.socket) this.socket.dropMembership(this.address);
+        }catch(e){}
+        try{
+            if(this.socket) this.socket.close();
+        }catch(e){}
     }
     
     onMessage(packet, remote){
@@ -50,6 +71,7 @@ module.exports = class Multicast {
         if(msg === null) return;
         if(!msg.command) return;
         if(!msg.uid || msg.uid == this.uid) return;
+        delete msg.uid;
         if(msg.command == "removeComponent"){
             if(!msg.name) return;
             if(!msg.type) return;
@@ -61,18 +83,18 @@ module.exports = class Multicast {
             if(!msg.name || !msg.type || !msg.shape) return;
             delete msg.command;
             this.app.map.addComponent(msg);
-            /*{
-                name: "Detected Obstacle",
-                type: "obstacle",
-                isSolid: true,
-                shape: { type: "circle", x:x2, y:y2, radius: obstacleRadius, color: "orange" },
-                timeout: obstacleTimeout
-            }*/
+        }
+        if(msg.command == "updateComponent"){
+            if(!msg.component || !msg.component.name || !msg.component.type || !msg.diff) return;
+            delete msg.command;
+            let cmp = this.app.map.getComponentByName(msg.component.name, msg.component.type);
+            if(cmp) Object.assign(cmp, msg.diff);
+            console.log("updating", msg.component.name, msg.component.type);
         }
     }
     
     sendRemoveComponent(parameters){
-        if(!parameters.name) return false;
+        if(!this.socket || !parameters.name) return false;
         let cmd = {
             uid: this.uid,
             command: "removeComponent",
@@ -87,10 +109,21 @@ module.exports = class Multicast {
     }
     
     sendAddComponent(parameters){
-        if(!parameters.name || !parameters.type || !parameters.shape) return false;
+        if(!this.socket || !parameters.name || !parameters.type || !parameters.shape) return false;
         let cmd = Object.assign({}, parameters);
         cmd.uid = this.uid;
         cmd.command = "addComponent";
+        const data = JSON.stringify(cmd);
+        console.log("Multicast send", data);
+        this.socket.send(data, 0, data.length, this.port, this.address);
+        return true;
+    }
+    
+    sendUpdateComponent(parameters){
+        if(!this.socket || !parameters.component || !parameters.diff) return false;
+        let cmd = Object.assign({}, parameters);
+        cmd.uid = this.uid;
+        cmd.command = "updateComponent";
         const data = JSON.stringify(cmd);
         console.log("Multicast send", data);
         this.socket.send(data, 0, data.length, this.port, this.address);

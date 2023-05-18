@@ -84,6 +84,21 @@
                                         </g>
                                     </template>
                                 </template>
+                                <template v-if="'endAccess' in item">
+                                    <template v-for="access in item.endAccess">
+                                        <g v-if="item.shape.type == 'rectangle'">
+                                            <line v-bind:x1="access.x" v-bind:y1="access.y" v-bind:x2="item.shape.x+item.shape.width/2" v-bind:y2="item.shape.y+item.shape.height/2" style="stroke-width:4;stroke:green;opacity: 0.9;" />
+                                        </g>
+                                        <g v-if="item.shape.type == 'circle'">
+                                            <line v-bind:x1="access.x" v-bind:y1="access.y" v-bind:x2="item.shape.x" v-bind:y2="item.shape.y" style="stroke-width:4;stroke:green;opacity: 0.9;" />
+                                        </g>
+                                        <g v-bind:transform="'translate('+access.x+' '+access.y+') rotate('+access.angle+')'">
+                                            <title>{{item.name}} - {{item.type}} - {{item.team}}</title>
+                                            <circle  v-bind:cx="0" v-bind:cy="0" r="10" style="fill: black;stroke-width:4;stroke:rgb(0,0,0);opacity: 0.9;" />
+                                            <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="50" v-bind:y2="0" style="stroke-width:10;stroke:purple;opacity: 0.9;" />
+                                        </g>
+                                    </template>
+                                </template>
                             </template>
 
                             <!--Path-->

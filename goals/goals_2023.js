@@ -138,17 +138,59 @@ module.exports = class GoalsTest extends Goals{
         let moveToEndZone = {
             name: "Move to End",
             condition: ()=>{
-                let isEnd = (this.app.intelligence.currentTime >= this.app.intelligence.matchDuration-10*1000);//9
+                let isEnd = (this.app.intelligence.currentTime >= this.app.intelligence.matchDuration-15*1000);//9
                 let endReached = this.app.robot.variables.endReached.value;
                 return isEnd && !endReached;
             },                
-            executionCount: 1,
+            executionCount: 0,
             actions: [
                 { name: "Return to end zone", method: "returnToEndZone", parameters:{ } },
                 // Store End reached
                 { name: "Score end zone", method: "addScore", parameters:{ score: 15 } },
                 { name: "Store in variable", method: "setVariable", parameters:{ name:"endReached", value:1 } },
-            ]
+            ],
+            onError: [ { name:"Move to new end zone", method:"returnToEndZone", parameters:{ignoreSelected:true}}]
+        };
+        
+        let moveToEndZoneUpdated = {
+            name: "Move to updated End",
+            condition: ()=>{
+                let isEnd = (this.app.intelligence.currentTime >= this.app.intelligence.matchDuration-15*1000);//9
+                let endReached = this.app.robot.variables.endReached.value;
+                if(!isEnd || !endReached) return false;
+                
+                // Detect if end zone changed
+                let zoneList = [];
+                let zoneTypes = ["plateProtected", "plateMiddleTop", "plateMiddleBottom", "plateBottomSide", "plateBottom"];
+                for(let type of zoneTypes) {
+                    zoneList.push(...this.app.map.getComponentList(type, this.app.robot.team));
+                }
+                let actualZoneValue = 0;
+                let maxZoneValue = 0;
+                let maxZone = null;
+                for(let zone of zoneList){
+                    if(zone.cakes) continue;
+                    let zoneValue = 0;
+                    if(zone.endZone) zoneValue = zone.endZone;
+                    if(zone.name == this.app.robot.variables.endZone.value) actualZoneValue = zoneValue;
+                    if(maxZoneValue<zoneValue){
+                        maxZoneValue = zoneValue;
+                        maxZone = zone;
+                    }
+                }
+                let endZoneChanged = actualZoneValue != maxZoneValue
+                                     && maxZone.name != this.app.robot.variables.endZone.value;
+                                     
+                return isEnd && endZoneChanged;
+            },                
+            executionCount: 0,
+            actions: [
+                { name: "Return to end zone", method: "returnToEndZone", parameters:{ } },
+                // Store End reached
+                { name: "Score end zone", method: "addScore", parameters:{ score: 15 } },
+                { name: "Store in variable", method: "setVariable", parameters:{ name:"endReached", value:1 } },
+            ],
+            onError: [ { name:"Move to new end zone", method:"returnToEndZone", parameters:{ignoreSelected:true}}]
         };
         
         
@@ -180,16 +222,18 @@ module.exports = class GoalsTest extends Goals{
             grabCake(null, 1),
             grabCake(null, 1),
             grabCake(null, 1),
-            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom"]),
-            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom"]),
-            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom"]),
-            //depositeCake("plateProtected", 1),
+            //findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom"]),
+            //findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom"]),
+            //findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom"]),
+            ////depositeCake("plateProtected", 1),
             depositeCake(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]), // not "plateProtected"
             depositeCake(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]), // not "plateProtected"
-            //depositeCakeSimple("plateProtected", 1),
-            //depositeCakeSimple(),
-            //depositeCakeSimple(),
-            moveToEndZone
+            ////depositeCakeSimple("plateProtected", 1),
+            ////depositeCakeSimple(),
+            ////depositeCakeSimple(),
+            moveToEndZone,
+            moveToEndZone,
+            moveToEndZoneUpdated
             
             //moveTest
         ]

@@ -412,8 +412,8 @@ module.exports = class Robot {
             y: this.lastTarget.y,
             angle: this.lastTarget.angle,
             speed: 0.3,
-            nearDist:0,
-            nearAngle:0,
+            nearDist: 10,
+            nearAngle: 2,
             preventLocalisation: false
         });
         await this.findLocalisation({resetTarget:0});
@@ -791,6 +791,15 @@ module.exports = class Robot {
         if(this.app.multicast){
             this.app.multicast.sendAddComponent(parameters.component);
         }
+        return true;
+    }
+    
+    async updateMapComponent(parameters){
+        if(!parameters.component || !parameters.diff) return false;
+        if(this.app.multicast){
+            this.app.multicast.sendUpdateComponent(parameters);
+        }
+        Object.assign(parameters.component, parameters.diff);
         return true;
     }
     

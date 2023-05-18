@@ -45,15 +45,16 @@ module.exports = class Robot2020 extends Robot{
             //galleryGreen: { value: 0, max: 4 },
             //galleryBlue: { value: 0, max: 4 },
             endReached: { value: 0, max: 1 },
+            endZone: { value: "" },
             //bottomDispenser: { value: 3, max: 3 },
             //middleDispenser: { value: 3, max: 3 },
             //foundInSite: { value: 0, max: 3 },
             //foundInOppositSite: { value: 0, max: 3 },
         }
         this.collisionAngle = 120;
-        this.collisionDistance = this.radius+350;
+        this.collisionDistance = this.radius+275;
         this.slowdownAngle = 90;
-        this.slowdownDistance = this.collisionDistance+200;
+        this.slowdownDistance = this.collisionDistance+250;
         this.slowdownDistanceOffset = 300; // multiplied by speed in m/s and added to slowdownDistance
 
         if(!this.app.parameters.simulate){
@@ -678,7 +679,7 @@ module.exports = class Robot2020 extends Robot{
         }
         
         
-        let hasTimeToSort = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-30*1000;
+        let hasTimeToSort = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-35*1000;
         
         // Move to plate
         if(!parameters.doNotMoveToSite){
@@ -718,7 +719,7 @@ module.exports = class Robot2020 extends Robot{
         }
         
         let rotationSpeed = 0.4;
-        let moveSpeed = 0.3;
+        let moveSpeed = 0.4;
         let cakeBuildDistance = 140;
         if(hasTimeToSort){
             // For each full rotation
@@ -734,7 +735,7 @@ module.exports = class Robot2020 extends Robot{
                         }
                         if(finished) break;
                     }
-                    // Rotate 120° (unsledd it's the first iteration)
+                    // Rotate 120° (unless it's the first iteration)
                     if(cycle!=0 || index!=0){
                         targetAngle -= 120;
                         console.log("Rotation to", targetAngle)
@@ -742,7 +743,7 @@ module.exports = class Robot2020 extends Robot{
                             angle:targetAngle,
                             speed:      rotationSpeed,//parameters.speed||this.app.goals.defaultSpeed,
                             nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                            nearAngle:  2,
                             preventLocalisation: true
                         });
                     }
@@ -792,7 +793,7 @@ module.exports = class Robot2020 extends Robot{
                         // If arm has target color, and is not holding an already-built cake
                         if( this.variables["arm"+currArm].value.startsWith(targetColor)
                          && !this.variables["arm"+currArm].value.startsWith("BYP")
-                         && cycle <= cakeIdx
+                         && cycle-1 <= cakeIdx
                          ){
                             // Make sure arm it at target height
                             let targetLayer = armDepositLayer[currArm]+armClearanceLayerOffset;
@@ -806,8 +807,8 @@ module.exports = class Robot2020 extends Robot{
                                 angle: forwardAngle,
                                 distance: cakeBuildDistance + layerDistOffset,
                                 speed:      moveSpeed,//parameters.speed||this.app.goals.defaultSpeed,
-                                nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-                                nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+                                nearDist:   10,
+                                nearAngle:  2,
                                 preventLocalisation: true
                             });
                             if(!result) return result;
@@ -862,7 +863,7 @@ module.exports = class Robot2020 extends Robot{
                                 angle: forwardAngle,
                                 distance: cakeBuildDistance+50,
                                 speed:      0.2,//parameters.speed||this.app.goals.defaultSpeed,
-                                nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
+                                nearDist:   50,
                                 nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
                                 preventLocalisation: true
                             });
@@ -874,12 +875,12 @@ module.exports = class Robot2020 extends Robot{
                             await this.setArmToLayer({name:currArm+"G", layer:0, open:true, transport: false});
                             
                             // Move Forward
-                            let extendedForwardDistance = 100;
+                            let extendedForwardDistance = 50;
                             result = await this.moveAtAngle({
                                 angle: forwardAngle,
                                 distance: extendedForwardDistance,
                                 speed:      0.2,//parameters.speed||this.app.goals.defaultSpeed,
-                                nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
+                                nearDist:   extendedForwardDistance/2,
                                 nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
                                 preventLocalisation: true
                             });
@@ -1035,10 +1036,13 @@ module.exports = class Robot2020 extends Robot{
             if(this.modules.arm) await this.modules.arm.setServo({ name: "BCL", angle: this.layerToHeight({layer:3.2})});
             this.addCakePoints({cake:this.variables["armAB"].value});
             this.addCakePoints({cake:this.variables["armBC"].value});
-            this.variables["armAB"].value = "";
-            this.variables["armBC"].value = "";
-            targetPlate.cakes = true;
-            
+            let cakeCount = 0;
+            if(this.variables["armAB"].value != "") cakeCount++;
+            if(this.variables["armBC"].value != "") cakeCount++;
+            if(targetPlate.cakes) cakeCount += targetPlate.cakes;
+            this.updateMapComponent({component: targetPlate, diff:{cakes:cakeCount}});
+            this.setVariable({name:"armAB", value:""});
+            this.setVariable({name:"armBC", value:""});
             // Wiggle left
             result = await this.moveAtAngle({
                 angle: targetAccess.angle+90,
@@ -1108,7 +1112,7 @@ module.exports = class Robot2020 extends Robot{
         
         if(hasFrontCake){
             this.addCakePoints({cake:this.variables["armAC"].value});
-            this.variables["armAC"].value = "";
+            this.setVariable({name:"armAC", value:""});
             
             // Lower arm
             await this.setArmToLayer({name:"ACG", layer:0, open:false, transport: true, wait: true});
@@ -1127,6 +1131,10 @@ module.exports = class Robot2020 extends Robot{
             await this.setArmToLayer({name:"ACG", layer:0, open:false, transport: true, wait: true});
             await this.setArmGrabOpen({name: "ACG", duration: 500});
             await this.setArmToLayer({name:"ACG", layer:2, open:true, transport: true, wait: true});
+            
+            let cakeCount = 1;
+            if(targetPlate.cakes) cakeCount += targetPlate.cakes;
+            this.updateMapComponent({component: targetPlate, diff:{cakes:cakeCount}});
             
             // Return to access position to clear the cake
             result = await this.moveAtAngle({
@@ -1277,9 +1285,13 @@ module.exports = class Robot2020 extends Robot{
             if(this.modules.arm) await this.modules.arm.setServo({ name: "BCC", angle: 200});
             this.addCakePoints({cake:this.variables["armAB"].value});
             this.addCakePoints({cake:this.variables["armBC"].value});
-            this.variables["armAB"].value = "";
-            this.variables["armBC"].value = "";
-            targetPlate.cakes = true;
+            let cakeCount = 0;
+            if(this.variables["armAB"].value != "") cakeCount++;
+            if(this.variables["armBC"].value != "") cakeCount++;
+            this.updateMapComponent({component: targetPlate, diff:{cakes:cakeCount}});
+            this.setVariable({name:"armAB", value:""});
+            this.setVariable({name:"armBC", value:""});
+            
             // Wiggle left
             result = await this.moveAtAngle({
                 angle: targetAccess.angle+90,
@@ -1710,6 +1722,7 @@ module.exports = class Robot2020 extends Robot{
     
     async returnToEndZone(parameters){
         let result = true;
+        this.setVariable({name:"endReached", value:false});
         
         // List deposit sites
         let teamColor = parameters.color||this.team;
@@ -1719,7 +1732,26 @@ module.exports = class Robot2020 extends Robot{
         for(let type of platesTypes) {
             plateList.push(...this.app.map.getComponentList(type, teamColor));
         }
-        // Indetify closest deposit site
+        // Identify if we're already in the good end zone
+        let actualEndZoneValue = 0;
+        let maxZoneValue = 0;
+        let maxZone = null;
+        for(let zone of plateList){
+            if(zone.name == this.variables.endZone.value){
+                if(zone.endZone) actualEndZoneValue = zone.endZone;
+            }
+            let zoneValue = 0;
+            if(zone.endZone) zoneValue = zone.endZone;
+            if(maxZoneValue<zoneValue){
+                maxZoneValue = zoneValue;
+                maxZone = zone;
+            }
+        }
+        if(actualEndZoneValue != maxZoneValue && !parameters.ignoreSelected){
+            plateList = [maxZone];
+        }
+        
+        // Indentify closest deposit site
         let targetPlate = null;
         let targetAccess = null
         let minLength = 99999999999;
@@ -1728,13 +1760,15 @@ module.exports = class Robot2020 extends Robot{
             let accessList = []
             if(plate.access) accessList.push(plate.access);
             if(plate.otherAccess) accessList.push(...plate.otherAccess);
+            if(plate.endAccess) accessList = [...plate.endAccess];
             if(accessList.length == 0) continue;
+            let isActualZone = this.variables.endZone.value == plate.name;
             for(let access of accessList){
                 let path = this.app.map.findPath(this.x, this.y, access.x, access.y);
                 if(path.length<2) continue;
                 if(!this.isMovementPossible(path[1][0], path[1][1])) continue;
                 let pathLength = this.app.map.getPathLength(path);
-                if(pathLength<minLength){
+                if ((pathLength<minLength && !isActualZone)){
                     minLength = pathLength;
                     targetAccess = access;
                     targetPlate = plate;
@@ -1751,6 +1785,12 @@ module.exports = class Robot2020 extends Robot{
             return false
         }
         
+        // Send new end zone info
+        if(parameters.ignoreSelected || maxZoneValue==0){
+            this.updateMapComponent({component: targetPlate, diff:{endZone: maxZoneValue+1}});
+        }
+        this.setVariable({name:"endZone", value:targetPlate.name});
+        
         // Lower arms before deposit
         await this.setArmToLayer({name:"ACG", layer:0, open:false, transport: true});
         await this.setArmToLayer({name:"ABG", layer:0, open:false, transport: true});
@@ -1763,25 +1803,33 @@ module.exports = class Robot2020 extends Robot{
             y:          targetAccess.y,
             angle:      targetAccess.angle,
             speed:      parameters.speed||this.app.goals.defaultSpeed,
-            nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+            nearDist:   200,
+            nearAngle:  20
         });
         if(!result) return result;
+        
+        let collisionDistanceBackup = this.collisionDistance;
+        this.collisionDistance = this.radius+50;
         result = await this.moveCorrectPosition({
             speed: parameters.speed||this.app.goals.defaultSpeed
         });
-        if(!result) return result;
+        if(!result){
+            this.collisionDistance = collisionDistanceBackup;
+            return result;
+        }
         
         // Move forward
         result = await this.moveAtAngle({
             angle: targetAccess.angle,
-            distance: 200,
+            distance: 75,
             speed:      parameters.speed||this.app.goals.defaultSpeed,
             nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
             nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
             preventLocalisation: true
         });
+        this.collisionDistance = collisionDistanceBackup;
         if(!result) return result;
+        this.setVariable({name:"endReached", value:true});
         return result;
     }
     
