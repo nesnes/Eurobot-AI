@@ -41,7 +41,7 @@ module.exports = class GoalsTest extends Goals{
                         parameters:{ plateList: elementList }
                     }
                 ],
-                onError: [ { name:"pack arms", method:"packEmptyArms", parameters:{}}]
+                onError: [ { name:"pack arms", method:"setArmsPacked", parameters:{}}]
             };
         };
         
@@ -63,7 +63,7 @@ module.exports = class GoalsTest extends Goals{
                         parameters:{ }
                     }
                 ],
-                onError: [ { name:"pack arms", method:"packEmptyArms", parameters:{}}]
+                onError: [ { name:"pack arms", method:"setArmsPacked", parameters:{}}]
             };
         };
         
@@ -84,7 +84,7 @@ module.exports = class GoalsTest extends Goals{
                         parameters:{ component: element, speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     }
                 ],
-                onError: [ { name:"pack arms", method:"packEmptyArms", parameters:{}}]
+                onError: [ { name:"pack arms", method:"setArmsPacked", parameters:{}}]
             };
         }
         
@@ -110,7 +110,7 @@ module.exports = class GoalsTest extends Goals{
                         parameters:{ plateTypes: plateTypes, speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     }
                 ],
-                onError: [ { name:"pack arms", method:"packEmptyArms", parameters:{}}]
+                onError: [ { name:"pack arms", method:"setArmsPacked", parameters:{}}]
             };
         }
         
@@ -131,7 +131,7 @@ module.exports = class GoalsTest extends Goals{
                         parameters:{ plateTypes: plateTypes, speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
                     }
                 ],
-                onError: [ { name:"pack arms", method:"packEmptyArms", parameters:{}}]
+                onError: [ { name:"pack arms", method:"setArmsPacked", parameters:{}}]
             };
         }
         

@@ -236,34 +236,17 @@ module.exports = class Robot2020 extends Robot{
         if("armList" in parameters) armList = parameters.armList;
         if(armList.length == 0) return true;
         for(let targetArm of armList) {
-            await this.setArmToLayer({name:targetArm+"G", layer:3.2, open:true, transport: false, duration: 200});
+            let hasCake = this.variables["arm"+targetArm].value !="";
+            let layer = Math.max(0.1, this.maxLayer - this.variables["arm"+targetArm].value.length);
+            await this.setArmToLayer({name:targetArm+"G", layer:layer, open:!hasCake, transport: false, duration: 200, wait:false});
         }
-        await utils.sleep(300);
+        await utils.sleep(150);
         for(let targetArm of armList) {
-            await this.setArmToLayer({name:targetArm+"G", layer:3.2, open:false, transport: false, duration: 200, packed: true});
+            let hasCake = this.variables["arm"+targetArm].value !="";
+            let layer = Math.max(0.1, this.maxLayer - this.variables["arm"+targetArm].value.length);
+            await this.setArmToLayer({name:targetArm+"G", layer:layer, open:false, transport: false, duration: 200, packed: !hasCake, wait:false});
         }
-        /*// Set arms half closed
-        if(this.modules.arm) await this.modules.arm.setPose({ name: "ACG", a1:40, a2:150, a3:150, a4:40 });
-        if(this.modules.arm) await this.modules.arm.setPose({ name: "ABG", a1:40, a2:150, a3:150, a4:40 });
-        if(this.modules.arm) await this.modules.arm.setPose({ name: "BCG", a1:40, a2:150, a3:150, a4:40 });
-        await utils.sleep(300);
-        // Set arms fully closed
-        if(this.modules.arm) await this.modules.arm.setPose({ name: "ACG", a1:40, a2:150, a3:60, a4:40 });
-        if(this.modules.arm) await this.modules.arm.setPose({ name: "ABG", a1:40, a2:150, a3:60, a4:40 });
-        if(this.modules.arm) await this.modules.arm.setPose({ name: "BCG", a1:40, a2:150, a3:60, a4:40 });*/
         return true;
-    }
-    
-    async packEmptyArms(parameters){
-        let armList = ["AC", "AB", "BC"]
-        let packList = [];
-        if("armList" in parameters) armList = parameters.armList;
-        for(let targetArm of armList) {
-            if(this.variables["arm"+targetArm].value == ""){
-                packList.push(targetArm);
-            }
-        }
-        return await this.setArmsPacked({armList:packList});
     }
     
     async setArmGrabOpen(parameters){
@@ -619,7 +602,7 @@ module.exports = class Robot2020 extends Robot{
         if(hasCake){
             this.setVariable({name:"arm"+targetArm, value:cakeFound});
         }
-        
+        this.setArmsPacked({});
         return hasCake
     }
 
@@ -1597,6 +1580,7 @@ module.exports = class Robot2020 extends Robot{
             if(!result) return result;
         }*/
 
+        this.setArmsPacked({});
         return hasAnyCake;
     }
     
@@ -1717,6 +1701,7 @@ module.exports = class Robot2020 extends Robot{
             this.setVariable({name:"arm"+targetArm, value:""});
         }
 
+        this.setArmsPacked({});
         return hasCake;
     }
     
