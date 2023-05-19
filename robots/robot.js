@@ -379,7 +379,7 @@ module.exports = class Robot {
             if(path.length<2) continue;
             if(!this.isMovementPossible(path[1][0], path[1][1])) continue;
             let pathLength = this.app.map.getPathLength(path);
-            if(pathLength<minLength){
+            if(pathLength<minLength && pathLength > 50){ // need to reject too close match as isMovementPossible is not accurate here
                 minLength = pathLength;
                 access = acc;
             }
