@@ -19,6 +19,26 @@ module.exports = class GoalsTest extends Goals{
                     name: "Wait for start",
                     method: "waitForStart"
                 },
+                {
+                    name: "Remove Opponent cake",
+                    method: "removeOpponentCakes"
+                }
+            ]
+        };
+        
+        let waitForDance = {
+            name: "Wait for Dance",
+            condition: ()=>{return true;}, 
+            executionCount: 1,
+            actions: [
+                {
+                    name: "Wait for start",
+                    method: "waitForStart"
+                },
+                {
+                    name: "Dance",
+                    method: "dance2023"
+                },
             ]
         };
         
@@ -28,16 +48,16 @@ module.exports = class GoalsTest extends Goals{
                 condition: ()=>{
                     let hasArmFree = this.app.robot.variables.armAC.value == "" || this.app.robot.variables.armAB.value == "" || this.app.robot.variables.armBC.value == "";
                     let hasTimeElapsed = this.app.intelligence.currentTime >= 40*1000;
-                    let hasTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-28*1000;
+                    let hasTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-18*1000;
                     let endReached = this.app.robot.variables.endReached.value;
                     return hasArmFree && hasTimeElapsed && hasTimeLeft && !endReached;
                 },                
-                executionCount: 1,
+                executionCount: 0,
                 actions: [
                     {
                         name: "find and grab",
                         method: "findAndGrabCake",
-                        parameters:{ plateList: elementList }
+                        parameters:{ plateTypes: elementList }
                     }
                 ],
                 onError: [ { name:"pack arms", method:"setArmsPacked", parameters:{}}]
@@ -52,7 +72,9 @@ module.exports = class GoalsTest extends Goals{
                     let isTimeStarting = this.app.intelligence.currentTime <= 2000;
                     let inMatchingStartZone = 900 < this.app.robot.x && this.app.robot.x < 2100; 
                     let endReached = this.app.robot.variables.endReached.value;
-                    return inMatchingStartZone && hasArmFree && isTimeStarting && !endReached;
+                    let result =  inMatchingStartZone && hasArmFree && isTimeStarting && !endReached;
+                    if(result) this.app.robot.variables.brownRushed.value = 1;
+                    return result;
                 },                
                 executionCount: 1,
                 actions: [
@@ -65,6 +87,28 @@ module.exports = class GoalsTest extends Goals{
                 onError: [ { name:"pack arms", method:"setArmsPacked", parameters:{}}]
             };
         };
+        
+        let grabCakeRushBrown = (element=null, iterations=0)=>{
+            return {
+                name: "Grab cake rush brown",
+                condition: ()=>{
+                    let hasArmFree = this.app.robot.variables.armAC.value == "" || this.app.robot.variables.armAB.value == "" || this.app.robot.variables.armBC.value == "";
+                    let hasTimeLeft = this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-28*1000;
+                    let endReached = this.app.robot.variables.endReached.value;
+                    let hasRushBrown = this.app.robot.variables.brownRushed.value;
+                    return hasRushBrown && hasArmFree && hasTimeLeft && !endReached;
+                },                
+                executionCount: iterations,
+                actions: [
+                    {
+                        name: "Grab cake",
+                        method: "grabCake",
+                        parameters:{ component: element, speed: this.moveSpeed, nearDist: this.defaultNearDist, nearAngle: this.defaultNearAngle }
+                    }
+                ],
+                onError: [ { name:"pack arms", method:"setArmsPacked", parameters:{}}]
+            };
+        }
         
         let grabCake = (element=null, iterations=0)=>{
             return {
@@ -187,45 +231,12 @@ module.exports = class GoalsTest extends Goals{
             onError: [ { name:"Move to new end zone", method:"returnToEndZone", parameters:{ignoreSelected:true}}]
         };
         
-        let allCakeColors = ["cakePink", "cakeYellow", "cakeBrown"];
+        let onlyMissingColors = null; 
+        
+        //use list to ignore the option to only get missing colors
+        let forceAnyColor = ["cakePink", "cakeYellow", "cakeBrown"];//use list to ignore the option to only get missing colors
 
         let listMike = [
-            waitForStart,
-            
-            // Deposit cherries
-            // TODO
-            
-            // Grab cakes 1
-            //grabCake(null, 1), use null to try to grab only missing colors
-            grabCake(allCakeColors, 1),
-            grabCake(allCakeColors, 1),
-            grabCake(allCakeColors, 1),
-            grabCake(allCakeColors, 1),
-            depositeCake(["plateProtected"], true), // not "plateProtected"
-           
-            // Grab cakes 2
-            grabCake(allCakeColors, 1),
-            grabCake(allCakeColors, 1),
-            grabCake(allCakeColors, 1),
-            grabCake(allCakeColors, 1),
-            depositeCake(["plateProtected","plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom", "plateBottomSide"], true), // not "plateProtected"
-           
-            // Search for cakes 1
-            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
-            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
-            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
-            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
-            depositeCake(["plateProtected","plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom", "plateBottomSide"], true), // not "plateProtected"
-            
-            // Search for cakes 2
-            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
-            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
-            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
-            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
-            depositeCake(["plateProtected","plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom", "plateBottomSide"], true), // not "plateProtected"
-           
-            // Move to end zone
-            moveToSpecificEndZone(["plateMiddleBottom"]),
         ];
 
         let listNesnes = [
@@ -233,39 +244,56 @@ module.exports = class GoalsTest extends Goals{
             
             // Brown rush
             rushBrownCakes(),
-            grabCake(["cakeBrown"], 1),
-            grabCake(["cakeBrown"], 1),
-            grabCake(allCakeColors, 1),// if misses other cakes
+            grabCakeRushBrown(["cakeBrown"], 1),
+            //grabCakeRushBrown(["cakeBrown"], 1),
+            //grabCakeRushBrown(["cakeBrown"], 1),
+            //grabCakeRushBrown(onlyMissingColors, 1),// if misses other cakes
+            
             depositeCake(["plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom",], true), // not "plateProtected"
+            // ?? deposit protected ??
+            //depositeCake(["plateProtected"], true),
+            
+            grabCake(forceAnyColor, 1),
+            grabCake(onlyMissingColors, 1),
+            grabCake(onlyMissingColors, 1),
+            grabCake(forceAnyColor, 1),
+            grabCake(forceAnyColor, 1),
+            //depositeCake(["plateProtected"], true),
+            depositeCake(["plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom", "plateBottomSide"], true), // not "plateProtected"
+           
             
             // Grab cakes 1
             //grabCake(null, 1), use null to try to grab only missing colors
-            grabCake(allCakeColors, 1),
-            grabCake(allCakeColors, 1),
-            grabCake(allCakeColors, 1),
-            grabCake(allCakeColors, 1),
+            grabCake(forceAnyColor, 1),
+            grabCake(onlyMissingColors, 1),
+            grabCake(forceAnyColor, 1),
+            grabCake(forceAnyColor, 1),
+            depositeCake(["plateBottom"], true), // not "plateProtected"
             depositeCake(["plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom", "plateBottomSide"], true), // not "plateProtected"
            
             // Grab cakes 2
-            grabCake(allCakeColors, 1),
-            grabCake(allCakeColors, 1),
-            grabCake(allCakeColors, 1),
-            grabCake(allCakeColors, 1),
+            grabCake(forceAnyColor, 1),
+            grabCake(onlyMissingColors, 1),
+            grabCake(forceAnyColor, 1),
+            grabCake(forceAnyColor, 1),
+            depositeCake(["plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom", "plateBottomSide"], true), // not "plateProtected"
             depositeCake(["plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom", "plateBottomSide"], true), // not "plateProtected"
            
             // Search for cakes 1
-            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
-            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
-            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
-            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
+            //findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
+            //findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
+            //findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
+            //findAndGrab(["plateMiddleBottom", "plateBottom"]),
+            //findAndGrab(["plateMiddleBottom", "plateBottom"]),
+            //findAndGrab(["plateMiddleBottom", "plateBottom"]),
             depositeCake(["plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom", "plateBottomSide"], true), // not "plateProtected"
             
             // Search for cakes 2
-            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
-            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
-            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
-            findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
-            depositeCake(["plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom", "plateBottomSide"], true), // not "plateProtected"
+            //findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
+            //findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
+            //findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
+            //findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom", "plateBottomSide"]),
+            //depositeCake(["plateMiddleTop"/*, "plateMiddleBottom"*/, "plateBottom", "plateBottomSide"], true), // not "plateProtected"
            
             //findAndGrab(["plateMiddleTop", "plateMiddleBottom", "plateBottom"]),
             ////depositeCake("plateProtected", 1),

@@ -158,7 +158,8 @@ module.exports = class Arm {
             }
         }
         if("color" in params){
-            colors.push(params.color);
+            for(let i=0;i<ledCount;i++)
+                colors.push(params.color);
         }
         let msg = "p "+params.brightness;
         for(let i=0;i<colors.length;i++){

@@ -46,17 +46,19 @@ module.exports = class Robot2020 extends Robot{
             //galleryBlue: { value: 0, max: 4 },
             endReached: { value: 0, max: 1 },
             endZone: { value: "" },
+            brownRushed: { value: 0, max: 1 },
             //bottomDispenser: { value: 3, max: 3 },
             //middleDispenser: { value: 3, max: 3 },
             //foundInSite: { value: 0, max: 3 },
             //foundInOppositSite: { value: 0, max: 3 },
         }
         this.collisionAngle = 90;
-        this.collisionDistance = this.radius+250;
+        this.collisionDistance = this.radius+450;
         this.slowdownAngle = 90;
         this.slowdownDistance = this.collisionDistance+250;
         this.slowdownDistanceOffset = 300; // multiplied by speed in m/s and added to slowdownDistance
-
+        this.slowDownSpeed = 0.2;
+        
         if(!this.app.parameters.simulate){
             this.modules.lidar = new Lidar(app)
             this.modules.lidarLoc = new LidarLoc(app);
@@ -188,6 +190,8 @@ module.exports = class Robot2020 extends Robot{
     getDescription(){
         return {
             functions:{
+                draw:{},
+                dance2023: {},
                 testSetPosition: {},
                 findLocalisation: {},
                 rushBrownFromCenter: {},
@@ -244,6 +248,23 @@ module.exports = class Robot2020 extends Robot{
         this.send();
         return true;
     }*/
+    
+    async removeOpponentCakes(parameters){
+        let targetColor = "blue";
+        if(this.team == "green"){
+            let cmp1 = this.app.map.getComponentByName("Cake Top Pink Blue", "cakePink", "");
+            this.removeFromMap({component: cmp1});
+            let cmp2 = this.app.map.getComponentByName("Cake Top Yellow Blue", "cakeYellow", "");
+            this.removeFromMap({component: cmp2});
+        }
+        else{
+            let cmp1 = this.app.map.getComponentByName("Cake Top Pink Green", "cakePink", "");
+            this.removeFromMap({component: cmp1});
+            let cmp2 = this.app.map.getComponentByName("Cake Top Yellow Green", "cakeYellow", "");
+            this.removeFromMap({component: cmp2});
+        }
+        return true;
+    }
     
     
     
@@ -628,6 +649,7 @@ module.exports = class Robot2020 extends Robot{
 
     async depositCake(parameters){
         let result = true;
+        let deposedCakes = 0;
         
         // List deposit sites
         let teamColor = parameters.color||this.team;
@@ -745,6 +767,7 @@ module.exports = class Robot2020 extends Robot{
             await utils.sleep(200);
             let hasCake = await this.isArmHoldingCake({name:"ACG"});
             this.variables["armAC"].value = hasCake?"BBB":"";
+            deposedCakes++;
 
             //Move Backward
             result = await this.moveAtAngle({
@@ -1065,6 +1088,7 @@ module.exports = class Robot2020 extends Robot{
             this.updateMapComponent({component: targetPlate, diff:{cakes:cakeCount}});
             this.setVariable({name:"armAB", value:""});
             this.setVariable({name:"armBC", value:""});
+            deposedCakes += 2;
             // Wiggle left
             result = await this.moveAtAngle({
                 angle: targetAccess.angle+90,
@@ -1138,7 +1162,7 @@ module.exports = class Robot2020 extends Robot{
         //await this.setArmToLayer({name:"ABG", layer:0, open:true, transport: true, wait: false});
        
         
-        if(hasFrontCake){
+        if(hasFrontCake && deposedCakes < 3){
             this.addCakePoints({cake:this.variables["armAC"].value});
             this.setVariable({name:"armAC", value:""});
             
@@ -1163,7 +1187,7 @@ module.exports = class Robot2020 extends Robot{
             let cakeCount = 1;
             if(targetPlate.cakes) cakeCount += targetPlate.cakes;
             this.updateMapComponent({component: targetPlate, diff:{cakes:cakeCount}});
-            
+            deposedCakes++;
             // Return to access position to clear the cake
             result = await this.moveAtAngle({
                 angle: targetAccess.angle+180,
@@ -1778,6 +1802,7 @@ module.exports = class Robot2020 extends Robot{
         this.app.logger.log("Adding end zone point");
         if(this.name == "Robot Nesnes TDS") this.addScore(8);
         else this.addScore(7);
+        //this.addScore(15);
                     
         return result;
     }
@@ -1797,6 +1822,138 @@ module.exports = class Robot2020 extends Robot{
         this.addScore(20);
         return true;
     }*/
+    async dance2023(){
+        //let status = await this.modules.controlPanel.getStart();
+        //while(!status.start){ await utils.sleep(50); };
+        await this.modules.base.enableManual();
+        await this.modules.base.enableMove();
+        let packedAngle = 110;
+        let openAngle = 170;
+        
+        this.setArmsPacked({});
+        if(this.modules.arm) await this.modules.arm.setLed({ brightness: 0, color: 0});
+        await utils.sleep(650);
+            
+        for(let i=0;i<2;i++){
+            await this.modules.base.moveManual({ moveAngle: 0, moveSpeed: 0, angleSpeed: 40 });
+            await utils.sleep(2000);
+            await this.modules.base.moveManual({ moveAngle: 0, moveSpeed: 0, angleSpeed: -40 });
+            await utils.sleep(2000);
+        }
+        //8s
+        for(let i=0;i<8;i++){
+            let delay = 460;
+            await this.modules.arm.setServo({ name: "ACC", angle: openAngle, duration: delay, wait:false});
+            await this.modules.arm.setServo({ name: "BCB", angle: openAngle, duration: delay, wait:false});
+            await this.modules.arm.setServo({ name: "ABA", angle: openAngle, duration: delay, wait:false});
+            await this.modules.arm.setServo({ name: "ACA", angle: packedAngle, duration: delay, wait:false});
+            await this.modules.arm.setServo({ name: "BCC", angle: packedAngle, duration: delay, wait:false});
+            await this.modules.arm.setServo({ name: "ABB", angle: packedAngle, duration: delay, wait:false});
+            await this.modules.base.moveManual({ moveAngle: 0, moveSpeed: 0, angleSpeed: 80 });
+            await utils.sleep(delay);
+            
+            await this.modules.arm.setServo({ name: "ACC", angle: packedAngle, duration: delay, wait:false});
+            await this.modules.arm.setServo({ name: "BCB", angle: packedAngle, duration: delay, wait:false});
+            await this.modules.arm.setServo({ name: "ABA", angle: packedAngle, duration: delay, wait:false});
+            await this.modules.arm.setServo({ name: "ACA", angle: openAngle, duration: delay, wait:false});
+            await this.modules.arm.setServo({ name: "BCC", angle: openAngle, duration: delay, wait:false});
+            await this.modules.arm.setServo({ name: "ABB", angle: openAngle, duration: delay, wait:false});
+            await this.modules.base.moveManual({ moveAngle: 0, moveSpeed: 0, angleSpeed: -80 });
+            await utils.sleep(delay);
+        }
+        await this.modules.arm.setServo({ name: "ACC", angle: packedAngle, duration: 0, wait:false});
+        await this.modules.arm.setServo({ name: "BCB", angle: packedAngle, duration: 0, wait:false});
+        await this.modules.arm.setServo({ name: "ABA", angle: packedAngle, duration: 0, wait:false});
+        await this.modules.arm.setServo({ name: "ACA", angle: packedAngle, duration: 0, wait:false});
+        await this.modules.arm.setServo({ name: "BCC", angle: packedAngle, duration: 0, wait:false});
+        await this.modules.arm.setServo({ name: "ABB", angle: packedAngle, duration: 0, wait:false});
+        
+        await this.modules.base.moveManual({ moveAngle: 0, moveSpeed: 0, angleSpeed: 80 });
+        await utils.sleep(230);
+        await this.modules.base.moveManual({ moveAngle: 0, moveSpeed: 0, angleSpeed: 80 });
+        await utils.sleep(230);
+        //16s
+        for(let i=0;i<2;i++){
+            await this.modules.base.moveManual({ moveAngle: 90, moveSpeed: 0.4, angleSpeed: 0 });
+            await utils.sleep(1000);
+            await this.modules.base.moveManual({ moveAngle: -90, moveSpeed: 0.4, angleSpeed: 0 });
+            await utils.sleep(1000);
+        }
+        for(let i=0;i<2;i++){
+            await this.modules.base.moveManual({ moveAngle: 0, moveSpeed: 0.4, angleSpeed: 0 });
+            await utils.sleep(1000);
+            await this.modules.base.moveManual({ moveAngle: 180, moveSpeed: 0.4, angleSpeed: 0 });
+            await utils.sleep(1000);
+        }
+        await this.modules.base.moveManual({ moveAngle: 0, moveSpeed: 0, angleSpeed: 0 });
+        //24s
+        //await this.modules.base.moveManual({ moveAngle: 90, moveSpeed: .2, angleSpeed: 0 });
+        //await utils.sleep(2000);
+        
+        await this.modules.arm.setServo({ name: "ACL", angle: 0, duration: 0, wait:false});
+        await this.modules.arm.setServo({ name: "BCL", angle: 0, duration: 0, wait:false});
+        await this.modules.arm.setServo({ name: "ABL", angle: 0, duration: 0, wait:false});
+        await utils.sleep(2000);
+        
+        for(let i=0;i<8;i++){
+            await this.modules.arm.setServo({ name: "ACL", angle: 30, duration: 0, wait:false});
+            await this.modules.arm.setServo({ name: "BCL", angle: 30, duration: 0, wait:false});
+            await this.modules.arm.setServo({ name: "ABL", angle: 0, duration: 0, wait:false});
+            await utils.sleep(500);
+            await this.modules.arm.setServo({ name: "ACL", angle: 0, duration: 0, wait:false});
+            await this.modules.arm.setServo({ name: "BCL", angle: 30, duration: 0, wait:false});
+            await this.modules.arm.setServo({ name: "ABL", angle: 30, duration: 0, wait:false});
+            await utils.sleep(500);
+            await this.modules.arm.setServo({ name: "ACL", angle: 30, duration: 0, wait:false});
+            await this.modules.arm.setServo({ name: "BCL", angle: 0, duration: 0, wait:false});
+            await this.modules.arm.setServo({ name: "ABL", angle: 30, duration: 0, wait:false});
+            await utils.sleep(500);
+        }
+        await this.modules.arm.setServo({ name: "ACL", angle: 40, duration: 0, wait:false});
+        await this.modules.arm.setServo({ name: "BCL", angle: 40, duration: 0, wait:false});
+        await this.modules.arm.setServo({ name: "ABL", angle: 40, duration: 0, wait:false});
+        
+        //Break dance
+        for(let i=0;i<8;i++){
+            await this.modules.base.moveManual({ moveAngle: 0, moveSpeed: 0, angleSpeed: 180 });
+            await this.modules.arm.setServo({ name: "ACL", angle: 30, duration: 0, wait:false});
+            await this.modules.arm.setServo({ name: "BCL", angle: 30, duration: 0, wait:false});
+            await this.modules.arm.setServo({ name: "ABL", angle: 0, duration: 0, wait:false});
+            await this.modules.base.moveManual({ moveAngle: 0, moveSpeed: 0, angleSpeed: -180 });
+            await utils.sleep(500);
+            await this.modules.arm.setServo({ name: "ACL", angle: 0, duration: 0, wait:false});
+            await this.modules.arm.setServo({ name: "BCL", angle: 30, duration: 0, wait:false});
+            await this.modules.arm.setServo({ name: "ABL", angle: 30, duration: 0, wait:false});
+            await this.modules.base.moveManual({ moveAngle: 0, moveSpeed: 0, angleSpeed: -180 });
+            await utils.sleep(500);
+            await this.modules.arm.setServo({ name: "ACL", angle: 30, duration: 0, wait:false});
+            await this.modules.arm.setServo({ name: "BCL", angle: 0, duration: 0, wait:false});
+            await this.modules.arm.setServo({ name: "ABL", angle: 30, duration: 0, wait:false});
+            await utils.sleep(500);
+        }
+        await this.modules.base.moveManual({ moveAngle: 0, moveSpeed: 0, angleSpeed: 0 });
+        await this.modules.arm.setServo({ name: "ACL", angle: 70, duration: 0, wait:false});
+        await this.modules.arm.setServo({ name: "BCL", angle: 70, duration: 0, wait:false});
+        await this.modules.arm.setServo({ name: "ABL", angle: 70, duration: 0, wait:false});await this.modules.arm.setServo({ name: "ACC", angle: openAngle, duration: delay, wait:false});
+        await this.modules.arm.setServo({ name: "BCB", angle: packedAngle, duration: 0, wait:false});
+        await this.modules.arm.setServo({ name: "ABA", angle: packedAngle, duration: 0, wait:false});
+        await this.modules.arm.setServo({ name: "ACA", angle: packedAngle, duration: 0, wait:false});
+        await this.modules.arm.setServo({ name: "BCC", angle: packedAngle, duration: 0, wait:false});
+        await this.modules.arm.setServo({ name: "ABB", angle: packedAngle, duration: 0, wait:false});
+        await this.modules.arm.setServo({ name: "ACC", angle: packedAngle, duration: 0, wait:false});
+        
+        
+        // Maxi spin
+        /*for(let i=0;i<2;i++){
+            await this.modules.base.moveManual({ moveAngle: 0, moveSpeed: 0, angleSpeed: 720 });
+            await utils.sleep(4000);
+            await this.modules.base.moveManual({ moveAngle: 0, moveSpeed: 0, angleSpeed: -720 });
+            await utils.sleep(4000);
+        }*/
+        
+        await this.modules.base.moveManual({ moveAngle: 0, moveSpeed: 0, angleSpeed: 0 });
+        await this.modules.base.disableMove();
+    }
     
     async danc1(temporisation=376, iterations=6, high=false){
         let side = true;
@@ -2556,10 +2713,10 @@ module.exports = class Robot2020 extends Robot{
                 y: (point.y - offset.y)*ratio,
                 preventPathFinding: true,
                 angle: 0,
-                speed: 0.3,
-                preventLocalisation: true
-                //nearDist: this.app.goals.defaultNearDist,
-                //nearAngle: this.app.goals.defaultNearAngle
+                speed: 0.6,
+                preventLocalisation: true,
+                nearDist: 5,
+                nearAngle: 2
             });
             //if(!result) return result;
         }
