@@ -19,7 +19,7 @@ bool ledValue = true;
 Chrono updateLed;
 
 #include <Adafruit_NeoPixel.h>
-#define NEOPIXEL_COUNT 12
+#define NEOPIXEL_COUNT 24
 Adafruit_NeoPixel neopixels(NEOPIXEL_COUNT, 33, NEO_GRB + NEO_KHZ800);
 Chrono updateNeopixel;
 
@@ -176,8 +176,9 @@ void executeOrder() {
       sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
       comunication_write();//async
       int v[NEOPIXEL_COUNT]{0}, b=0;
-      int matches = sscanf(comunication_InBuffer, "p %i %i %i %i %i %i %i %i %i %i %i %i %i", &b, &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9], &v[10], &v[11]);
+      int matches = sscanf(comunication_InBuffer, "p %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i", &b, &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9], &v[10], &v[11], &v[12], &v[13], &v[14], &v[15], &v[16], &v[17], &v[18], &v[19], &v[20], &v[21], &v[22], &v[23]);
       matches -= 1; // brightness
+      if(matches>0) neopixels.fill(neopixels.ColorHSV(v[0]<<8), 0, NEOPIXEL_COUNT);
       for(int i=0;i<matches && i<NEOPIXEL_COUNT;i++) {
         neopixels.setPixelColor(i, neopixels.ColorHSV(v[i]<<8));
       }
