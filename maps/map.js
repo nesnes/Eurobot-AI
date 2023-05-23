@@ -52,6 +52,20 @@ module.exports = class Map {
         }
         return componentList;
     }
+    
+    getComponentByName(name, type="", team=""){
+        let component = null;
+        for(const item of this.app.map.components){
+            if(item.name == name
+            && (!type || item.type == type)
+            && (!team || item.team == team)
+            ){
+                component = item;
+                break;
+            }
+        }
+        return component;
+    }
 
     addComponent(cmp){
         cmp.insertTime = new Date().getTime();
@@ -145,6 +159,7 @@ module.exports = class Map {
         let grid = new PF.Grid(Math.ceil(this.width/this.pathResolution), Math.ceil(this.height/this.pathResolution));
         for(const item of this.app.map.components){
             if(this.isContainedIn(xFrom, yFrom, item) || this.isContainedIn(xTo, yTo, item)){
+                if(item.isSolid) return false;
                 continue;
             }
             let avoidOffset = item.avoidOffset || 0;
@@ -220,6 +235,7 @@ module.exports = class Map {
     findPath(xFrom, yFrom, xTo, yTo){
         let startTime = new Date().getTime();
         let grid = this.createGrid(xFrom, yFrom, xTo, yTo);
+        if(!grid) return []
         this.sendGrid(grid);
         let pathFinder = new PF.AStarFinder({
             allowDiagonal: true,

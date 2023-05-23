@@ -59,8 +59,8 @@ module.exports = class Base {
                 disableManual: {},
                 moveManual:{
                     moveAngle:{ legend:"moveAngle (°)", type:"range", min:-180, max:180, value:0, step:1 },
-                    moveSpeed:{ legend:"moveSpeed (m/s)", type:"range", min: -1.5, max: 1.5, value:0.5, step:0.1 },
-                    angleSpeed:{ legend:"angleSpeed (°/s)", type:"range", min: -360, max: 360, value:0, step:1 }
+                    moveSpeed:{ legend:"moveSpeed (m/s)", type:"range", min: -3.0, max: 3.0, value:0.5, step:0.1 },
+                    angleSpeed:{ legend:"angleSpeed (°/s)", type:"range", min: -2000, max: 2000, value:0, step:1 }
                 },
             }
         }

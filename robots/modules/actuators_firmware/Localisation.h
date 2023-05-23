@@ -2,13 +2,15 @@
 #define LIDAR_LOCALISATION_H
 
 #define LIDAR_LOCALISATION_MAX_MAP_SIZE 100
-#define LIDAR_LOCALISATION_MAX_POS_CANDIDATES 1000
+#define LIDAR_LOCALISATION_MAX_POS_CANDIDATES 1500
+#define LIDAR_LOCALISATION_MAX_POINT_CLOUD_SIZE 600
 
 struct LidarLocMeasure {
-  uint16_t distance = 0;  // mm
-  float angle = 0;        // degrees
-  uint8_t intensity = 0;  // 0-255
+  float distance = 0;
+  float angle = 0;
 };
+
+LidarLocMeasure actualCloud[LIDAR_LOCALISATION_MAX_POINT_CLOUD_SIZE];
 
 struct LidarLocPosition{
   float x=0;
@@ -39,6 +41,33 @@ public:
     mapSize++;
   };
 
+  void clearCloud(){
+    actualCloudIdx = 0;  
+  }
+
+  // Add a lidar point to the cloud, with distance-to-map filtering option
+  void addCloudPoint(float distance, float angle, LidarLocPosition const& filterPosition, float filterDistance=0){
+    // Apply filter on input points
+    bool shouldAddPoint = false;
+    if(filterDistance>0){
+      // Compute projected position
+      float measureX = filterPosition.x + distance * cos((angle + filterPosition.angle) * PI / 180.f);
+      float measureY = filterPosition.y - distance * sin((angle + filterPosition.angle) * PI / 180.f);
+      // Find min dist to map
+      LidarLocPoint measureTransformed{measureX, measureY};
+      for(uint16_t i=0; i<mapSize; i++){
+        shouldAddPoint |= distancePointToLine(measureTransformed, lineMap[i]) < filterDistance;
+      }
+    }
+    else shouldAddPoint = true;
+
+    if(shouldAddPoint){
+      actualCloud[actualCloudIdx].distance = distance;
+      actualCloud[actualCloudIdx].angle = angle;
+      actualCloudIdx++;
+    }
+  }
+
   LidarLocPosition generateRandomPosition(LidarLocPosition const& origin, float const xyRange, float const angleRange){
     LidarLocPosition position;
     position.x = origin.x + xyRange/2.f * (float)(random(-10000, 10000))/10000.f;
@@ -47,12 +76,12 @@ public:
     return position;
   }
 
-  float matchPosition(LidarLocPosition const& targetPosition, LidarLocMeasure* measures, uint16_t measuresSize, uint16_t skipping=1){
+  float matchPosition(LidarLocPosition const& targetPosition, uint16_t skipping=1){
     float score = 0;
     float meanDist = 0;
     float matchCount = 0;
-    for(uint16_t i=0; i<measuresSize; i+=skipping){
-      LidarLocMeasure* measure = &measures[i];
+    for(uint16_t i=0; i<actualCloudIdx; i+=skipping){
+      LidarLocMeasure* measure = &actualCloud[i];
       // Compute measure xy position , applying target position
       float measureX = targetPosition.x + measure->distance * cos((measure->angle + targetPosition.angle) * PI / 180.f);
       float measureY = targetPosition.y - measure->distance * sin((measure->angle + targetPosition.angle) * PI / 180.f);
@@ -75,22 +104,24 @@ public:
     return score;
   };
 
-  float evaluateCandidate(LidarLocPosition const& targetPosition, LidarLocMeasure* measures, uint16_t measuresSize, uint16_t skipping=1){
+  float evaluateCandidate(LidarLocPosition const& targetPosition, uint16_t skipping=1){
     if(candidateIdx>=LIDAR_LOCALISATION_MAX_POS_CANDIDATES) return -1.f;
     candidates[candidateIdx].position.x = targetPosition.x;
     candidates[candidateIdx].position.y = targetPosition.y;
     candidates[candidateIdx].position.angle = targetPosition.angle;
-    float score = matchPosition(targetPosition, measures, measuresSize, skipping);
+    float score = matchPosition(targetPosition, skipping);
     candidates[candidateIdx].score = score;
     candidateIdx++;
     return score;    
   };
 
-  LidarLocPositionCandidate getBestCandidate(){
+  LidarLocPositionCandidate getBestCandidate(bool (*validate)(LidarLocPositionCandidate const&)){
     float maxScore = 0;
     uint16_t bestIdx = 0;
     for(uint16_t i=0;i<candidateIdx;i++){
-      if(candidates[i].score > maxScore){
+      if (candidates[i].score > maxScore
+       &&(validate && validate(candidates[i]))
+      ){
         maxScore = candidates[i].score;
         bestIdx = i;
       }
@@ -105,7 +136,7 @@ public:
     candidateIdx = 0;
   };
 
-  void teleplot(Stream &serialport = Serial, LidarLocPosition targetPosition=LidarLocPosition(), LidarLocMeasure* measures=nullptr, uint16_t measuresSize=0, uint16_t skipping=1){
+  void teleplot(Stream &serialport = Serial, LidarLocPosition targetPosition=LidarLocPosition(), uint16_t skipping=1){
     // Plot map
     Serial.print(F(">localisation.map,wloc:"));
     for(uint16_t i=0; i<mapSize; i++){
@@ -119,8 +150,8 @@ public:
 
     // Plot cloud
     Serial.print(F(">localisation.cloud,wloc:"));
-    for(uint16_t i=0; i<measuresSize; i+=skipping){
-      LidarLocMeasure* measure = &measures[i];
+    for(uint16_t i=0; i<actualCloudIdx; i+=skipping){
+      LidarLocMeasure* measure = &actualCloud[i];
       // Compute measure xy position , applying target position
       float measureX = targetPosition.x + measure->distance * cos((measure->angle + targetPosition.angle) * PI / 180.f);
       float measureY = targetPosition.y - measure->distance * sin((measure->angle + targetPosition.angle) * PI / 180.f);
@@ -141,6 +172,8 @@ public:
 
 private:
   LidarLocLine lineMap[LIDAR_LOCALISATION_MAX_MAP_SIZE];
+  LidarLocMeasure actualCloud[LIDAR_LOCALISATION_MAX_POINT_CLOUD_SIZE];
+  uint16_t actualCloudIdx = 0;
   uint16_t mapSize=0;
   float maxMatchDist = 100;
   float minMatchCount = 40;

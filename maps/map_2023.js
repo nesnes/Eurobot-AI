@@ -70,7 +70,8 @@ module.exports = class Map2020 extends Map{
                 shape: { type: "rectangle", x:0, y:1550, width: 450,  height: 450, color: "blue" },
                 access:{ x:225, y:1475, angle:90 },
                 avoidOffset: -85,
-                startPosition: {x: 225, y: 1775, angle: 0, team: "blue"}
+                startPosition: {x: 225, y: 1775, angle: 0, team: "blue"},
+                endAccess:[{ x:525, y:1775, angle:180 },{ x:225, y:1475, angle:90 }]
             },{
                 name: "Plate Top protected Green",
                 type: "plateProtected",
@@ -78,7 +79,8 @@ module.exports = class Map2020 extends Map{
                 shape: { type: "rectangle", x:0, y:0, width: 450,  height: 450, color: "green" },
                 access:{ x:225, y:525, angle:-90 },
                 avoidOffset: -85,
-                startPosition: {x: 225, y: 225, angle: 0, team: "green"}
+                startPosition: {x: 225, y: 225, angle: 0, team: "green"},
+                endAccess: [{ x:525, y:225, angle:180 },{ x:225, y:525, angle:-90 }]
             },
 
 
@@ -90,7 +92,8 @@ module.exports = class Map2020 extends Map{
                 shape: { type: "rectangle", x:900, y:0, width: 450,  height: 450, color: "blue" },
                 access:{ x:1125, y:525, angle:-90 },
                 avoidOffset: -85,
-                startPosition: {x: 1125, y: 225, angle: 90, team: "blue"}
+                startPosition: {x: 1125, y: 225, angle: 90, team: "blue"},
+                endAccess:[{ x:825, y:225, angle:0 }, { x:1425, y:225, angle:180 }, { x:1125, y:525, angle:-90 }]
             },{
                 name: "Plate Middle Top Green",
                 type: "plateMiddleTop",
@@ -98,7 +101,8 @@ module.exports = class Map2020 extends Map{
                 shape: { type: "rectangle", x:900, y:1550, width: 450,  height: 450, color: "green" },
                 access:{ x:1125, y:1475, angle:90 },
                 avoidOffset: -85,
-                startPosition: {x: 1125, y: 1775, angle: -90, team: "green"}
+                startPosition: {x: 1125, y: 1775, angle: -90, team: "green"},
+                endAccess:[{ x:825, y:1775, angle:0 }, { x:1425, y:1775, angle:180 },{ x:1125, y:1475, angle:90 }]
             },
 
             //Plates Middle Bottom
@@ -109,7 +113,8 @@ module.exports = class Map2020 extends Map{
                 shape: { type: "rectangle", x:1650, y:1550, width: 450,  height: 450, color: "blue" },
                 access:{ x:1875, y:1475, angle:90 },
                 avoidOffset: -85,
-                startPosition: {x: 1875, y: 1775, angle: -90, team: "blue"}
+                startPosition: {x: 1875, y: 1775, angle: -90, team: "blue"},
+                endAccess:[/*{ x:1575, y:1775, angle:0 },*/ { x:2175, y:1775, angle:180 }/*, { x:1875, y:1475, angle:90 }*/]
             },{
                 name: "Plate Middle Bottom Green",
                 type: "plateMiddleBottom",
@@ -117,7 +122,8 @@ module.exports = class Map2020 extends Map{
                 shape: { type: "rectangle", x:1650, y:0, width: 450,  height: 450, color: "green" },
                 access:{ x:1875, y:525, angle:-90 },
                 avoidOffset: -85,
-                startPosition: {x: 1875, y: 225, angle: 90, team: "green"}
+                startPosition: {x: 1875, y: 225, angle: 90, team: "green"},
+                endAccess:[/*{ x:1575, y:225, angle:0 },*/ { x:2175, y:225, angle:180 }/*, { x:1875, y:525, angle:-90 }*/]
             },
 
             //Plates Bottom Side
@@ -126,17 +132,19 @@ module.exports = class Map2020 extends Map{
                 type: "plateBottomSide",
                 team: "blue",
                 shape: { type: "rectangle", x:2550, y:0, width: 450,  height: 450, color: "blue" },
-                access:{ x:2475, y:225, angle:0 },
+                access:{ x:2475, y:250, angle:0 },
                 avoidOffset: -85,
-                startPosition: {x: 2775, y: 225, angle:180, team: "blue"}
+                startPosition: {x: 2775, y: 225, angle:180, team: "blue"},
+                endAccess:[{ x:2475, y:225, angle:0 }, { x:2775, y:525, angle:-90 }]
             },{
                 name: "Plate Bottom Side Green",
                 type: "plateBottomSide",
                 team: "green",
                 shape: { type: "rectangle", x:2550, y:1550, width: 450,  height: 450, color: "green" },
-                access:{ x:2475, y:1775, angle:0 },
+                access:{ x:2475, y:1750, angle:0 },
                 avoidOffset: -85,
-                startPosition: {x: 2775, y: 1775, angle: 180, team: "green"}
+                startPosition: {x: 2775, y: 1775, angle: 180, team: "green"},
+                endAccess:[{ x:2475, y:1775, angle:0 }, { x:2775, y:1475, angle:90 }]
             },
 
             //Plates Bottom
@@ -147,7 +155,8 @@ module.exports = class Map2020 extends Map{
                 shape: { type: "rectangle", x:2550, y:1050, width: 450,  height: 450, color: "blue" },
                 access:{ x:2475, y:1275, angle:0 },
                 avoidOffset: -85,
-                startPosition: {x: 2775, y: 1275, angle:180, team: "blue"}
+                startPosition: {x: 2775, y: 1275, angle:180, team: "blue"},
+                endAccess:[{ x:2475, y:1275, angle:0 }, { x:2775, y:1600, angle:-90 }]
             },{
                 name: "Plate Bottom Green",
                 type: "plateBottom",
@@ -155,7 +164,8 @@ module.exports = class Map2020 extends Map{
                 shape: { type: "rectangle", x:2550, y:500, width: 450,  height: 450, color: "green" },
                 access:{ x:2475, y:725, angle:0 },
                 avoidOffset: -85,
-                startPosition: {x: 2775, y: 725, angle:180, team: "green"}
+                startPosition: {x: 2775, y: 725, angle:180, team: "green"},
+                endAccess:[{ x:2475, y:725, angle:0 }, { x:2775, y:425, angle:90 }]
             },
 
             //Cherry Top

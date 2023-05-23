@@ -14,12 +14,12 @@ module.exports = class LidarLD06 {
         this.borderMargin = 100;
         this.minDistance = 140;
         this.maxDistance = 3200;
-        this.minConfidence = 200; // Actually remove some spotlight interferences
+        this.minConfidence = 200; //200// Actually remove some spotlight interferences
         this.rawMeasures = [];
         this.measures = [];
         this.angleOffset = 0;
         this.lastSendTime = 0;
-        this.rejectedAngles = [{from:356, to:360},{from:0, to:4},  {from:116, to:124},  {from:236, to:244}];//[{from:47, to:73}, {from:167, to:193}, {from:287, to:313}]
+        this.rejectedAngles = [];//[{from:356, to:360},{from:0, to:4},  {from:116, to:124},  {from:236, to:244}];//[{from:47, to:73}, {from:167, to:193}, {from:287, to:313}]
         if(process.platform=="linux") this.port = "/dev/ttyUSB0";//"/dev/lidar"; //Raspberry/Linux
         if(process.platform=="darwin") this.port = "/dev/cu.usbserial-A9QG4MTI"; //Mac
         //if(process.platform=="darwin") this.port = "/dev/cu.usbserial-001K39BS"; //Mac
