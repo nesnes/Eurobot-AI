@@ -65,6 +65,7 @@ module.exports = class Robot {
         this.lastPositionUpdateTime=0;
         this.lastPositionMulticastTime=0;
         this.funnyActionTimeout = null;
+        this.lastSend = 0;
 
     }
     
@@ -165,6 +166,10 @@ module.exports = class Robot {
     }
 
     send(){
+        let now = new Date().getTime();
+        if(now - this.lastSend < 500) return;
+        this.lastSend = now;
+        
         let payload = {
             name: this.name,
             x: this.x,
@@ -655,6 +660,7 @@ module.exports = class Robot {
         let obstacleCountTarget = 5;
         let obstacleCount = 0;
         let obstacleDistance = 0;
+        let obstacleRadius = 165;
         let collisionCountTarget = 5;
         let collisionCount = 0;
         let slowdownCount = 0;
@@ -689,7 +695,7 @@ module.exports = class Robot {
                         type: "obstacle",
                         isSolid: true,
                         shape: { type: "circle", x:x2, y:y2, radius: obstacleRadius, color: "orange" },
-                        timeout: 1500
+                        timeout: 200
                     }
                 });
             }
@@ -705,7 +711,6 @@ module.exports = class Robot {
                 collisionCount++;
                 if(collisionCount>=collisionCountTarget){
                     //Add obstacle on map
-                    let obstacleRadius = 165;
                     let obstacleTimeout = 2000; //will be removed from map in N milliseconds
                     console.log("collision detected");
                     this.app.logger.log("collision detected");

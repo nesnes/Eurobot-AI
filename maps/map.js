@@ -13,6 +13,8 @@ module.exports = class Map {
         this.teams = []
 
         this.pathResolution = 40;//mm
+        this.lastSend = 0;
+        this.lastGridSend = 0;
     }
 
     init(){
@@ -20,6 +22,10 @@ module.exports = class Map {
     }
 
     send(){
+        let now = new Date().getTime();
+        if(now - this.lastSend < 500) return;
+        this.lastSend = now;
+        
         let payload = {
             width: this.width,
             height: this.height,
@@ -96,6 +102,10 @@ module.exports = class Map {
     }
 
     sendGrid(graph){
+        let now = new Date().getTime();
+        if(now - this.lastGridSend < 500) return;
+        this.lastGridSend = now;
+        
         var gridArray = []
         for(let col of graph.grid){
             for(let node of col){
