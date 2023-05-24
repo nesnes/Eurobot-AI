@@ -424,21 +424,78 @@ module.exports = class Robot {
     }
 
     async moveToPosition(parameters){
-        let preventLocalisation = parameters.preventLocalisation || false;
-        let path = [];
-        if(parameters.preventPathFinding) {
-            //path.push([this.x, this.y])
-            path.push([parameters.x, parameters.y])
-        }
-        else {
-            path = this.app.map.findPath(this.x, this.y, parameters.x, parameters.y);
-            path.shift();//remove initial position
-        }
-        if(path.length==0){
-            this.app.logger.log(" Error, empty path to "+parameters.x+" "+parameters.y);
-            return false;
-        }
-        if(this.modules.base){
+        let sleep = 5;
+        let success = true;
+        let moveStatus = "";
+        let startX = this.x;
+        let startY = this.y;
+        let startAngle = this.angle;
+        this.lastTarget.x = parameters.x;
+        this.lastTarget.y = parameters.y;
+        this.lastTarget.angle = parameters.angle;
+        let moveStartTime = new Date().getTime();
+        //this.app.logger.log(`-> move coordinates ${x} ${y} ${angle} ${speed}, near ${nearDist} ${nearAngle}`);
+
+        do {
+            // End of match
+            if(this.app.intelligence.hasBeenRun && this.app.intelligence.isMatchFinished()){
+                success = false;
+                break;
+            }
+            // Update position
+            moveStatus = await this._updatePositionAndMoveStatus(parameters.preventLocalisation || false);
+            let distToEnd = utils.getDistance(this.x, this.y, parameters.x, parameters.y);
+            let distFromStart = utils.getDistance(startX, startY, this.x, this.y);
+            let distAngle = Math.abs(utils.normAngle(utils.normAngle(parameters.angle) - utils.normAngle(this.angle)));
+            let speed = parameters.speed || 0.3;
+            let nearDist = parameters.nearDist || 20;
+            let nearAngle = parameters.nearAngle || 5;
+
+            // Check for obstacles
+            // Find target
+            let targetX = parameters.x, targetY = parameters.y, targetAngle = parameters.angle;
+            if(!parameters.preventPathFinding && distToEnd > nearDist) {
+                let path = this.app.map.findPath(this.x, this.y, parameters.x, parameters.y);
+                if(path.length>1){ // target next waypoint
+                    targetX = path[1][0]
+                    targetY = path[1][1]
+                }
+                else {
+                    success = false;
+                    this.app.logger.log("Error, empty path to "+parameters.x+" "+parameters.y);
+                    break;
+                }
+            }
+            
+            if(!this.isMovementPossible(targetX,targetY)){
+                success = false;
+                break;
+            }
+
+            if(this.modules.base){
+                success = success && !!await this.modules.base.moveXY({x:targetX, y:targetY, angle:targetAngle, speed, nearDist, nearAngle})
+            }
+            else{
+                this._updatePosition(x,y,angle, true);
+                return true;
+            }
+            
+            if(distToEnd <= nearDist && distAngle <= nearAngle){
+                break;
+            }
+
+            await utils.sleep(sleep);
+            if( (new Date().getTime()) - moveStartTime > 10*1000 ){
+                console.log("move is too long, abort")
+                success = false;
+                break;
+            }
+        } while(success && moveStatus) // "near" and "end" status will stop the loop (but not the robot)
+        if(!success) this.modules.base.break();
+        this.send();
+        return success;
+
+        /*if(this.modules.base){
             let startAngle = this.angle;
             let dangle = startAngle-parameters.angle;
             let paramPath = []
@@ -447,9 +504,9 @@ module.exports = class Robot {
                 let angle = startAngle-(dangle*(i++/(path.length)))
                 paramPath.push({x:p[0], y:p[1], angle:angle, speed:parameters.speed, nearDist:parameters.nearDist, nearAngle:parameters.nearAngle});
             }
-            return await this.moveAlongPath({path:paramPath, preventLocalisation})
+            return await this.moveAlongPath({path:paramPath, preventLocalisation, preventPathFinding: parameters.preventPathFinding})
             //return await this._performPath(path, parameters.x, parameters.y, parameters.angle, parameters.speed)
-        }
+        }*/
         return false
     }
 
@@ -595,16 +652,48 @@ module.exports = class Robot {
         if(!isNaN(x) && !isNaN(y)) this._updateMovementAngle(x,y);
         if(!this.modules.lidar) return true;
         if(this.disableColisions) return true;
+        let obstacleCountTarget = 5;
+        let obstacleCount = 0;
+        let obstacleDistance = 0;
         let collisionCountTarget = 5;
         let collisionCount = 0;
         let slowdownCount = 0;
         let angleA = utils.normAngle(this.movementAngle-this.collisionAngle/2);
         let angleB = utils.normAngle(this.movementAngle+this.collisionAngle/2);
-        //console.log("Detect between", angleA, angleB, this.modules.lidar.measures.length)
         let lastCollisionAngle = 0;
         for(let measure of this.modules.lidar.measures){
-            //Check for collisions
+            //Check for obstacles
             let measureAngle = utils.normAngle(measure.a+this.angle);
+            if(obstacleCount <= 0 ){
+                obstacleCount++;
+                obstacleDistance = measure.d;
+            }
+            else if(measure.d-100 < obstacleDistance && obstacleDistance < measure.d+100){
+                obstacleCount++;
+                obstacleDistance = (obstacleDistance + measure.d)/2
+            }
+            else {
+                obstacleCount--;
+            }
+            if(obstacleCount>=obstacleCountTarget){
+                obstacleCount = 0;
+                obstacleDistance = 0;
+                // Create obstacle
+                let rayAngleRad = utils.normAngle(measure.a+this.angle)*(Math.PI/180);
+                let x1 = Math.max(this.radius+obstacleRadius+this.app.map.pathResolution/2, measure.d);
+                let x2 = x1*Math.cos(rayAngleRad) + this.x;
+                let y2 = x1*Math.sin(rayAngleRad) + this.y;
+                this.addToMap({
+                    component:{
+                        name: "Detected Obstacle",
+                        type: "obstacle",
+                        isSolid: true,
+                        shape: { type: "circle", x:x2, y:y2, radius: obstacleRadius, color: "orange" },
+                        timeout: 1500
+                    }
+                });
+            }
+
             //let inCollisionRange = (angleA<=measureAngle && measureAngle<=angleB)
             let inCollisionRange = utils.angleInRange( angleA, angleB, measureAngle );
             if(measure.d>0 && measure.d<this.collisionDistance){
@@ -716,22 +805,74 @@ module.exports = class Robot {
         return moveStatus;
     }
 
-    async _performMovement(x, y, angle, speed, nearDist=0, nearAngle=0, preventLocalisation=false){
-        let sleep = 30;
+    async _performMovement(x, y, angle, speed, nearDist=10, nearAngle=2, preventLocalisation=false, preventPathFinding=false){
+        let sleep = 5;
         let success = true;
         let moveStatus = "";
+
+        let startX = this.x;
+        let startY = this.y;
+        let startAngle = this.angle;
+
+        this.lastTarget.x = x;
+        this.lastTarget.y = y;
+        this.lastTarget.angle = angle;
         
         let moveStartTime = new Date().getTime();
         //this.app.logger.log(`-> move coordinates ${x} ${y} ${angle} ${speed}, near ${nearDist} ${nearAngle}`);
 
-        //Update position and check obstacles
-        await this._updatePositionAndMoveStatus(preventLocalisation);
-        if(!this.isMovementPossible(x,y)) return false;
-        if(!this.modules.base){
-            this._updatePosition(x,y,angle, true);
-            return true;
-        }
+        do {
+            // End of match
+            if(this.app.intelligence.hasBeenRun && this.app.intelligence.isMatchFinished()){
+                success = false;
+                break;
+            }
+            // Update position
+            moveStatus = await this._updatePositionAndMoveStatus(preventLocalisation);
+            let distToEnd = utils.getDistance(this.x, this.y, x, y);
+            let distFromStart = utils.getDistance(startX, startY, this.x, this.y);
+            let distAngle = Math.abs(utils.normAngle(startAngle) - utils.normAngle(this.angle));
 
+            // Check for obstacles
+            // Find target
+            let targetX = x, targetY = y, targetAngle = angle;
+            if(!preventPathFinding && distToEnd > nearDist) {
+                let path = this.app.map.findPath(this.x, this.y, x, y);
+                if(path.length>1){ // target next waypoint
+                    targetX = path[1][0]
+                    targetY = path[1][1]
+                }
+                else {
+                    success = false;
+                    console.log("could not find path")
+                    break;
+                }
+            }
+            
+            if(!this.isMovementPossible(targetX,targetY)){
+                success = false;
+                break;
+            }
+
+            if(this.modules.base){
+                success = success && !!await this.modules.base.moveXY({x:targetX, y:targetY, angle:targetAngle, speed:speed, nearDist:nearDist, nearAngle:nearAngle})
+            }
+            else{
+                this._updatePosition(x,y,angle, true);
+                return true;
+            }
+            if(distToEnd <= nearDist && distAngle <= nearAngle){
+                break;
+            }
+
+            await utils.sleep(sleep);
+            if( (new Date().getTime()) - moveStartTime > 10*1000 ){
+                console.log("move is too long, abort")
+                success = false;
+                break;
+            }
+        } while(success && moveStatus) // "near" and "end" status will stop the loop (but not the robot)
+        /*
         
         this.lastTarget.x = x;
         this.lastTarget.y = y;
@@ -749,6 +890,7 @@ module.exports = class Robot {
             } 
             
         } while(success && moveStatus && moveStatus.includes("run")) // "near" and "end" status will stop the loop (but not the robot)
+        */
         if(!success) this.modules.base.break();
         this.send();
         return success;
@@ -759,9 +901,10 @@ module.exports = class Robot {
         let path=params.path;
         let sleep = 30;
         let preventLocalisation = params.preventLocalisation || false;
+        let preventPathFinding = params.preventPathFinding || false;
         var success = true;
         if(!path.length) return false;
-        if(this.modules.base && await this.modules.base.supportPath()){
+        if(false && this.modules.base && await this.modules.base.supportPath()){
             //Update position and check obstacles
             await this._updatePositionAndMoveStatus(preventLocalisation);
             if(!this.isMovementPossible(path[0].x,path[0].y)) return false;
@@ -785,12 +928,14 @@ module.exports = class Robot {
         }
         else {
             //Not path support on base, run sections one by one
-            for(let i=0;i<path.length;i++){
+            /*for(let i=0;i<path.length;i++){
                 //this.app.logger.log(`-> move path ${i+1}/${path.length}`);
-                success = success && await this._performMovement(path[i].x, path[i].y, path[i].angle, path[i].speed, path[i].nearDist, path[i].nearAngle, preventLocalisation)
+                success = success && await this._performMovement(path[i].x, path[i].y, path[i].angle, path[i].speed, path[i].nearDist, path[i].nearAngle, preventLocalisation, preventPathFinding)
                 
                 if(!success) break
-            }
+            }*/
+            let lastIdx = path.length - 1;
+            success = success && await this._performMovement(path[lastIdx].x, path[lastIdx].y, path[lastIdx].angle, path[lastIdx].speed, path[lastIdx].nearDist, path[lastIdx].nearAngle, preventLocalisation, preventPathFinding)
         }
         let lastIdx = path.length - 1;
         this.lastTarget.x = path[lastIdx].x;

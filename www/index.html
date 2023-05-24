@@ -25,9 +25,10 @@
                             <!--Grid pathfinding-->
                             <template v-if="grid.grid != null">
                                 <g>
-                                    <template v-for="node in grid.grid">
-                                        <rect v-bind:x="node[0]*grid.resolution" v-bind:y="node[1]*grid.resolution" v-bind:width="grid.resolution" v-bind:height="grid.resolution" v-bind:style="{ fill: node[2]?'white':'red' }" style="stroke-width:0;stroke:rgb(0,0,0);opacity: 0.1;" />
-                                    </template>
+                                    <g v-for="node in grid.grid">
+                                        <title>{{node[0]}} - {{node[1]}} - {{node[2]}}</title>
+                                        <rect v-bind:x="node[0]*grid.resolution" v-bind:y="node[1]*grid.resolution" v-bind:width="grid.resolution" v-bind:height="grid.resolution" v-bind:style="{ opacity: (node[2]==0?1:node[2]/5)/5 }" style="fill:red;stroke-width:0;stroke:rgb(0,0,0);opacity: 0.1;" />
+                                    </g>
                                 </g>
                             </template>
 

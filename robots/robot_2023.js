@@ -53,9 +53,9 @@ module.exports = class Robot2020 extends Robot{
             //foundInOppositSite: { value: 0, max: 3 },
         }
         this.collisionAngle = 90;
-        this.collisionDistance = this.radius+450;
+        this.collisionDistance = this.radius+200;//450;
         this.slowdownAngle = 90;
-        this.slowdownDistance = this.collisionDistance+250;
+        this.slowdownDistance = this.collisionDistance+350;
         this.slowdownDistanceOffset = 300; // multiplied by speed in m/s and added to slowdownDistance
         this.slowDownSpeed = 0.2;
         
@@ -327,7 +327,7 @@ module.exports = class Robot2020 extends Robot{
         let cherryAngle = 150;
         if(parameters.cherry == 1) cherryAngle = 160;
         if(parameters.cherry == 2) cherryAngle = 180;
-        console.log(parameters)
+        //console.log(parameters)
         let pose = Object.assign({ name: "ACG", a1:targetHeight, a2:cherryAngle, a3:targetArmAngle, a4:targetArmAngle }, parameters);
         if(this.modules.arm) await this.modules.arm.setPose(pose);
         if(parameters.wait){

@@ -16,6 +16,7 @@ module.exports = class Base {
         this.angleSpeed = 0.2;
         this.moveBreak = false;
         this.speedLimit = 0;
+        this.moveCount = 0;
     }
     
     async init(){
@@ -84,6 +85,7 @@ module.exports = class Base {
     }
 
     async moveXY(params){
+        this.moveCount++;
         this.moveStatus = "run";
         let move = async (params) => {
             let startX = this.x;
@@ -96,7 +98,8 @@ module.exports = class Base {
             let moveSpeed = params.speed;
             let sleep = 100;
             let distanceDone = 0;
-            while(distanceDone<distance){
+            let targetCount = this.moveCount;
+            while(distanceDone<distance && targetCount == this.moveCount){
                 if(this.app.intelligence.hasBeenRun && this.app.intelligence.isMatchFinished()) return false;
                 moveSpeed = params.speed;
                 if(this.speedLimit>0.01){
@@ -108,15 +111,18 @@ module.exports = class Base {
                 if(ratio>1) ratio = 1;
                 let x = startX-(dx*ratio);
                 let y = startY-(dy*ratio);
-                if(this.moveBreak)
-                    return false;
+                if(this.moveBreak) return false;
                 let angle = startAngle-(dangle*ratio);
                 this._updatePosition(x,y,angle);
+                if(this.app.robot) this.app.robot._updatePositionAndMoveStatus(true);
                 await utils.sleep(sleep);
             }
-            this._updatePosition(params.x,params.y,params.angle, true);
+            if(targetCount == this.moveCount)
+                this._updatePosition(params.x,params.y,params.angle, true);
+
         };
-        move(params).then(()=>{this.moveStatus="end";}); // async
+        //move(params).then(()=>{this.moveStatus="end";}); // async
+        await move(params);
         return true;
     }
 

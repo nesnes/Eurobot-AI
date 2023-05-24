@@ -1,5 +1,6 @@
 'use strict';
 var PF = require('pathfinding');
+const Astar = require('./astar.js');
 
 module.exports = class Map {
         constructor(app) {
@@ -11,7 +12,7 @@ module.exports = class Map {
         this.components = []
         this.teams = []
 
-        this.pathResolution = 50;//mm
+        this.pathResolution = 40;//mm
     }
 
     init(){
@@ -94,11 +95,11 @@ module.exports = class Map {
         if(changed) this.send();
     }
 
-    sendGrid(grid){
+    sendGrid(graph){
         var gridArray = []
-        for(let line of grid.nodes){
-            for(let node of line){
-                gridArray.push([node.x, node.y, node.walkable]);
+        for(let col of graph.grid){
+            for(let node of col){
+                gridArray.push([node.x, node.y, node.weight]);
             }
         }
         let payload = {
@@ -156,11 +157,23 @@ module.exports = class Map {
 
     createGrid(xFrom, yFrom, xTo, yTo){
         this._updateMap();
-        let grid = new PF.Grid(Math.ceil(this.width/this.pathResolution), Math.ceil(this.height/this.pathResolution));
+        //let grid = new PF.Grid(Math.ceil(this.width/this.pathResolution), Math.ceil(this.height/this.pathResolution));
+        let gridWidth = Math.ceil(this.width/this.pathResolution);
+        let gridHeight = Math.ceil(this.height/this.pathResolution);
+        let grid = [];
+        for(let i=0;i<gridWidth;i++){
+            grid.push([]);
+            for(let j=0;j<gridHeight;j++){
+                grid[i].push(1);
+            }
+        }
+        let graph = new Astar.Graph(grid, {diagonal: true});
         for(const item of this.app.map.components){
+            let offsetWeight = 0;
             if(this.isContainedIn(xFrom, yFrom, item) || this.isContainedIn(xTo, yTo, item)){
-                if(item.isSolid) return false;
-                continue;
+                //if(item.isSolid) return false;
+                offsetWeight = 2;
+                //continue;
             }
             let avoidOffset = item.avoidOffset || 0;
             if(item.shape.type == "rectangle"){
@@ -184,13 +197,17 @@ module.exports = class Map {
                 toY = Math.ceil(toY/this.pathResolution)-1;
                 
                 //Update grid
+                //console.log(xFrom, yFrom, xTo, yTo,gridWidth, gridHeight )
                 for(let y=fromY; y<=toY;y++){
                     for(let x=fromX; x<=toX;x++){
+                        if( y<0 || y>=gridHeight ||  x<0 || x>=gridWidth) continue;
                         if(!this.isContainedIn(x*this.pathResolution+this.pathResolution/2,y*this.pathResolution+this.pathResolution/2, item)) continue;
                         //console.log(x, y, fromX, width )
                         //grid.setWalkableAt(x, y, false);
-                        grid.nodes[y][x].walkable = false;
-                        grid.nodes[y][x].component = item.name;
+                        graph.grid[x][y].weight = 0 + offsetWeight;
+                        graph.grid[x][y].component = item.name;
+                        //grid.nodes[y][x].walkable = false;
+                        //grid.nodes[y][x].component = item.name;
                     }
                 }
             }
@@ -214,30 +231,47 @@ module.exports = class Map {
                 //Update grid
                 for(let y=fromY; y<=fromY+height;y++){
                     for(let x=fromX; x<=fromX+width;x++){
+                        if( y<0 || y>=gridHeight ||  x<0 || x>=gridWidth) continue;
                         if(!this.isContainedIn(x*this.pathResolution+this.pathResolution/2,y*this.pathResolution+this.pathResolution/2, item)) continue;
                         //console.log(x, y, fromX, width )
                         //grid.setWalkableAt(x, y, false);
-                        grid.nodes[y][x].walkable = false;
-                        grid.nodes[y][x].component = item.name;
                         //grid.nodes[y][x].walkable = false;
+                        //grid.nodes[y][x].component = item.name;
+                        graph.grid[x][y].weight = 0 + offsetWeight;
+                        graph.grid[x][y].component = item.name;
                     }
                 }
             }
         }
-        //Free start and end cells
-        //grid.nodes[Math.floor(yFrom/this.pathResolution)][Math.floor(xFrom/this.pathResolution)] = true;
-        //grid.nodes[Math.floor(xTo/this.pathResolution)][Math.floor(yTo/this.pathResolution)] = true;
-        grid.setWalkableAt(Math.floor(xFrom/this.pathResolution), Math.floor(yFrom/this.pathResolution), true);
-        grid.setWalkableAt(Math.floor(xTo/this.pathResolution), Math.floor(yTo/this.pathResolution), true);
-        return grid;
+        //Apply blur on map weights
+        for(let i=0;i<gridWidth;i++){
+            for(let j=0;j<gridHeight;j++){
+                let node = graph.grid[i][j];
+                if(node.weight == 0) continue;
+                let neighbors  = graph.neighbors(node);
+                for(let n of neighbors){
+                    let malus = n.weight * 0.05;
+                    if(n.weight == 0) malus = 0.5;
+                    node.weight += malus;
+                    //targetWeights.push({x:i, y:j, weight:node.weight+malus});
+                }
+            }
+        }
+
+        //Free start and end cells      
+        //console.log(graph.grid[30][30])  
+        graph.grid[Math.floor(xFrom/this.pathResolution)][Math.floor(yFrom/this.pathResolution)].weight = 1;
+        graph.grid[Math.floor(xTo/this.pathResolution)][Math.floor(yTo/this.pathResolution)].weight = 1;
+        return graph;
     }
 
     findPath(xFrom, yFrom, xTo, yTo){
+        //console.log("find path from", xFrom, yFrom, "to", xTo, yTo)
         let startTime = new Date().getTime();
-        let grid = this.createGrid(xFrom, yFrom, xTo, yTo);
-        if(!grid) return []
-        this.sendGrid(grid);
-        let pathFinder = new PF.AStarFinder({
+        let graph = this.createGrid(xFrom, yFrom, xTo, yTo);
+        if(!graph) return []
+        this.sendGrid(graph);
+        /*let pathFinder = new PF.AStarFinder({
             allowDiagonal: true,
             dontCrossCorners: false
         });
@@ -248,10 +282,43 @@ module.exports = class Map {
             Math.floor(xTo/this.pathResolution),
             Math.floor(yTo/this.pathResolution),
             grid
-        );
+        );*/
+        //console.log(Math.floor(xFrom/this.pathResolution), Math.floor(yFrom/this.pathResolution))
+        let start = graph.grid[Math.floor(xFrom/this.pathResolution)][Math.floor(yFrom/this.pathResolution)]
+        let end = graph.grid[Math.floor(xTo/this.pathResolution)][Math.floor(yTo/this.pathResolution)]
+        let path = Astar.astar.search(graph, start, end, {heuristic: Astar.astar.heuristics.diagonal});
         
-        console.log("pathfinding time ms:", new Date().getTime()-startTime);
+        //console.log("pathfinding time ms:", new Date().getTime()-startTime);
+        //console.log(path)
         if(path.length==0) return [];
+        var outPath = []
+        var rawPath = []
+        for(let i=0;i<path.length;i+=4){
+            /*outPath.push({
+                x: path[i].x * this.pathResolution,
+                y: path[i].y * this.pathResolution,
+                weight: path[i].weight
+            })*/
+
+            rawPath.push([  path[i].x, path[i].y  ]);
+            outPath.push([ path[i].x * this.pathResolution, path[i].y * this.pathResolution ]);
+        }
+        if(outPath.length == 1){
+            outPath.push([xTo, yTo]);
+        }
+        
+        if(outPath.length>1){
+            outPath[0][0] = xFrom;
+            outPath[0][1] = yFrom;
+            outPath[outPath.length-1][0] = xTo;
+            outPath[outPath.length-1][1] = yTo;
+        }
+
+        //console.log(outPath)
+        this.sendPath(rawPath, outPath);
+        return outPath;
+
+
         var smoothPath = PF.Util.smoothenPath(grid, path);
         this.sendPath(path, smoothPath);
         for(let node of smoothPath){
