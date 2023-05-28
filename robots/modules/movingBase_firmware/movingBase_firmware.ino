@@ -226,14 +226,21 @@ PathSegment targetPath[50];
 int targetPathIndex = 0;
 int targetPathSize = 0;
 bool runTargetPath = false;
+bool slowDownRamp = true;
+double rampDistance = 0.2; //m
+double rampAngle = 10; //°
+double accelerationDistance = 0.4;//m/s2
+double accelerationAngle = 45;//°/s2
+unsigned long lastAccelDistTime = 0;
+unsigned long lastAccelAngleTime = 0;
 
 double targetMovmentAngle = 0;
 double targetSpeed_mps = 0.0;// m/s
 double targetAngleSpeed_dps = 0;// °/s
 double speedLimit_mps = 0.0;//m/s
 
-double targetAngleError = 1.5; //° 1.0
-double targetPosError = 0.015; //meters 0.005
+double targetAngleError = 0.25; //° 1.0
+double targetPosError = 0.0025; //meters 0.005
 bool targetReached = true;
 int targetReachedCountTarget = 10;
 int targetReachedCount = 0;
@@ -289,16 +296,22 @@ void executeOrder() {
     else if (strstr(comunication_InBuffer, "move XY ")) {
       sprintf(comunication_OutBuffer, "move OK");
       comunication_write();//async
-      int i_x_pos = 0, i_y_pos = 0, i_angle = 0, i_speed_pos = 1, i_near_dist = 0, i_near_angle = 0;
-      sscanf(comunication_InBuffer, "move XY %i %i %i %i %i %i", &i_y_pos, &i_x_pos, &i_angle, &i_speed_pos, &i_near_dist, &i_near_angle);
+      // move XY 500 0 0 50 9000 20 5 1 200 20 400 45
+      int i_x_pos = 0, i_y_pos = 0, i_angle = 0, i_speed_pos = 1, i_speed_angle = 1, i_near_dist = 0, i_near_angle = 0, i_slowDown = 1, i_rampDist = 200, i_rampAngle = 20, i_accelDist = 400, i_accelAngle = 45;
+      sscanf(comunication_InBuffer, "move XY %i %i %i %i %i %i %i %i %i %i %i %i %i %i", &i_y_pos, &i_x_pos, &i_angle, &i_speed_pos, &i_speed_angle, &i_near_dist, &i_near_angle, &i_slowDown, &i_rampDist, &i_rampAngle, &i_accelDist, &i_accelAngle);
       xStart = getXPos();
       yStart = getYPos();
       angleStart = getAnglePos();
       xTarget = (float)(i_x_pos) / 1000.0f;
       yTarget = (float)(i_y_pos) / 1000.0f;
       angleTarget = (float)(i_angle);
-      speedTarget = (float)(i_speed_pos) / 10.0f;
-      angleSpeedTarget = speedTarget * angleSpeedFactor;
+      speedTarget = (float)(i_speed_pos) / 100.0f;
+      angleSpeedTarget = (float)(i_speed_angle) / 100.0f;//speedTarget * angleSpeedFactor;
+      slowDownRamp = i_slowDown;
+      rampDistance = (float)(i_rampDist) / 1000.0f; // to meters
+      rampAngle = (float)(i_rampAngle); // to meters
+      accelerationDistance = (float)(i_accelDist) / 1000.f; // to m/s2
+      accelerationAngle = (float)(i_accelAngle);
       speedLimit_mps = 0;
       nearTranslationError = (float)(i_near_dist) / 1000.0f;
       nearAngleError = (float)(i_near_angle);
@@ -331,7 +344,7 @@ void executeOrder() {
         targetPath[idx].x = (float)(i_x_pos) / 1000.0f;
         targetPath[idx].y = (float)(i_y_pos) / 1000.0f;
         targetPath[idx].angle = (float)(i_angle);
-        speedTarget = (float)(i_speed_pos) / 10.0f;
+        speedTarget = (float)(i_speed_pos) / 100.0f;
         angleSpeedTarget = speedTarget * angleSpeedFactor;
         targetPathSize++;
       }
@@ -354,7 +367,7 @@ void executeOrder() {
     }
     else if (strstr(comunication_InBuffer, "status get")) {
       const char* status = targetReached ? "end" : nearTarget ? "near" : "run";
-      sprintf(comunication_OutBuffer, "%s %i %i %i %i %i", status, (int)(getYPos() * 1000.0f), (int)(getXPos() * 1000.0f), (int)(getAnglePos()), (int)(targetSpeed_mps * 10), targetPathIndex);
+      sprintf(comunication_OutBuffer, "%s %i %i %i %i %i", status, (int)(getYPos() * 1000.0f), (int)(getXPos() * 1000.0f), (int)(getAnglePos()), (int)(targetSpeed_mps * 100), targetPathIndex);
       comunication_write();//async
     }
     else if (strstr(comunication_InBuffer, "speed get")) {
@@ -486,18 +499,24 @@ void updateAsserv() {
   double minSpeed = 0.05;
   if (runTargetPath && targetPathIndex > 0 && targetPathIndex < targetPathSize - 1)
     minSpeed = 0.1;
-  double slowDownDistance = 0.20;//abs(0.50 * speedTarget);//m
+  double slowDownDistance = rampDistance;//0.20;//m
   double distFromStart = sqrt(pow(getXPos() - xStart, 2) + pow(getYPos() - yStart, 2)); // meters
   double distFromEnd = translationError;
-  targetSpeed_mps = applySpeedRamp(distFromStart, distFromEnd, slowDownDistance, speedTarget, minSpeed);
+#ifdef SERIAL_DEBUG
+  Serial.print(">distFromStart:"); Serial.print(distFromStart, 4);Serial.println("§m");
+  Serial.print(">distFromEnd:"); Serial.print(distFromEnd, 4);Serial.println("§m");
+  Serial.print(">slowDownDistance:"); Serial.print(slowDownDistance, 4);Serial.println("§m");
+  Serial.print(">targetSpeed_mps:"); Serial.print(targetSpeed_mps, 4);Serial.println("§m/s");
+#endif
+  targetSpeed_mps = applySpeedRamp(distFromStart, distFromEnd, slowDownDistance, speedTarget, minSpeed, targetSpeed_mps, accelerationDistance, lastAccelDistTime, slowDownRamp);
 
   //Rotation
   double angleMinSpeed = 10;//deg/s
-  double slowDownAngle = 25;//deg
+  double slowDownAngle = rampAngle;//deg
   double rotationError = angleDiff(angleTarget, getAnglePos());
   double rotationFromStart = angleDiff(angleStart, getAnglePos());
 
-  targetAngleSpeed_dps = applySpeedRamp(rotationFromStart, rotationError, slowDownAngle, angleSpeedTarget, angleMinSpeed);
+  targetAngleSpeed_dps = applySpeedRamp(rotationFromStart, rotationError, slowDownAngle, angleSpeedTarget, angleMinSpeed, targetAngleSpeed_dps, accelerationAngle, lastAccelAngleTime, true);
   // Apply speed limit
   if(speedLimit_mps>0.01) {
     // translation speed
@@ -523,22 +542,38 @@ void updateAsserv() {
   }
 }
 
-double applySpeedRamp(double distFromStart, double distFromEnd, double rampDist, double speedTarget, double minSpeed) {
+double applySpeedRamp(double distFromStart, double distFromEnd, double rampDist, double speedTarget, double minSpeed, double actualSpeed, double acceleration, unsigned long &lastAccelTime, bool slowDown) {
   double speed = speedTarget;
   double errorSign = distFromEnd > 0 ? 1 : -1;
-  double startRampDist = rampDist / 4;
+  double startRampDist = rampDist;
   double endRampDist = rampDist;
 
-  if (abs(distFromStart) < startRampDist or abs(distFromEnd) < endRampDist) {
+  unsigned long elapsed = micros() - lastAccelTime;
+  double accelSpeed = acceleration * ((float)(elapsed)/1000000.f);
+  lastAccelTime = micros();
+
+  if(abs(distFromEnd) < endRampDist && slowDown){
+    speed = abs(actualSpeed) - accelSpeed;
+  }
+  else {
+    speed = abs(actualSpeed) + accelSpeed;
+  }
+
+  /*if (abs(distFromStart) < startRampDist or abs(distFromEnd) < endRampDist) {
     if (abs(distFromStart) < abs(distFromEnd)) {
       speed = minSpeed + (speedTarget - minSpeed) * 1.0 / startRampDist * abs(distFromStart);
+      if( speed != speedTarget && speed < abs(actualSpeed)) speed = speedTarget; // Prevent slowing down when already accelerated
+    }
+    else if(slowDownRamp) {
+      speed = minSpeed + (speedTarget - minSpeed) * 1.0 / endRampDist * abs(distFromEnd);
     }
     else {
-      speed = minSpeed + (speedTarget - minSpeed) * 1.0 / endRampDist * abs(distFromEnd);
+      speed = speedTarget;
     }
   } else {
     speed = speedTarget;
   }
+*/
 
   //Bound speed
   if (abs(speed) > speedTarget) speed = speedTarget;
