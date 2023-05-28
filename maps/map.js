@@ -21,9 +21,9 @@ module.exports = class Map {
         this.send();
     }
 
-    send(){
+    send(force=false){
         let now = new Date().getTime();
-        if(now - this.lastSend < 500) return;
+        if(!force && now - this.lastSend < 500) return;
         this.lastSend = now;
         
         let payload = {
@@ -76,7 +76,8 @@ module.exports = class Map {
 
     addComponent(cmp){
         cmp.insertTime = new Date().getTime();
-        this.app.map.components.push(cmp);
+        this.components.push(cmp);
+        this._updateMap();
         this.send();
     }
 
@@ -296,6 +297,7 @@ module.exports = class Map {
         //console.log(Math.floor(xFrom/this.pathResolution), Math.floor(yFrom/this.pathResolution))
         let start = graph.grid[Math.floor(xFrom/this.pathResolution)][Math.floor(yFrom/this.pathResolution)]
         let end = graph.grid[Math.floor(xTo/this.pathResolution)][Math.floor(yTo/this.pathResolution)]
+        if(start==end) return [ [xFrom, yFrom], [xTo, yTo] ];
         let path = Astar.astar.search(graph, start, end, {heuristic: Astar.astar.heuristics.diagonal});
         
         //console.log("pathfinding time ms:", new Date().getTime()-startTime);

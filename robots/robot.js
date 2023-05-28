@@ -453,8 +453,14 @@ module.exports = class Robot {
             let distFromStart = utils.getDistance(startX, startY, this.x, this.y);
             let distAngle = Math.abs(utils.normAngle(utils.normAngle(parameters.angle) - utils.normAngle(this.angle)));
             let speed = parameters.speed || 0.3;
+            let angleSpeed = parameters.angleSpeed || speed * 180;
             let nearDist = parameters.nearDist || 20;
             let nearAngle = parameters.nearAngle || 5;
+            let accelDist = parameters.accelDist || 0.4;
+            let accelAngle = parameters.accelAngle || 45;
+            let decelerationRampDist = speed * 500.0; // means: at 1m/s need 500mm
+            let decelerationRampAngle = angleSpeed * 0.2; //°
+            let slowDown = distToEnd <= decelerationRampDist;
 
             // Check for obstacles
             // Find target
@@ -467,7 +473,7 @@ module.exports = class Robot {
                 }
                 else {
                     success = false;
-                    this.app.logger.log("Error, empty path to "+parameters.x+" "+parameters.y);
+                    this.app.logger.log("Error, empty path to "+parameters.x+" "+parameters.y+" from "+this.x+" "+this.y);
                     break;
                 }
             }
@@ -478,7 +484,12 @@ module.exports = class Robot {
             }
 
             if(this.modules.base){
-                success = success && !!await this.modules.base.moveXY({x:targetX, y:targetY, angle:targetAngle, speed, nearDist, nearAngle})
+                success = success && !!await this.modules.base.moveXY({
+                    x:targetX, y:targetY, angle:targetAngle,
+                    speed, nearDist: 0, nearAngle: 0, slowDown,
+                    rampDist:decelerationRampDist, rampAngle:decelerationRampAngle,
+                    accelDist, accelAngle
+                })
             }
             else{
                 this._updatePosition(x,y,angle, true);
@@ -499,20 +510,6 @@ module.exports = class Robot {
         if(!success) this.modules.base.break();
         this.send();
         return success;
-
-        /*if(this.modules.base){
-            let startAngle = this.angle;
-            let dangle = startAngle-parameters.angle;
-            let paramPath = []
-            let i=1;
-            for(let p of path){
-                let angle = startAngle-(dangle*(i++/(path.length)))
-                paramPath.push({x:p[0], y:p[1], angle:angle, speed:parameters.speed, nearDist:parameters.nearDist, nearAngle:parameters.nearAngle});
-            }
-            return await this.moveAlongPath({path:paramPath, preventLocalisation, preventPathFinding: parameters.preventPathFinding})
-            //return await this._performPath(path, parameters.x, parameters.y, parameters.angle, parameters.speed)
-        }*/
-        return false
     }
 
     async moveSideway(parameters){
@@ -664,9 +661,15 @@ module.exports = class Robot {
         let collisionCountTarget = 5;
         let collisionCount = 0;
         let slowdownCount = 0;
-        let angleA = utils.normAngle(this.movementAngle-this.collisionAngle/2);
-        let angleB = utils.normAngle(this.movementAngle+this.collisionAngle/2);
+        let slowDist = this.slowdownDistance+(Math.abs(this.speed)*this.slowdownDistanceOffset);
+        let angleSlowDownA = utils.normAngle(this.movementAngle-this.slowdownAngle/2);
+        let angleSlowDownB = utils.normAngle(this.movementAngle+this.slowdownAngle/2);
+        let angleCollisionA = utils.normAngle(this.movementAngle-this.collisionAngle/2);
+        let angleCollisionB = utils.normAngle(this.movementAngle+this.collisionAngle/2);
         let lastCollisionAngle = 0;
+        let lastObstacleAngle = 0;
+        let obstaclesTimeout = 150;
+        //let lastCollisionAngle = 0;
         for(let measure of this.modules.lidar.measures){
             //Check for obstacles
             let measureAngle = utils.normAngle(measure.a+this.angle);
@@ -674,16 +677,20 @@ module.exports = class Robot {
                 obstacleCount++;
                 obstacleDistance = measure.d;
             }
-            else if(measure.d-100 < obstacleDistance && obstacleDistance < measure.d+100){
+            else if(  (lastObstacleAngle==0 || !utils.angleInRange(lastObstacleAngle-5, lastObstacleAngle+5, measureAngle))
+                  && (lastCollisionAngle==0 || utils.angleInRange(lastCollisionAngle-5, lastCollisionAngle+5, measureAngle))
+                  && measure.d-100 < obstacleDistance && obstacleDistance < measure.d+100)
+            {
                 obstacleCount++;
                 obstacleDistance = (obstacleDistance + measure.d)/2
             }
             else {
-                obstacleCount--;
+                obstacleCount = Math.max(0, obstacleCount-1);
             }
             if(obstacleCount>=obstacleCountTarget){
                 obstacleCount = 0;
                 obstacleDistance = 0;
+                lastObstacleAngle = measureAngle;
                 // Create obstacle
                 let rayAngleRad = utils.normAngle(measure.a+this.angle)*(Math.PI/180);
                 let x1 = Math.max(this.radius+obstacleRadius+this.app.map.pathResolution/2, measure.d);
@@ -695,60 +702,42 @@ module.exports = class Robot {
                         type: "obstacle",
                         isSolid: true,
                         shape: { type: "circle", x:x2, y:y2, radius: obstacleRadius, color: "orange" },
-                        timeout: 200
+                        timeout: obstaclesTimeout
                     }
                 });
             }
-
-            //let inCollisionRange = (angleA<=measureAngle && measureAngle<=angleB)
-            let inCollisionRange = utils.angleInRange( angleA, angleB, measureAngle );
-            if(measure.d>0 && measure.d<this.collisionDistance){
-                //console.log("angleInRange(", angleA, angleB, measureAngle, ") =", inCollisionRange)
-            }
-            if(inCollisionRange && measure.d>0 && measure.d<this.collisionDistance){
-                //if(utils.angleInRange( lastCollisionAngle-0.25, lastCollisionAngle+0.25, measureAngle )) continue; // too close rays means interference
-                lastCollisionAngle = measureAngle;
-                collisionCount++;
-                if(collisionCount>=collisionCountTarget){
-                    //Add obstacle on map
-                    let obstacleTimeout = 2000; //will be removed from map in N milliseconds
-                    console.log("collision detected");
-                    this.app.logger.log("collision detected");
-                    let rayAngleRad = utils.normAngle(measure.a+this.angle)*(Math.PI/180);
-                    let raySin = Math.sin(rayAngleRad);
-                    let rayCos = Math.cos(rayAngleRad);
-                    let x1 = Math.max(this.radius+obstacleRadius+this.app.map.pathResolution/2, measure.d);
-                    let y1 = 0;
-                    let x2 = x1*rayCos - y1*raySin;
-                    let y2 = y1*rayCos + x1*raySin;
-                    x2 += this.x;
-                    y2 += this.y;
-                    this.addToMap({
-                        component:{
-                            name: "Detected Obstacle",
-                            type: "obstacle",
-                            isSolid: true,
-                            shape: { type: "circle", x:x2, y:y2, radius: obstacleRadius, color: "orange" },
-                            timeout: obstacleTimeout
-                        }
-                    });
-                    return false;
-                }
-            }
-            else {
-                if(collisionCount>0) collisionCount--;
-            }
-            //Check for slowdowns
-            let inSlowdownRange = utils.angleInRange(
-                utils.normAngle(this.movementAngle-this.slowdownAngle/2),
-                utils.normAngle(this.movementAngle+this.slowdownAngle/2),
-                utils.normAngle(measure.a+this.angle)
-            );
-            let slowDist = this.slowdownDistance+(Math.abs(this.speed)*this.slowdownDistanceOffset);
-            if(inSlowdownRange && measure.d>0 && measure.d<slowDist) slowdownCount++
+            lastCollisionAngle = measureAngle;
         }
-        this.slowdown = slowdownCount>=collisionCountTarget*0.6;
-        return true
+        
+        // For each obstacle, check if in robot direction
+        let obstacles = this.app.map.getComponentList("obstacle", undefined);
+        obstacles.push(...this.app.map.getComponentList("robotfriend", undefined));
+        this.slowdown = false;
+        let success = true;
+        let updated = false;
+        for(let obstacle of obstacles){
+            let obstacleDist = utils.getDistance(this.x, this.y, obstacle.shape.x, obstacle.shape.y);
+            let obstacleAngle = utils.getLineAngle(this.x, this.y, obstacle.shape.x, obstacle.shape.y);
+            
+            let inSlowDownRange = utils.angleInRange( angleSlowDownA, angleSlowDownB, obstacleAngle );
+            if(inSlowDownRange && obstacleDist < slowDist){
+                obstacle.shape.color = "pink";
+                obstacle.timeout = obstaclesTimeout*2;
+                updated = true;
+                this.slowdown = true;
+            }
+            
+            let inCollisionRange = utils.angleInRange( angleCollisionA, angleCollisionB, obstacleAngle );
+            if(inCollisionRange && obstacleDist < this.collisionDistance){
+                obstacle.shape.color = "red";
+                obstacle.timeout = obstaclesTimeout*2;
+                updated = true;
+                success = false;
+            }
+        }
+        if(updated) this.app.map.send(true);
+
+        return success
     }
 
     
@@ -952,7 +941,7 @@ module.exports = class Robot {
     }
     
     addToMap(parameters){
-        console.log("Add to map", parameters);
+        //console.log("Add to map", parameters);
         if(!parameters.component) return false;
         this.app.map.addComponent(parameters.component)
         if(this.app.multicast){

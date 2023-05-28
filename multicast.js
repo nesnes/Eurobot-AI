@@ -58,8 +58,6 @@ module.exports = class Multicast {
     }
     
     onMessage(packet, remote){
-        console.log("Multicast IN:", packet.toString());
-        
         //Parse input message
         let msg = null;
         try{
@@ -71,6 +69,7 @@ module.exports = class Multicast {
         if(msg === null) return;
         if(!msg.command) return;
         if(!msg.uid || msg.uid == this.uid) return;
+        console.log("Multicast IN:", packet.toString());
         delete msg.uid;
         if(msg.command == "removeComponent"){
             if(!msg.name) return;
@@ -103,7 +102,7 @@ module.exports = class Multicast {
             team: parameters.team || ""
         }
         const data = JSON.stringify(cmd);
-        console.log("Multicast send", data);
+        //console.log("Multicast send", data);
         try{
             this.socket.send(data, 0, data.length, this.port, this.address);
         }catch(e){}
@@ -116,7 +115,7 @@ module.exports = class Multicast {
         cmd.uid = this.uid;
         cmd.command = "addComponent";
         const data = JSON.stringify(cmd);
-        console.log("Multicast send", data);
+        //console.log("Multicast send", data);
         try{
             this.socket.send(data, 0, data.length, this.port, this.address);
         }catch(e){}
@@ -129,7 +128,7 @@ module.exports = class Multicast {
         cmd.uid = this.uid;
         cmd.command = "updateComponent";
         const data = JSON.stringify(cmd);
-        console.log("Multicast send", data);
+        //console.log("Multicast send", data);
         try{
             this.socket.send(data, 0, data.length, this.port, this.address);
         }catch(e){}

@@ -53,11 +53,11 @@ module.exports = class Robot2020 extends Robot{
             //foundInOppositSite: { value: 0, max: 3 },
         }
         this.collisionAngle = 90;
-        this.collisionDistance = this.radius+200;//450;
+        this.collisionDistance = this.radius+300;//450;
         this.slowdownAngle = 90;
         this.slowdownDistance = this.collisionDistance+350;
         this.slowdownDistanceOffset = 300; // multiplied by speed in m/s and added to slowdownDistance
-        this.slowDownSpeed = 0.2;
+        this.slowDownSpeed = 0.35;
         
         if(!this.app.parameters.simulate){
             this.modules.lidar = new Lidar(app)
@@ -230,8 +230,9 @@ module.exports = class Robot2020 extends Robot{
                 moveAtAngle:{
                     angle:{ legend:"angle (deg)", type:"number", min:-180, max:180, value:0 },
                     distance:{ legend:"distance (m)", type:"number", min:-1000, max:1000, value:150 },
-                    speed:{ legend:"speed (m/s)", type:"range", min: -1.5, max: 1.5, value:0.5, step:0.1 }
-                }
+                    speed:{ legend:"speed (m/s)", type:"range", min: -1.5, max: 1.5, value:0.5, step:0.05 }
+                },
+                isMovementPossible:{}
             }
         }
     }
@@ -2715,8 +2716,8 @@ module.exports = class Robot2020 extends Robot{
                 angle: 0,
                 speed: 0.6,
                 preventLocalisation: true,
-                nearDist: 5,
-                nearAngle: 2
+                nearDist: 20,
+                nearAngle: 3
             });
             //if(!result) return result;
         }

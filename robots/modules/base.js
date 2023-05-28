@@ -80,6 +80,7 @@ module.exports = class Base {
         let resetTarget = 1;
         if("resetTarget" in params && !params.resetTarget) resetTarget = 0;
         let msg = "pos set "+Math.round(params.x)+" "+Math.round(params.y)+" "+Math.round(params.angle)+" "+resetTarget;
+        console.log(msg)
         if(this.link)
             return await this.link.sendMessage(this.address, msg);
     }
@@ -87,6 +88,7 @@ module.exports = class Base {
     async setSpeedLimit(params){
         if(!("speed" in params)) return false;
         let msg = "speed limit "+Math.round(parseFloat(""+params.speed)*10);
+        //console.log("set speed limit:", msg)
         if(this.link)
             return await this.link.sendMessage(this.address, msg);
     }
@@ -97,22 +99,36 @@ module.exports = class Base {
             if(!response) return false;
             let posArray = response.split(" ");
             if(posArray.length == 6 && ["run","near","end"].includes(posArray[0])){
-                return {status: posArray[0], x: parseInt(posArray[1]), y: parseInt(posArray[2]), angle: parseInt(posArray[3]), speed: parseInt(posArray[4])/10, pathIndex: parseInt(posArray[5])}
+                return {status: posArray[0], x: parseInt(posArray[1]), y: parseInt(posArray[2]), angle: parseInt(posArray[3]), speed: parseInt(posArray[4])/100, pathIndex: parseInt(posArray[5])}
             }
             return response;
         }
     }
 
     async moveXY(params){
-        let nearDist = params.nearDist||0;//mm
-        let nearAngle = params.nearAngle||0;//°
+        let nearDist = ("nearDist" in params) ? params.nearDist : 0;// mm
+        let nearAngle = ("nearAngle" in params) ? params.nearAngle : 0;// °
+        let speed = ("speed" in params) ? parseFloat(""+params.speed) : 0.3;// m/s
+        let angleSpeed = ("angleSpeed" in params) ? params.angleSpeed : speed*180;// °/s
+        let slowDown = ("slowDown" in params) ? params.slowDown : true; // apply speed down ramp when reaching target
+        let rampDist = ("rampDist" in params) ? params.rampDist : 200; // speed ramp distance
+        let rampAngle = ("rampAngle" in params) ? params.rampAngle : 20; // speed ramp angle
+        let accelDist = ("accelDist" in params) ? params.accelDist : 0.4; // m/s2 acceleration (and deceleration)
+        let accelAngle = ("accelAngle" in params) ? params.accelAngle : 45; // °/s2 acceleration (and deceleration)
         let msg = "move XY "
             +Math.round(params.x)
             +" "+Math.round(params.y)
             +" "+Math.round(params.angle)
-            +" "+Math.round(parseFloat(""+params.speed)*10)
+            +" "+Math.round(speed*100)
+            +" "+Math.round(angleSpeed*100)
             +" "+Math.round(nearDist)
-            +" "+Math.round(nearAngle);
+            +" "+Math.round(nearAngle)
+            +" "+(slowDown?1:0)
+            +" "+Math.round(rampDist)
+            +" "+Math.round(rampAngle)
+            +" "+Math.round(accelDist * 1000)
+            +" "+Math.round(accelAngle);
+        //console.log(msg)
         if(this.link)
             return await this.link.sendMessage(this.address, msg);
     }
@@ -128,12 +144,12 @@ module.exports = class Base {
     }
 
     async break(){
-        if(this.linkk)
+        if(this.link)
             return await this.link.sendMessage(this.address, "move break");
     }
 
     async touchBorder(params){
-        let msg = "move RM "+Math.round(params.distance)+" "+Math.round(parseFloat(""+params.speed)*10);
+        let msg = "move RM "+Math.round(params.distance)+" "+Math.round(parseFloat(""+params.speed)*100);
         if(this.link)
             return await this.link.sendMessage(this.address, msg);
     }
@@ -172,7 +188,7 @@ module.exports = class Base {
             +" "+Math.round(point.x)
             +" "+Math.round(point.y)
             +" "+Math.round(point.angle)
-            +" "+Math.round(parseFloat(""+point.speed)*10)
+            +" "+Math.round(parseFloat(""+point.speed)*100)
             //+" "+Math.round(point.nearDist||0)
             //+" "+Math.round(point.nearAngle||0); // need to be implemented in base firmware for paths
             if(this.link){
