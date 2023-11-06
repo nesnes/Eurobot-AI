@@ -28,6 +28,7 @@ module.exports = class Camera {
         return {
             functions:{
                 detectArucos: {},
+                setPreviewFPS: {fps:{ type:"range", min:0, max:1, value:0, step:1 }},
                // detectBuoys: {},
                // detectWeathervane: {},
             }
@@ -53,27 +54,10 @@ module.exports = class Camera {
         return this.arucos
     }
 
-    /*async detectBuoys(){
-        this.detections = [];
-        if(this.worker) this.worker.send({action:"detectBuoys"});
-        await new Promise(resolve=>{
-            this.pendingDetection = resolve;
-            setTimeout(resolve, 2000)
-        })
-        this.pendingDetection = null;
-        return this.detections
+    async setPreviewFPS(parameters){
+        if(this.worker) this.worker.send({action:"previewFPS", fps: parameters.fps|0});
+        return true
     }
-
-    async detectWeathervane(){
-        this.orientation = null;
-        if(this.worker) this.worker.send({action:"detectWeathervane"});
-        await new Promise(resolve=>{
-            this.pendingOrientation = resolve;
-            setTimeout(resolve, 2000)
-        })
-        this.pendingOrientation = null;
-        return this.orientation
-    }*/
 
     onWorkerMessage(msg){
         try{
@@ -81,19 +65,11 @@ module.exports = class Camera {
                 this.arucos = msg.arucos;
                 if(this.pendingArucos) this.pendingArucos();
             }
-            /*if(msg.type=="detections"){
-                this.detections = msg.detections;
-                if(this.pendingDetection) this.pendingDetection();
-            }
-            if(msg.type=="weathervane"){
-                this.orientation = msg.orientation;
-                if(this.pendingOrientation) this.pendingOrientation();
-            }*/
             if(msg.type=="image") this.sendImage(msg);
         }catch(e){console.log(e)}
     }
 
-    sendImage(obj){
+    async sendImage(obj){
         this.app.mqttServer.publish({
             topic: '/images',
             payload: JSON.stringify(obj),
