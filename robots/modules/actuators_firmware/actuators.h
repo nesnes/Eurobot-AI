@@ -8,6 +8,7 @@
 #include <Ramp.h> //https://github.com/siteswapjuggler/RAMP
 #define USE_PCA9685_SERVO_EXPANDER
 #define SUPPRESS_HPP_WARNING
+#include <Servo.h>
 #include <ServoEasing.h> //https://github.com/ArminJo/ServoEasing
 #include <FeetechServo.h> //https://github.com/Robot-Maker-SAS/FeetechServo
 
@@ -54,6 +55,23 @@ protected:
   rampInt rampObj;
 };
 
+class ActuatorOnPWM : public Actuator {
+public:
+  ActuatorOnPWM(uint8_t id_, const char* name_, uint8_t pin_, int defaultValue_, int minUs = 400, int maxUs = 2500)
+  : Actuator(id_, name_, pin_, defaultValue_)
+  {
+    servo.attach(pin, minUs, maxUs);
+    update();
+  }
+
+  void update() {
+    servo.write(rampObj.update());
+  }
+  
+private:
+  Servo servo;
+};
+
 class ActuatorOnPCA9685 : public Actuator {
 public:
   ActuatorOnPCA9685(uint8_t id_, const char* name_, uint8_t pin_, int defaultValue_, int minUs = 400, int maxUs = 2500)
@@ -73,11 +91,12 @@ private:
 
 class ActuatorFeetechSCS : public Actuator {
 public:
-  ActuatorFeetechSCS(uint8_t id_, const char* name_, SCSCL* driver_, int defaultValue_, bool reversed_=false, float offset_=0.f)
+  ActuatorFeetechSCS(uint8_t id_, const char* name_, SCSCL* driver_, int defaultValue_, bool reversed_=false, float offset_=0.f, uint16_t maxSpeed_=0)
   : Actuator(id_, name_, 0, defaultValue_)
   , driver(driver_)
   , reversed(reversed_)
   , offset(offset_)
+  , maxSpeed(maxSpeed_)
   {
     //servo.attach(pin, defaultValue, minUs, maxUs);
   }
@@ -86,7 +105,7 @@ public:
     //deg to value
     int target = map(rampObj.update() + offset, 0, 300, 0, 1024); // 300° range
     if(reversed) target = 1024 - target;
-    driver->WritePos(id, target, 0);
+    driver->WritePos(id, target, 0, maxSpeed);
   }
 
   int getPosition() override {
@@ -102,6 +121,7 @@ private:
   SCSCL* driver;
   bool reversed;
   float offset;
+  uint16_t maxSpeed;
 };
 
 class ActuatorFeetechSTS : public Actuator {
@@ -178,6 +198,6 @@ void setActuator(Actuator* actuator, const int value, const int duration);
 void setActuatorGroup(const char* name, const Vector<int> values, const int duration);
 void setActuatorGroup(const int id, const Vector<int> values, const int duration);
 void setActuatorGroup(ActuatorGroup* group, const Vector<int> values, const int duration);
-void updateServos();
+void updateServos(uint8_t updateCount=1);
 
 #endif

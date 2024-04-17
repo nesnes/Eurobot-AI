@@ -22,8 +22,9 @@ const double wheelDistanceB = 97.178;//mm
 const double wheelDistanceC = 97.178;//mm
 const double wheelDistances[NB_MOTORS] = {wheelDistanceA, wheelDistanceB, wheelDistanceC};
 
-//#define BRUSHLESSFOCMOTORS // change to BRUSHLESSMOTORS or SERIALMOTORS or I2CMOTORS if needed and add dedicated .c and .h files
-#define BRUSHLESSMOTORS
+//#define BRUSHLESSFOCMOTORS // change to BRUSHLESSMOTORS or SERIALMOTORS or I2CMOTORS or ELMOMOTORS if needed and add dedicated .c and .h files
+//#define BRUSHLESSMOTORS
+#define ELMOMOTORS
 
 #ifdef BRUSHLESSFOCMOTORS
 #include "BrushlessFOCMotor.h"
@@ -41,6 +42,14 @@ BrushlessMotor motorC(PIN_MOT1_INU, PIN_MOT1_INV, PIN_MOT1_INW, wheelPerimeter, 
 BrushlessMotor motors[NB_MOTORS] = {motorA, motorB, motorC};
 #include <Adafruit_MCP23X17.h> // from https://github.com/adafruit/Adafruit-MCP23017-Arduino-Library
 Adafruit_MCP23X17 motor_enable_mcp;
+#endif
+
+#ifdef ELMOMOTORS
+#include "ElmoMotor.h"
+ElmoMotor motorA(Serial3, wheelPerimeter, false);
+ElmoMotor motorB(Serial5, wheelPerimeter, false);
+ElmoMotor motorC(Serial4, wheelPerimeter, false);
+ElmoMotor motors[NB_MOTORS] = {motorA, motorB, motorC};
 #endif
 
 #ifdef SERIALMOTORS
@@ -84,6 +93,10 @@ void initMotors() {
   (new MagneticSensorSPIWithMCP23017(AS5048_SPI, PIN_MOT3_CS))->init();
 #endif
 
+#ifdef ELMOMOTORS
+  delay(10000); // Wait for the Elmo to boot
+#endif
+
   for (uint8_t i = 0; i < NB_MOTORS; i++) {
     while(!motors[i].begin());
   }
@@ -115,6 +128,11 @@ void motorLowLevel(){
   #endif
   
   #ifdef BRUSHLESSMOTORS
+  for (uint8_t i = 0; i < NB_MOTORS; i++)
+    motors[i].spin();
+  #endif  
+  
+  #ifdef ELMOMOTORS
   for (uint8_t i = 0; i < NB_MOTORS; i++)
     motors[i].spin();
   #endif  
