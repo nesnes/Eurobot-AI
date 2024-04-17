@@ -13,6 +13,7 @@ LidarLocalisation loc;
 LidarLocPosition robotPosition{500, -500, 0};
 bool abortPositionMatch = false;
 //#define LOCALISATION_DEBUG
+//#define VL53_DEBUG
 
 
 #include "imu.h"
@@ -26,9 +27,16 @@ bool ledValue = true;
 Chrono updateLed;
 
 #include <Adafruit_NeoPixel.h>
-#define NEOPIXEL_COUNT 12
+#define NEOPIXEL_COUNT 24
 Adafruit_NeoPixel neopixels(NEOPIXEL_COUNT, 33, NEO_GRB + NEO_KHZ800);
 Chrono updateNeopixel;
+
+// VL53L5CX
+#include <SparkFun_VL53L5CX_Library.h> // https://github.com/sparkfun/SparkFun_VL53L5CX_Arduino_Library
+SparkFun_VL53L5CX vl53_C;
+VL53L5CX_ResultsData vl53_C_data;
+SparkFun_VL53L5CX vl53_A;
+VL53L5CX_ResultsData vl53_A_data;
 
 void setup() {
   pinMode(LED_PIN, OUTPUT);
@@ -36,6 +44,34 @@ void setup() {
   comunication_begin(7);// Init communication I2C address 7 (not used, we're in serial mode for now)
   initActuators();      // Init servo and pumps
   neopixels.begin();
+  neopixels.show();
+
+  delay(2000); // might help for flashing firmware
+
+  // VL53
+  neopixels.fill(neopixels.Color(0, 0, 255, 5), 0, NEOPIXEL_COUNT);
+  neopixels.show();
+  // C
+  Wire1.begin();
+  Wire1.setClock(1000000);
+  bool vl53_C_ok = vl53_C.begin(0x29, Wire1);
+  Wire1.setClock(400000);
+  vl53_C.setResolution(8*8);
+  vl53_C.setRangingFrequency(15);
+  vl53_C.startRanging();
+  if(vl53_C_ok){ neopixels.fill(neopixels.Color(255, 255, 0, 5), 0, NEOPIXEL_COUNT);  }
+  else{ neopixels.fill(neopixels.Color(255, 0, 0, 5), 0, NEOPIXEL_COUNT); }
+  neopixels.show();
+  // A
+  Wire.begin();
+  Wire.setClock(1000000);
+  bool vl53_A_ok = vl53_A.begin(0x29, Wire);
+  Wire.setClock(400000);
+  vl53_A.setResolution(8*8);
+  vl53_A.setRangingFrequency(15);
+  vl53_A.startRanging();
+  if(vl53_C_ok && vl53_A_ok){ neopixels.fill(neopixels.Color(0, 255, 0, 5), 0, NEOPIXEL_COUNT);  }
+  else{ neopixels.fill(neopixels.Color(255, 0, 0, 5), 0, NEOPIXEL_COUNT); }
   neopixels.show();
 
   lidar.init();
@@ -63,7 +99,7 @@ void loop() {
   // Update each actuator one-by-one
   if(updateActuators.hasPassed(5)){
     updateActuators.restart();
-    updateServos(); // update 1 servo at a time = ~400us
+    updateServos(2); // update 2 servo at a time (up to ~400us per servo)
   }
   
   if (updateLed.hasPassed(500)) { // blink led
@@ -78,6 +114,9 @@ void loop() {
   
   // Run localisation
   runLocalisation(isNewScan);  
+
+  // Run VL53 measures
+  // runVL53();
 }
 
 bool validateCandidate(LidarLocPositionCandidate const& candidate){
@@ -159,6 +198,39 @@ void runLocalisation(bool isNewScan){
   }  
 }
 
+void runVL53(){
+  if (vl53_C.isDataReady() == true) {
+    if (vl53_C.getRangingData(&vl53_C_data)) { //Read distance data into array
+       #ifdef VL53_DEBUG
+          // Fix frame orientation
+          for (int y = 0 ; y <= 8 * (8 - 1) ; y += 8) {
+            for (int x = 8 - 1 ; x >= 0 ; x--) {
+              //3D|mySimpleCube:S:cube:P:1:1:1:R:0:0:0:W:2:H:2:D:2:C:#2ecc71
+                String name = String()+"M"+x+"_"+(y/8)+",C";
+                String pos = String()+"P:"+x+":"+(y/8)+":"+(float(vl53_C_data.distance_mm[x + y])/10.f);
+                Serial.println(String()+">3D|"+name+":S:cube:"+pos+":W:1:D:1:H:0.1");
+            }
+          }
+       #endif
+    }
+  }
+  if (vl53_A.isDataReady() == true) {
+    if (vl53_A.getRangingData(&vl53_A_data)) { //Read distance data into array
+       #ifdef VL53_DEBUG
+          // Fix frame orientation
+          for (int y = 0 ; y <= 8 * (8 - 1) ; y += 8) {
+            for (int x = 8 - 1 ; x >= 0 ; x--) {
+              //3D|mySimpleCube:S:cube:P:1:1:1:R:0:0:0:W:2:H:2:D:2:C:#2ecc71
+                String name = String()+"M"+x+"_"+(y/8)+",C";
+                String pos = String()+"P:"+x+":"+(y/8)+":"+(float(vl53_A_data.distance_mm[x + y])/10.f);
+                Serial.println(String()+">3D|"+name+":S:cube:"+pos+":W:1:D:1:H:0.1");
+            }
+          }
+       #endif
+    }
+  }
+}
+
 void executeOrder() {
   comunication_read();
   if (comunication_msgAvailable()) {
@@ -223,7 +295,8 @@ void executeOrder() {
       sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
       comunication_write();//async
       int v[NEOPIXEL_COUNT]{0}, b=0;
-      int matches = sscanf(comunication_InBuffer, "p %i %i %i %i %i %i %i %i %i %i %i %i %i", &b, &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9], &v[10], &v[11]);
+      int matches = sscanf(comunication_InBuffer, "p %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i", &b, \
+                &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9], &v[10], &v[11], &v[12], &v[13], &v[14], &v[15], &v[16], &v[17], &v[18], &v[19], &v[20], &v[21], &v[22], &v[23]);
       matches -= 1; // brightness
       for(int i=0;i<matches && i<NEOPIXEL_COUNT;i++) {
         neopixels.setPixelColor(i, neopixels.ColorHSV(v[i]<<8));
@@ -241,6 +314,29 @@ void executeOrder() {
         LD06Point* point =  lidar.getPoint(i);
         if(point->distance<maxDist){
           bufferIndex += sprintf(comunication_OutBuffer+bufferIndex, " %i,%.2f", point->distance, point->angle);
+        }
+      }
+      comunication_write();//async
+    }
+    else if (strstr(comunication_InBuffer, "T ")) { //get telemeter measure
+      char sensorName = '\0';
+      sscanf(comunication_InBuffer, "T %c", &sensorName);
+      if(sensorName == 'C') {
+        if (vl53_C.isDataReady() == true) { vl53_C.getRangingData(&vl53_C_data); }
+        int bufferIndex = sprintf(comunication_OutBuffer, "T %c", sensorName);
+        for (int y = 0 ; y <= 8 * (8 - 1) ; y += 8) {
+          for (int x = 8 - 1 ; x >= 0 ; x--) {
+            bufferIndex += sprintf(comunication_OutBuffer+bufferIndex, " %i", vl53_C_data.distance_mm[x + y]);
+          }
+        }
+      }
+      if(sensorName == 'A') {
+        if (vl53_A.isDataReady() == true) { vl53_A.getRangingData(&vl53_A_data); }
+        int bufferIndex = sprintf(comunication_OutBuffer, "T %c", sensorName);
+        for (int y = 0 ; y <= 8 * (8 - 1) ; y += 8) {
+          for (int x = 8 - 1 ; x >= 0 ; x--) {
+            bufferIndex += sprintf(comunication_OutBuffer+bufferIndex, " %i", vl53_A_data.distance_mm[x + y]);
+          }
         }
       }
       comunication_write();//async

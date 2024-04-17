@@ -38,6 +38,7 @@ void setup() {
   //focTimer.priority(200); // lower priority than potential other interrupts
 }
 
+
 void loop() {
   executeOrder();
 
@@ -75,6 +76,31 @@ void loop() {
   freqStartTimeFoc = micros();
 }
 
+
+/*
+#include "ElmoMotor.h"
+//Serial3 == motor A
+//Serial5 == motor B
+//Serial4 == motor C
+ElmoMotor motorTest(Serial4, 176.75d, false);
+Metro testFreq = Metro(1000.f / 50.f);
+
+void setup() {
+  delay(10000);
+  motorTest.begin();
+  motorTest.enable();
+  motorTest.setSpeed(0.1);
+  motorTest.disable();
+}
+
+void loop(){
+  motorTest.spin();
+  if(testFreq.check()) {
+    Serial.print(">m_currSpeedTicksPerSec:"); Serial.print(motorTest.m_currSpeedTicksPerSec);Serial.println("§tps");
+    Serial.print(">m_lastPositionRead:"); Serial.print(motorTest.m_lastPositionRead);Serial.println("§tick");
+    Serial.print(">getAndResetDistanceDone:"); Serial.print(motorTest.getAndResetDistanceDone(),10);Serial.println("§m");
+  }
+}*/
 
 /*#include "MagneticSensorSPIWithMCP23017.h"
 MagneticSensorSPIWithMCP23017*  encoder1{nullptr};
