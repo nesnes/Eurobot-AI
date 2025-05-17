@@ -22,7 +22,7 @@ module.exports = class Robot {
             this.team = this.app.map.teams[0];
         this.startPosition = {
             yellow:{x:0,y:0,angle:0},
-            violet:{x:0,y:0,angle:0}
+            blue:{x:0,y:0,angle:0}
         }
         this.startPositionSelected = false;
         this.x = 1500; // mm
@@ -53,13 +53,14 @@ module.exports = class Robot {
         this.speed = 0; // m/s
         this.angleSpeed = 0; // deg/s
         this.movementAngle = 0;
-        this.collisionAngle = 90; // angle used to check obstacles from lidar around movement direction
+        this.collisionAngle = 60; // angle used to check obstacles from lidar around movement direction
         this.collisionDistance = 200; // distance of objects to trigger a break (usually radius + ~100mm)
         this.slowdownAngle = 150; // angle used to check obstacles from lidar around movement direction
         this.slowdownDistance = 0; // distance of object to slow down the robot (greater than collisionDistance)
-        this.slowdownDistanceOffset = 200; // multiplied by speed in m/s and added to slowdownDistance
+        this.slowdownDistanceOffset = 400; // multiplied by speed in m/s and added to slowdownDistance
+        this.slowdownMaxDistance = 500;
         this.slowdown = false;
-        this.slowDownSpeed = 0.3;
+        this.slowDownSpeed = 0.2;
         this.disableColisions = !!this.app.parameters.disableColisions;
         this.disableLocalisation = !!this.app.parameters.disableLocalisation;
         this.lastPositionUpdateTime=0;
@@ -80,7 +81,7 @@ module.exports = class Robot {
         if(this.modules.lidarLoc){
             await this.modules.lidarLoc.init().then(()=>{}).catch(()=>{
                 this.app.logger.log("==> LidarLoc not connected");
-                this.modules.lidarLoc = null;
+                this.modules.lidarLoc = null;mo
             })
         }
         
@@ -165,9 +166,9 @@ module.exports = class Robot {
         //Other specific end actions should be defined in year-dedicated robot file
     }
 
-    send(){
+    send(force=false){
         let now = new Date().getTime();
-        if(now - this.lastSend < 500) return;
+        if(!force && now - this.lastSend < 500) return;
         this.lastSend = now;
         
         let payload = {
@@ -231,6 +232,7 @@ module.exports = class Robot {
             await this.modules.controlPanel.setScore({score:this.score});
         }
         this.app.logger.log("Score: "+this.score);
+        this.send(true);
         return true;
     }
     async addScore(parameters){ 
@@ -266,6 +268,7 @@ module.exports = class Robot {
             //Wait for the starter to be positioned and pulled
             let changed = false;
             do {
+                let timerStart = new Date().getTime();
                 await this.findLocalisation({});
                 status = await this.modules.controlPanel.getStart();
                 console.log("status", status, "state", state);
@@ -276,6 +279,7 @@ module.exports = class Robot {
                     }
                     if(state == "ready" && status.start){
                         state = "go"
+                        this.app.intelligence.matchStarted = true;
                         changed = true;
                     }
                     /*let color = parseInt(""+status.color);
@@ -289,11 +293,13 @@ module.exports = class Robot {
                         changed = false;
                     }
                 }
-                await utils.sleep(150);
+                await utils.sleep(50);
                 matchStopped = this.app.intelligence.stopExecution;
                 if(!matchStopped){
                     this.app.intelligence.startMatchTimer();//Restarts Match timer
                 }
+                let timerEnd = new Date().getTime();
+                console.log("Starter delay", timerEnd - timerStart, "ms");
             } while(state!="go" && !matchStopped);
         }
         else{
@@ -306,7 +312,7 @@ module.exports = class Robot {
 
     async startFunnyAction(parameters){
         this.funnyActionTimeout = setTimeout(()=>{
-            if(this.modules.arm) this.modules.arm.openFlag();
+            /*if(this.modules.arm) this.modules.arm.openFlag();
             
             if(this.modules.arm) this.modules.arm.disablePump({name:"LEF"});
             if(this.modules.arm) this.modules.arm.disablePump({name:"RIG"});
@@ -316,7 +322,7 @@ module.exports = class Robot {
             if(this.modules.arm) this.openSideArms({name:"ABB", wait:false});
             if(this.modules.arm) this.openSideArms({name:"BCB", wait:false});
             if(this.modules.arm) this.openSideArms({name:"BCC", wait:false});
-            this.addScore(10);
+            this.addScore(10);*/
         }, 99*1000);
         return true;
     }
@@ -349,6 +355,7 @@ module.exports = class Robot {
             }
         }
         else if(this.modules.arm && await this.modules.arm.supportPosition()){
+            //console.log("Search position from arm");
             foundPosition = await this.modules.arm.getPosition();
             if(foundPosition && !foundPosition.isNew) foundPosition = null;
         }
@@ -400,9 +407,13 @@ module.exports = class Robot {
             y:access.y + offsetY,
             angle:angle,
             speed:parameters.speed,
+            angleSpeed:parameters.angleSpeed,
+            accelDist:parameters.accelDist,
+            accelAngle:parameters.accelAngle,
             nearDist:parameters.nearDist||0,
             nearAngle:parameters.nearAngle||0,
-            preventLocalisation: parameters.preventLocalisation
+            preventLocalisation: parameters.preventLocalisation,
+            preventBreak: parameters.preventBreak || false
         });
         this.send();
         //await utils.sleep(500);
@@ -419,10 +430,11 @@ module.exports = class Robot {
             x: this.lastTarget.x,
             y: this.lastTarget.y,
             angle: this.lastTarget.angle,
-            speed: 0.3,
-            nearDist: 10,
-            nearAngle: 2,
-            preventLocalisation: false
+            speed: 0.2,
+            nearDist: 20,
+            nearAngle: 3,
+            preventLocalisation: false,
+            preventBreak: false
         });
         await this.findLocalisation({resetTarget:0});
         return success;
@@ -430,6 +442,9 @@ module.exports = class Robot {
 
     async moveToPosition(parameters){
         let sleep = 5;
+        let minSpeed = 0.1;
+        let minAngleSpeed = 10;
+        let elapsedTime = 0
         let success = true;
         let moveStatus = "";
         let startX = this.x;
@@ -438,12 +453,21 @@ module.exports = class Robot {
         this.lastTarget.x = parameters.x;
         this.lastTarget.y = parameters.y;
         this.lastTarget.angle = parameters.angle;
+        let totalDist = utils.getDistance(this.x, this.y, parameters.x, parameters.y);
+        let totalAngle = Math.abs(utils.normAngle(utils.normAngle(parameters.angle) - utils.normAngle(this.angle)));
         let moveStartTime = new Date().getTime();
         //this.app.logger.log(`-> move coordinates ${x} ${y} ${angle} ${speed}, near ${nearDist} ${nearAngle}`);
 
+        let lastSpeed = minSpeed;
+        let lastAngleSpeed = minAngleSpeed;
+        let lastAccelTime = new Date().getTime();
+        let firstLoop = true;
         do {
+            let now = new Date().getTime();
+            let loopStartTime = now;
             // End of match
             if(this.app.intelligence.hasBeenRun && this.app.intelligence.isMatchFinished()){
+                this.app.logger.log("Match is finished, won't moveToPosition")
                 success = false;
                 break;
             }
@@ -453,14 +477,100 @@ module.exports = class Robot {
             let distFromStart = utils.getDistance(startX, startY, this.x, this.y);
             let distAngle = Math.abs(utils.normAngle(utils.normAngle(parameters.angle) - utils.normAngle(this.angle)));
             let speed = parameters.speed || 0.3;
-            let angleSpeed = parameters.angleSpeed || speed * 180;
-            let nearDist = parameters.nearDist || 20;
+            minSpeed = Math.min(minSpeed, speed);
+            let angleSpeed = parameters.angleSpeed || this.app.goals.defaultAngleSpeed || speed * 180;
+            let nearDist = parameters.nearDist || 30;
             let nearAngle = parameters.nearAngle || 5;
-            let accelDist = parameters.accelDist || 0.4;
-            let accelAngle = parameters.accelAngle || 45;
-            let decelerationRampDist = speed * 500.0; // means: at 1m/s need 500mm
-            let decelerationRampAngle = angleSpeed * 0.2; //°
-            let slowDown = distToEnd <= decelerationRampDist;
+            let accelDist = parameters.accelDist || this.app.goals.defaultAccel || 0.8;//m/s2
+            let deccelDist = parameters.deccelDist || this.app.goals.defaultDeccel || accelDist || 0.4;//m/s2
+            let accelAngle = parameters.accelAngle || this.app.goals.defaultAccelAngle || 360;//deg/s2
+            let slowDown = false;
+            
+            if(firstLoop) {
+                this.app.logger.log("startMove", 
+                    "speed", speed,
+                    "accelDist", accelDist,
+                    "angleSpeed", angleSpeed,
+                    "accelAngle", accelAngle,
+                    "distToEnd", distToEnd,
+                    "slowdown", this.slowdown
+                );
+            }
+            
+            /*if(distToEnd<150){ speed = Math.min(speed, 0.25); }
+            if(distAngle<20){ angleSpeed /= 2; }
+            let decelerationRampDist = Math.min(totalDist/2, 1000*speed/(accelDist*1.5));///speed * 500.0; // means: at 1m/s need 500mm
+            //let decelerationRampAngle = angleSpeed * 0.3 ; //°
+            let decelerationRampAngle = Math.min( totalAngle/2, angleSpeed/(accelAngle*15)); //°
+            let slowDown = distToEnd <= decelerationRampDist;*/
+            
+            /*let accelerationDist = 0.2;//m/s2
+            speed = lastSpeed + accelerationDist * timeDiff;
+            */
+            
+            
+            // New on-raspi ramps
+            let timeDiff = (now - lastAccelTime)/1000;
+            lastAccelTime = now;
+            //Dist
+            let actualSpeedDist = lastSpeed;//Math.max(Math.abs(this.speed), lastSpeed);
+            let distToDecelerate = Math.abs(1000 * (minSpeed*minSpeed - lastSpeed*lastSpeed) / (2*deccelDist)); // d = (vTarget^2 - vCurrent^2) / 2*accel
+            if(distToEnd > distToDecelerate) {
+                //Accel
+                speed = Math.min(speed, actualSpeedDist+accelDist*timeDiff);
+            }
+            else {
+                //Decel
+                speed = Math.max(minSpeed, actualSpeedDist - deccelDist*timeDiff)
+            }
+            if(distToEnd < 30) speed = minSpeed;
+            //Angle
+            let actualAngleSpeed = lastAngleSpeed;
+            let angleToDecelerate = Math.abs((minAngleSpeed*minAngleSpeed - lastAngleSpeed*lastAngleSpeed) / (2*accelAngle)); //deg
+            //angleToDecelerate = Math.max(15, angleToDecelerate);
+            //utils.angleInRange()
+            if(distAngle > angleToDecelerate) {
+                //Accel
+                angleSpeed = Math.min(angleSpeed, actualAngleSpeed+accelAngle*timeDiff);
+            }
+            else {
+                //Decel
+                angleSpeed = Math.max(minAngleSpeed, actualAngleSpeed - accelAngle*timeDiff)
+            }
+            if(distAngle < 5) angleSpeed = minAngleSpeed;
+            
+            /*utils.sendTeleplot("speed", speed, "m/s");
+            utils.sendTeleplot("distToDecelerate", distToDecelerate, "mm");
+            utils.sendTeleplot("distToEnd", distToEnd, "mm");
+            
+            utils.sendTeleplot("angleSpeed", angleSpeed, "m/s");
+            utils.sendTeleplot("angleToDecelerate", angleToDecelerate, "mm");
+            utils.sendTeleplot("distAngle", distAngle, "mm");
+            utils.sendTeleplot("parameters.angle", parameters.angle, "deg");
+            utils.sendTeleplot("this.angle", this.angle, "deg");
+            
+            utils.sendTeleplot("timeDiff", timeDiff, "s");*/
+            
+            
+            //console.log("distToEnd", distToEnd, "targetSpeed", speed, "measuredSpeed", this.speed, "distToDecelerate", distToDecelerate)
+            //console.log("distAngle", distAngle, "targetSpeed", angleSpeed, "measuredSpeed", this.angleSpeed, "angleToDecelerate", angleToDecelerate)
+            
+            
+            
+            //if(speed < minSpeed) speed = minSpeed;
+            
+            /*if(distFromStart<300){ speed = Math.min(speed, 0.35); }
+            if(distFromStart<150){ speed = Math.min(speed, 0.25); }
+            if(distToEnd<300){ speed = Math.min(speed, 0.35); }
+            if(distToEnd<150){ speed = Math.min(speed, 0.25); }*/
+            //accelDist = 10;//m/s2
+            //accelAngle = 720;
+            let decelerationRampDist = 1;
+            let decelerationRampAngle = 1;
+            lastSpeed = speed;
+            lastAngleSpeed = angleSpeed;
+            
+            
 
             // Check for obstacles
             // Find target
@@ -479,6 +589,7 @@ module.exports = class Robot {
             }
             
             if(!this.isMovementPossible(targetX,targetY)){
+                this.app.logger.log("Movement is not possible to", targetX, targetY)
                 success = false;
                 break;
             }
@@ -486,7 +597,7 @@ module.exports = class Robot {
             if(this.modules.base){
                 success = success && !!await this.modules.base.moveXY({
                     x:targetX, y:targetY, angle:targetAngle,
-                    speed, nearDist: 0, nearAngle: 0, slowDown,
+                    speed, angleSpeed, nearDist: 0, nearAngle: 0, slowDown,
                     rampDist:decelerationRampDist, rampAngle:decelerationRampAngle,
                     accelDist, accelAngle
                 })
@@ -496,18 +607,29 @@ module.exports = class Robot {
                 return true;
             }
             
-            if(distToEnd <= nearDist && distAngle <= nearAngle){
+            /*console.log("shouldStop",
+                distToEnd <= nearDist,
+                distAngle <= nearAngle,
+                Math.abs(this.speed) <= minSpeed * 1.1,
+                Math.abs(this.angleSpeed) <= minAngleSpeed * 1.1 
+            )*/
+            if(distToEnd <= nearDist && distAngle <= nearAngle
+                && Math.abs(this.speed) <= minSpeed * 1.1 
+                //&& Math.abs(this.angleSpeed) <= minAngleSpeed * 1.1 
+            ){
                 break;
             }
 
             await utils.sleep(sleep);
-            if( (new Date().getTime()) - moveStartTime > 10*1000 ){
-                console.log("move is too long, abort")
+            if( (new Date().getTime()) - moveStartTime > 13*1000 ){
+                this.app.logger.log("move is too long, abort")
                 success = false;
                 break;
             }
+            elapsedTime = (new Date().getTime()) - loopStartTime;
+            firstLoop = false;
         } while(success && moveStatus) // "near" and "end" status will stop the loop (but not the robot)
-        if(!success) this.modules.base.break();
+        if(!parameters.preventBreak || !success) this.modules.base.break();
         this.send();
         return success;
     }
@@ -555,7 +677,7 @@ module.exports = class Robot {
         if("newX" in parameters) this.x = parameters.newX
         if("newY" in parameters) this.y = parameters.newY;
         if("newAngle" in parameters) this.angle = parameters.newAngle;
-        console.log("reposition", this.x, this.y, this.angle, parameters)
+        this.app.logger.log("MoveRepositionning", this.x, this.y, this.angle, parameters)
         this.lastTarget.x = this.x;
         this.lastTarget.y = this.y;
         this.lastTarget.angle = this.angle;
@@ -591,7 +713,6 @@ module.exports = class Robot {
     }
 
     async moveAtAngle(parameters){
-        console.log("move angle from", this.x, this.y, "at", parameters.angle)
         let angle = parameters.angle;
         let rayAngleRad = utils.normAngle(angle)*(Math.PI/180);
         let raySin = Math.sin(rayAngleRad);
@@ -605,7 +726,7 @@ module.exports = class Robot {
         x2 += this.lastTarget.x + offsetX;
         y2 += this.lastTarget.y + offsetY;
         let endAngle = ("endAngle" in parameters)?parameters.endAngle:this.lastTarget.angle;
-        console.log("move angle to", x2, y2, "at", endAngle)
+        this.app.logger.log("move angle from", this.x, this.y, "at", parameters.angle,"to", x2, y2, "at", endAngle)
         this.lastTarget.x = x2;
         this.lastTarget.y = y2;
         this.lastTarget.angle = endAngle;
@@ -614,15 +735,18 @@ module.exports = class Robot {
             y:y2,
             angle: endAngle,
             speed:parameters.speed,
+            angleSpeed: parameters.angleSpeed || undefined,
             preventPathFinding: true,
             nearDist: parameters.nearDist,
             nearAngle: parameters.nearAngle,
-            preventLocalisation: parameters.preventLocalisation
+            preventLocalisation: parameters.preventLocalisation,
+            preventBreak: parameters.preventBreak || false
         });
     }
 
     _updatePosition(x,y,angle,reset=false){
         let now = new Date().getTime();
+        if(x<0 || y<0 || x>3000 || y>2000) return;
         if(this.lastPositionUpdateTime!=0 && !reset){
             let dt = now - this.lastPositionUpdateTime;
             let dx = this.x-x;
@@ -662,6 +786,7 @@ module.exports = class Robot {
         let collisionCount = 0;
         let slowdownCount = 0;
         let slowDist = this.slowdownDistance+(Math.abs(this.speed)*this.slowdownDistanceOffset);
+        slowDist = Math.min(slowDist, this.slowdownMaxDistance);
         let angleSlowDownA = utils.normAngle(this.movementAngle-this.slowdownAngle/2);
         let angleSlowDownB = utils.normAngle(this.movementAngle+this.slowdownAngle/2);
         let angleCollisionA = utils.normAngle(this.movementAngle-this.collisionAngle/2);
@@ -696,15 +821,17 @@ module.exports = class Robot {
                 let x1 = Math.max(this.radius+obstacleRadius+this.app.map.pathResolution/2, measure.d);
                 let x2 = x1*Math.cos(rayAngleRad) + this.x;
                 let y2 = x1*Math.sin(rayAngleRad) + this.y;
+                let compnt = {
+                    name: "Detected Obstacle",
+                    type: "obstacle",
+                    isSolid: true,
+                    shape: { type: "circle", x:x2, y:y2, radius: obstacleRadius, color: "orange" },
+                    timeout: obstaclesTimeout
+                };
                 this.addToMap({
-                    component:{
-                        name: "Detected Obstacle",
-                        type: "obstacle",
-                        isSolid: true,
-                        shape: { type: "circle", x:x2, y:y2, radius: obstacleRadius, color: "orange" },
-                        timeout: obstaclesTimeout
-                    }
+                    component:compnt
                 });
+                this.app.map.addToHistory(compnt);
             }
             lastCollisionAngle = measureAngle;
         }
@@ -725,6 +852,7 @@ module.exports = class Robot {
                 obstacle.timeout = obstaclesTimeout*2;
                 updated = true;
                 this.slowdown = true;
+                this.app.logger.log("slow down", obstacle.shape.x, obstacle.shape.y, obstacleDist, "<", slowDist)
             }
             
             let inCollisionRange = utils.angleInRange( angleCollisionA, angleCollisionB, obstacleAngle );

@@ -1,7 +1,9 @@
 //UI objects
 var appParams = {
     simulate: true,
-    disableColisions: false
+    disableColisions: false,
+    modifier1: false,
+    PAMIOnTable: true
 }
 var map = {
     width: 0,
@@ -49,6 +51,10 @@ var intelligence = {
 var modules = {
     modules:{}
 }
+var actuators = {   
+    actuators:{}
+}
+
 var initialized = false;
 
 var joystick = null;
@@ -67,6 +73,7 @@ communication.client.subscribe("/robot/modules");
 communication.client.subscribe("/lidar");
 communication.client.subscribe("/images");
 communication.client.subscribe("/lidar/localisation");
+communication.client.subscribe("/actuators");
 
 communication.client.on("connect", function (){
     if(!initialized){
@@ -114,6 +121,11 @@ communication.client.on("message", function (topic, payload) {
         var newModule = JSON.parse(""+payload).modules
         console.log("modules", newModule)
         modules.modules = newModule;
+    }
+    else if(topic == "/actuators"){
+        var newActuators = JSON.parse(""+payload).actuators
+        console.log("actuators", newActuators)
+        actuators.actuators = newActuators;
     }
     else if(topic == "/lidar"){
         var newLidar = JSON.parse(""+payload);
@@ -172,10 +184,10 @@ var app = new Vue({
     updated: function(){
         //scroll down log console
         $("#logConsole").scrollTop($("#logConsole")[0].scrollHeight);
-        if(!joystick){
+        /*if(!joystick){
             joystick = new JoyStick('joyDiv');
             setInterval(updateJoystick, 300);
-        }
+        }*/
     },
     methods: {
         lidarStyle (measure) {
@@ -193,7 +205,7 @@ var app = new Vue({
 })
 
 //Joystick
-let joystickMoving = false;
+/*let joystickMoving = false;
 function updateJoystick(){
     let x = joystick.GetX();
     let y = joystick.GetY();
@@ -220,7 +232,7 @@ function updateJoystick(){
         }
         joystickMoving = true;
     }
-}
+}*/
 
 //Buttons
 function reloadAI(){
@@ -246,6 +258,35 @@ function runGoal(goal){
 }
 function runAction(action){
     var payload = {command: "runAction", action: action};
+    communication.client.publish("/control", JSON.stringify(payload))
+}
+function updateActuators(){
+    var payload = {command: "runModuleFunction", moduleName: "arm", funcName: "getActuators", params: {}};
+    communication.client.publish("/control", JSON.stringify(payload))
+}
+function setActuatorGroup(groupName){
+    let params = {};
+    params["name"] = groupName;
+    params["duration"] = parseInt(document.querySelector(`input[name=duration-group-${groupName}]`).value);
+    let index = 1;
+    console.log(actuators.actuators[groupName])
+    for(let servoName in actuators.actuators[groupName]){
+        params["a"+index] = actuators.actuators[groupName][servoName];
+        index++;
+    }
+    var payload = {command: "runModuleFunction", moduleName: "arm", funcName: "setPose", params: params};
+    communication.client.publish("/control", JSON.stringify(payload))
+}
+function disableActuatorGroup(groupName){
+    let params = {};
+    params["name"] = groupName;
+    let index = 1;
+    console.log(actuators.actuators[groupName])
+    for(let servoName in actuators.actuators[groupName]){
+        params["a"+index] = 0;
+        index++;
+    }
+    var payload = {command: "runModuleFunction", moduleName: "arm", funcName: "setEnableGroup", params: params};
     communication.client.publish("/control", JSON.stringify(payload))
 }
 function runModuleFunction(moduleName, funcName, parameters={}){

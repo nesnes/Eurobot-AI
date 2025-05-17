@@ -11,7 +11,7 @@ var pipelines = [
 // Setup mjpeg stream from libcamera-vid standard output
     {
         setupCmd: [],
-        exists: fs.existsSync('/usr/local/bin/libcamera-vid'),
+        exists: fs.existsSync('/usr/bin/libcamera-vid'),
         cmd: "libcamera-vid",
         args: [
 

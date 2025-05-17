@@ -55,3 +55,26 @@ exports.rotateLine = function(x1,y1,x2,y2, angle){
     let currentAngle = module.exports.getLineAngle(x1,y1,x2,y2);
     return module.exports.setLineAngle(x1,y1,x2,y2, currentAngle+angle)
 }
+
+var utils_dgram = require('dgram')
+var utils_udp_client = utils_dgram.createSocket('udp4');
+
+exports.sendTeleplot = function(name, value, unit="_", flags="g"){
+    let packet = name+":"+value+"§"+unit+"|"+flags;
+    utils_udp_client.send(packet, 47269, "192.168.254.100");
+}
+
+exports.sendTeleplot3D = function(name, array2D){
+    let i = 0;
+    let log = ""
+    let y=0,x=0;
+    for(let row of array2D){
+        for(let val of row){
+            let packet = "3D|"+(""+x+"_"+y)+","+name+":S:cube:P:"+x+":"+y+":"+(val/10)+":W:1:D:1:H:0.1";
+            utils_udp_client.send(packet, 47269, "192.168.254.100");
+            x++;
+        }
+        y++;
+        x=0;
+    }
+}

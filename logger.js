@@ -6,10 +6,25 @@ module.exports = class Logger {
     }
 
     //Send logs over MQTT 
-    log(msg){
+    log(){
+        let currentTime = "-";
+        if(this.app.intelligence.startTime) {
+            currentTime = new Date().getTime() - this.app.intelligence.startTime;
+        }
+        let message = "["+currentTime+"] ";
+        for(let arg of arguments) {
+            if(typeof arg === 'object') {
+                message += JSON.stringify(arg);
+            }
+            else {
+                message += arg;
+            }
+            message += " ";
+        }
+        console.log(message);
         this.app.mqttServer.publish({
             topic: '/logs',
-            payload: msg,
+            payload: message,
             qos: 0, retain: false
         });
     }

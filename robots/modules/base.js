@@ -20,6 +20,7 @@ module.exports = class Base {
         })
         if(this.link && this.link.connected){
             this.app.logger.log("Base link OK");
+            await this.setPosition({x:1500, y:1000, angle:0, resetTarget:true});
         }
         else{
             this.app.logger.log("==> ERROR: Base link not connected");
@@ -43,8 +44,10 @@ module.exports = class Base {
                     y:{ legend:"y (mm)", type:"number", min:0, max:2000, value:1000 },
                     angle:{ legend:"angle (°)", type:"number", min:-180, max:180, value:0 },
                     speed:{ legend:"speed (m/s)", type:"range", min: 0, max: 2.5, value:0.5, step:0.1 },
-                    nearDist:{ legend:"near distance (mm)", type:"number", min: 0, max: 1000, value:0 },
-                    nearAngle:{ legend:"near angle (°)", type:"number", min:0, max:180, value:0 }
+                    rampDist:{ legend:"ramp distance (mm)", type:"number", min: 0, max: 1000, value:0 },
+                    rampAngle:{ legend:"ramp angle (°)", type:"number", min:0, max:180, value:0 },
+                    accelDist:{ legend:"linear accel (m/s2)", type:"number", min: 0, max: 2, step:0.1, value:0.4 },
+                    accelAngle:{ legend:"angle accel (°/s2)", type:"number", min:0, max:180, value:45 }
                 },
                 getSpeed: {},
                 setSpeedLimit:{
@@ -80,7 +83,7 @@ module.exports = class Base {
         let resetTarget = 1;
         if("resetTarget" in params && !params.resetTarget) resetTarget = 0;
         let msg = "pos set "+Math.round(params.x)+" "+Math.round(params.y)+" "+Math.round(params.angle)+" "+resetTarget;
-        console.log(msg)
+        //console.log(msg)
         if(this.link)
             return await this.link.sendMessage(this.address, msg);
     }

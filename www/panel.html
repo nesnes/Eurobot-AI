@@ -18,8 +18,8 @@
                         {{robot.score}}
                     </div>
                     <!--Map-->
-                    <div class="row justify-content-center">
-                        <svg class="w-100"  viewBox="-100 -100 3200 2200" unit="mm">
+                    <div class="row justify-content-center" style="max-width:1200px">
+                        <svg class="" style="width:90vw"  viewBox="-100 -100 3200 2200" unit="mm">
                             <template v-if="map.background != ''">
                                 <image v-bind:href="map.background" x="0" y="0" height="2000" width="3000" /> 
                             </template>
@@ -64,7 +64,7 @@
 
                             <!--Robot-->
                             <template>
-                                <g v-bind:transform="'translate('+robot.x+' '+robot.y+') rotate('+robot.angle+')'">
+                                <g v-bind:transform="'translate('+robot.x+' '+robot.y+') rotate('+robot.angle+')'" style="transition: all 0.5s;">
                                     <title>{{robot.name}} x:{{robot.x}}  y:{{robot.y}} angle:{{robot.angle}}</title>
                                     <circle  v-bind:cx="0" v-bind:cy="0" v-bind:r="robot.radius" style="fill:none;stroke-width:10;stroke:rgb(224, 224, 224);opacity: 0.9;" />
                                     <line v-bind:x1="robot.radius*0.8" v-bind:y1="0" v-bind:x2="robot.radius*1.2" v-bind:y2="0" style="stroke-width:15;stroke:rgb(224, 224, 224);opacity: 0.9;" />
@@ -77,16 +77,28 @@
                     </div>
                     <!--Control-->
                     <div class="d-flex justify-content-around">
-                        <div class="">
+                        <div class="row">
                             <button class="btn btn-primary mx-1" v-on:click="reloadAI()" v-bind:disabled="communication.client.connected === false">Reload AI</button>                            
-                        </div>
-                        <div class="">
                             <button class="btn btn-success mx-1" v-if="!intelligence.running && !intelligence.hasBeenRun" v-on:click="runMatch()" v-bind:disabled="communication.client.connected === false">Run Match</button>                            
                             <button class="btn btn-danger mx-1" v-if="intelligence.running" v-on:click="stopMatch()" v-bind:disabled="communication.client.connected === false">Stop Match</button>                            
-                        </div>
-                        <div>
-                            <span v-if="communication.client.connected === true" class="d-block text-primary mx-2 font-weight-bold" style="width:75px">{{intelligence.currentTime}}s</span>
-                            <span v-if="communication.client.connected === false" class="text-danger mx-2 font-weight-bold">Not connected</span>
+                            <div class="col">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="cb-collisions" v-model="appParams.disableColisions" style="transform: scale(2);padding: 10px;">
+                                    <label class="form-check-label" for="cb-collisions">Disable collisions</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="cb-localisation" v-model="appParams.disableLocalisation" style="transform: scale(2);padding: 10px;">
+                                    <label class="form-check-label" for="cb-localisation">Disable localisation</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="cb-modifier-1" v-model="appParams.modifier1" style="transform: scale(2);padding: 10px;">
+                                    <label class="form-check-label" for="cb-modifier-1">Modifier 1(Through Top)</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="cb-pami" v-model="appParams.PAMIOnTable" style="transform: scale(2);padding: 10px;">
+                                    <label class="form-check-label" for="cb-pami">PAMI on table</label>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <!--Robot-->
@@ -95,6 +107,10 @@
                         <div class="card p-1">x:{{robot.x}}</div>
                         <div class="card p-1">y:{{robot.y}}</div>
                         <div class="card p-1">angle:{{robot.angle}}</div>
+                        <div>
+                            <span v-if="communication.client.connected === true" class="d-block text-primary mx-2 font-weight-bold" style="width:75px">{{intelligence.currentTime}}s</span>
+                            <span v-if="communication.client.connected === false" class="text-danger mx-2 font-weight-bold">Not connected</span>
+                        </div>
                     </div>
                     <!--<div class="d-flex flex-wrap mt-1" style="justify-content: space-evenly;">
                         <div class="card p-1">speed:{{robot.speed}}</div>
@@ -109,8 +125,6 @@
                             <span v-if="variable.max!=undefined">{{variable.value}}/{{variable.max}}</span>
                         </div>
                     </div>-->
-                    
-                    
 
                     <!--Console-->
                     <div id="logConsole" class="row justify-content-center mt-2 flex-grow-1 overflow-auto" style="max-height:236px">

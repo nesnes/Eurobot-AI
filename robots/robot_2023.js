@@ -117,7 +117,7 @@ module.exports = class Robot2020 extends Robot{
         if(this.modules.base) await this.modules.base.enableMove();
         
         if(this.name == "Robot Nesnes TDS"){
-            this.setVariable({name:"cherryAC", value:1});
+            this.setVariable({name:"cherryAC", value:2});
             this.setVariable({name:"cherryAB", value:2});
             this.setVariable({name:"cherryBC", value:2});
         }
@@ -149,15 +149,11 @@ module.exports = class Robot2020 extends Robot{
     async endMatch(){
         await super.endMatch();
         
-        if(this.variables.endReached){
+        /*if(this.variables.endReached){
             this.app.logger.log("Adding end zone point");
             if(this.name == "Robot Nesnes TDS") this.addScore(8);
             else this.addScore(7);
-        }
-        if(this.name == "Robot Nesnes TDS"){
-            this.app.logger.log("Adding funny action point");
-            this.addScore(5);
-        }
+        }*/
         
         if(this.modules.arm) await this.modules.arm.setServo({ name: "ABB", angle: 170, duration: 400, wait:false});
         if(this.modules.arm) await this.modules.arm.setServo({ name: "ABA", angle: 170, duration: 400, wait:false});
@@ -201,6 +197,10 @@ module.exports = class Robot2020 extends Robot{
                 testDistance:{
                     distance:{ legend:"distance (mm)", type:"number", min:-1000, max:1000, value:150 },
                     speed:{ type:"range", min:0, max:3.0, value:0.4, step:0.1 }
+                },
+                testAngle:{
+                    distance:{ legend:"angle (deg)", type:"number", min:-360, max:360, value:90 },
+                    angleSpeed:{ type:"range", min:0, max:360, value:90, step:1 }
                 },
                 setArmGrabOpen:{
                     name:{ legend:"name", type:"text" },
@@ -346,6 +346,7 @@ module.exports = class Robot2020 extends Robot{
     
     async isArmHoldingCake(parameters){
         if(!parameters.name) return false;
+        if(this.variables["arm"+parameters.name.substr(0,2)].value != "") return true;
         if(this.modules.arm){
             let servo1 = await this.modules.arm.getServo({ name: parameters.name.substr(0,2)+parameters.name.substr(1,1) });
             let servo2 = await this.modules.arm.getServo({ name: parameters.name.substr(0,2)+parameters.name.substr(0,1) });
@@ -412,6 +413,29 @@ module.exports = class Robot2020 extends Robot{
             angle: 0,
             distance:   parameters.distance,
             speed:      parameters.speed||this.app.goals.defaultSpeed,
+            nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
+            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+            preventLocalisation: true
+        });
+        
+        return true;
+    }
+    
+    async testAngle(parameters){
+        this.setArmsPacked({});
+        this._updatePosition(1500, 1000, 0, true);
+        this.lastTarget.x = this.x;
+        this.lastTarget.y = this.y;
+        this.lastTarget.angle = this.angle;
+        if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle});
+        
+        // Spin
+        let result = await this.moveAtAngle({
+            endAngle: parameters.distance,
+            angle: this.angle,
+            distance:   0,
+            speed:      parameters.speed||this.app.goals.defaultSpeed,
+            angleSpeed: parameters.angleSpeed||this.app.goals.defaultSpeed*180,
             nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
             nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
             preventLocalisation: true
@@ -521,6 +545,15 @@ module.exports = class Robot2020 extends Robot{
             });
             if(!result) return result;
         }
+        // Backward
+        result = await this.moveAtAngle({
+            angle: targetAccess.angle,
+            distance: -100,
+            speed: 0.5,
+            nearDist:   50,
+            nearAngle:  5,
+            preventLocalisation: true
+        });
         
         // Select arm to be used
         let armList = ["AC", "AB", "BC"];
@@ -609,7 +642,7 @@ module.exports = class Robot2020 extends Robot{
         // Move Forward
         result = await this.moveAtAngle({
             angle: cakeAngle,
-            distance: 250,
+            distance: 200,
             speed:      0.4,//parameters.speed||this.app.goals.defaultSpeed,
             nearDist:   50,
             nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
@@ -625,7 +658,7 @@ module.exports = class Robot2020 extends Robot{
         // Move Forward
         result = await this.moveAtAngle({
             angle: cakeAngle,
-            distance: 150,
+            distance: 50,
             speed:      0.3,//parameters.speed||this.app.goals.defaultSpeed,
             nearDist:   30,
             nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
@@ -699,9 +732,9 @@ module.exports = class Robot2020 extends Robot{
         
         // Move arms to minimum deposit height
         let armList = ["AC", "AB", "BC"];
+        let armDepositLayer = {};
+        let armClearanceLayerOffset = 0.25;
         if(hasTimeToSort && !preventBuild){
-            let armDepositLayer = {};
-            let armClearanceLayerOffset = 0.25;
             for(let currentArm of armList){
                 let value = this.variables["arm"+currentArm].value;
                 if(value.startsWith("B")) armDepositLayer[currentArm] = 0;
@@ -905,7 +938,7 @@ module.exports = class Robot2020 extends Robot{
                             result = await this.moveAtAngle({
                                 angle: forwardAngle,
                                 distance: cakeBuildDistance+50,
-                                speed:      0.2,//parameters.speed||this.app.goals.defaultSpeed,
+                                speed:      0.3,//parameters.speed||this.app.goals.defaultSpeed,
                                 nearDist:   50,
                                 nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
                                 preventLocalisation: true
@@ -922,7 +955,7 @@ module.exports = class Robot2020 extends Robot{
                             result = await this.moveAtAngle({
                                 angle: forwardAngle,
                                 distance: extendedForwardDistance,
-                                speed:      0.2,//parameters.speed||this.app.goals.defaultSpeed,
+                                speed:      0.3,//parameters.speed||this.app.goals.defaultSpeed,
                                 nearDist:   extendedForwardDistance/2,
                                 nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
                                 preventLocalisation: true
@@ -1362,7 +1395,7 @@ module.exports = class Robot2020 extends Robot{
         result = await this.moveAtAngle({
             angle: accessAngle,
             distance: 250,
-            speed:      parameters.speed||this.app.goals.defaultSpeed,
+            speed:      0.35||this.app.goals.defaultSpeed,
             nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
             nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
             preventLocalisation: true
@@ -1373,23 +1406,25 @@ module.exports = class Robot2020 extends Robot{
         
         // Approach each cake for double pick
         for(let currArm of targetArmList){
-            let distance = 100;
+            let distance = 60;
             let approachAngle = accessAngle;
             if(secondComponent){
                 distance = -100
                 if(currArm=="AB") approachAngle = grabOrientation + 30;
                 if(currArm=="BC") approachAngle = grabOrientation - 30;
             }
-            await this.setArmGrabClose({name: currArm+"G", duration: 500, wait:false});
+            //await this.setArmGrabClose({name: currArm+"G", duration: 500, wait:false});
             result = await this.moveAtAngle({
                 angle: approachAngle,
                 distance: distance,
-                speed:      0.3,
+                speed:      0.2,
                 nearDist:   this.app.goals.defaultNearDist,
                 nearAngle:  this.app.goals.defaultNearAngle,
                 preventLocalisation: true
             });
             if(!result) return result;
+            await this.setArmGrabClose({name: currArm+"G", duration: 200, wait:false});
+            await utils.sleep(200);
             await this.setArmGrabOpen({name: currArm+"G"});
             await utils.sleep(100);
             await this.setArmGrabClose({name: currArm+"G"});
@@ -1399,7 +1434,7 @@ module.exports = class Robot2020 extends Robot{
                 result = await this.moveAtAngle({
                     angle: approachAngle,
                     distance: -distance,
-                    speed:      parameters.speed||this.app.goals.defaultSpeed,
+                    speed:      0.3||this.app.goals.defaultSpeed,
                     nearDist:   this.app.goals.defaultNearDist,
                     nearAngle:  this.app.goals.defaultNearAngle,
                     preventLocalisation: true
@@ -1801,9 +1836,12 @@ module.exports = class Robot2020 extends Robot{
             await utils.sleep(200);
         }*/
         this.app.logger.log("Adding end zone point");
-        if(this.name == "Robot Nesnes TDS") this.addScore(8);
-        else this.addScore(7);
-        //this.addScore(15);
+        //if(this.name == "Robot Nesnes TDS") this.addScore(8);
+        //else this.addScore(7);
+        this.addScore(15);
+        
+        this.app.logger.log("Adding funny action point");
+        this.addScore(5);
                     
         return result;
     }

@@ -96,7 +96,7 @@ module.exports = class Base {
             let dangle = startAngle-params.angle;
             let distance = Math.sqrt(dx*dx + dy*dy);
             let moveSpeed = params.speed;
-            let sleep = 100;
+            let sleep = 5;
             let distanceDone = 0;
             let targetCount = this.moveCount;
             while(distanceDone<distance && targetCount == this.moveCount){
@@ -106,7 +106,7 @@ module.exports = class Base {
                     if(params.speed>0) moveSpeed = Math.min(this.speedLimit, params.speed);
                     else moveSpeed = Math.max(this.speedLimit, params.speed);
                 }
-                distanceDone += (sleep/1000)*moveSpeed*1000
+                distanceDone += 2/*faster*/ * (sleep/1000)*moveSpeed*1000
                 let ratio = distanceDone/distance;
                 if(ratio>1) ratio = 1;
                 let x = startX-(dx*ratio);
