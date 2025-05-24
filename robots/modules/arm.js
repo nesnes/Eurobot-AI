@@ -210,6 +210,40 @@ module.exports = class Arm {
         return result;
     }
 
+    async setMaxTorqueServo(params){
+        //this.app.logger.log("servo set max torque");
+        if(!("name" in params)) return "ERROR";
+        if(!("torque" in params)) return "ERROR";
+        let msg = "ST "+params.name+" "+params.torque;
+        let result = true;
+        if(this.link)
+            result =  await this.link.sendMessage(this.address, msg);
+        return result;
+    }
+
+
+    async setMaxTorqueGroup(params){
+        //this.app.logger.log("setMaxTorqueGroup", params);
+        if(!("name" in params)) return "ERROR";
+        let msg = "ZT "+params.name;
+        if("a1" in params) msg += " "+parseInt(""+params.a1);
+        if("a2" in params) msg += " "+parseInt(""+params.a2);
+        if("a3" in params) msg += " "+parseInt(""+params.a3);
+        if("a4" in params) msg += " "+parseInt(""+params.a4);
+        if("a5" in params) msg += " "+parseInt(""+params.a5);
+        if("a6" in params) msg += " "+parseInt(""+params.a6);
+        if("a7" in params) msg += " "+parseInt(""+params.a7);
+        if("a8" in params) msg += " "+parseInt(""+params.a8);
+        if("a9" in params) msg += " "+parseInt(""+params.a9);
+        if("a10" in params) msg += " "+parseInt(""+params.a10);
+        //console.log("Arm max torque", msg)
+        let result = true;
+        if(this.link)
+            result = await this.link.sendMessage(this.address, msg);
+        if(params.wait) await utils.sleep(params.duration);
+        return result;
+    }
+
     async setServo(params){
         //this.app.logger.log("servo set");
         let wait = true;

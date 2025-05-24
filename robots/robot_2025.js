@@ -36,16 +36,15 @@ module.exports = class Robot2020 extends Robot{
         this.variables = {
             // value:{R|G|B|replica|artifact|''}, Side: 0=ready 1=flipped(not ready to drop) 
             // value: {"P"=plant|"PR"=resistante|"PF"=fragile|"M"=metal_pot|""}
-            armCC: { value: "", label: "CCG" },  
-            armAA: { value: "", label: "AAG" },  
-            armC0: { value: "", label: "C0G" },
-            armA0: { value: "", label: "A0G" },
-            armC1: { value: "", label: "C1G" },
-            armA1: { value: "", label: "A1G" },
-            armC2: { value: "", label: "C2G" },
-            armA2: { value: "", label: "A2G" },
-            armC3: { value: "", label: "C3G" },
-            armA3: { value: "", label: "A3G" },
+            armFF: { value: "", label: "CCG" },  
+            armBB: { value: "", label: "AAG" },  
+            armFS: { value: "", label: "C0G" },
+            armBS: { value: "", label: "A0G" },
+            armFC: { value: "", label: "C1G" },
+            armCF: { value: "", label: "A1G" },
+            armAF: { value: "", label: "C2G" },
+            armCS: { value: "", label: "A2G" },
+            armAS: { value: "", label: "C3G" },
             startZone: { value: "" },
             endReached: { value: 0, max: 1 },
             endZone: { value: "" },
@@ -64,6 +63,75 @@ module.exports = class Robot2020 extends Robot{
             //this.modules.lidarLocalisation = new LidarLocalisation(app)
             this.modules.arm = new Arm(app);
             this.modules.camera = new Camera(app);
+        }
+        this.poseList = {
+            //##### DEFAULT ########
+            // Side gripper
+            "ASG_CSG_preDefault": {a1:146,a2:275,a3:267,a4:177,a5:120,a6:120},
+            "ASG_CSG_default": {a1:216,a2:275,a3:272,a4:175,a5:120,a6:120},
+            // Front gripper
+            "AFG_CFG_default": {a1:123,a2:26,a3:181,a4:120},
+            "FCG_default": {a1:115,a2:115},
+            // Fourche
+            "FFG_default": {a1:105},
+            "BBG_default": {a1:127},
+            // Suction
+            "BSG_default": {a1:270,a2:269,a3:269,a4:0},
+            "FSG_default": {a1:120,a2:210,a3:0},
+
+            //##### FRONT GRAB ########
+            "FFG_frontPreGrab": {a1:187},
+            "FCG_frontPreGrab": {a1:115,a2:115},
+            "FSG_frontPreGrab": {a1:150,a2:92,a3:0},
+            "AFG_CFG_frontPreGrab": {a1:122,a2:124,a3:128,a4:121},
+            "FFG_frontGrab": {a1:150},
+            "FSG_frontGrab": {a1:174,a2:88,a3:1},
+            "AFG_CFG_frontGrab": {a1:120,a2:121,a3:111,a4:99},
+            //###### FRONT STORE ######
+            "AFG_CFG_frontPreStore1": {a1:134,a2:132,a3:274,a4:100},
+            "AFG_CFG_frontPreStore2": {a1:192,a2:110,a3:265,a4:100},
+            "AFG_CFG_frontPreStore3": {a1:290,a2:270,a3:250,a4:120},
+            "AFG_CFG_frontStore": {a1:290,a2:244,a3:144,a4:97},
+            //###### FRONT BUILD ######
+            "FFG_frontBuild1": {a1:206}, // 1st stage planche released
+            "FCG_frontBuild1": {a1:208,a2:208},
+            "FSG_frontBuild1": {a1:174,a2:180,a3:1}, // 2nd stage planche vertical
+            "AFG_CFG_frontBuild2": {a1:295,a2:300,a3:147,a4:115}, // 2nd stage cans on 1st stage
+            "FSG_frontBuild3": {a1:174,a2:264,a3:1}, // Planche above cans 2nd stage
+            "FSG_frontBuild4": {a1:193,a2:278,a3:1}, // Compress 2nd stage
+            "AFG_CFG_frontBuild4": {a1:295,a2:300,a3:147,a4:162}, // 2nd stage cans release
+            "FSG_frontBuild5": {a1:201,a2:281,a3:0}, // Release planche 2nd stage
+            "AFG_CFG_frontBuild5": {a1:295,a2:300,a3:160,a4:140}, // 2nd stage cans cleared
+
+            //##### BACK GRAB ########
+            "BBG_backPreGrab1": {a1:178},
+            "BSG_backPreGrab1": {a1:218,a2:262,a3:136,a4:0},
+            "ASG_CSG_backPreGrab1": {a1:166,a2:226,a3:297,a4:190,a5:120,a6:120},
+            "ASG_CSG_backPreGrab2": {a1:175,a2:160,a3:259,a4:165,a5:120,a6:120},
+            "ASG_CSG_backPreGrab3": {a1:156,a2:155,a3:248,a4:74,a5:120,a6:120},
+            "BBG_backGrab1": {a1:150},
+            "BSG_backGrab1": {a1:211,a2:248,a3:142,a4:1},
+            "ASG_CSG_backGrab2": {a1:151,a2:157,a3:242,a4:61,a5:120,a6:120},
+
+            //##### BACK BUILD ########
+            "ASG_CSG_backBuild1": {a1:178,a2:168,a3:255,a4:208,a5:120,a6:120},
+            "ASG_CSG_backBuild2": {a1:167,a2:263,a3:299,a4:194,a5:120,a6:120},
+            "ASG_CSG_backBuild3": {a1:169,a2:263,a3:246,a4:194,a5:120,a6:120},
+            "ASG_CSG_backBuild4": {a1:202,a2:243,a3:150,a4:147,a5:120,a6:120},
+            "BSG_backBuild5": {a1:211,a2:248,a3:142,a4:1},
+            "ASG_CSG_backBuild6": {a1:177,a2:135,a3:48,a4:183,a5:120,a6:120},
+            "BBG_backBuild6": {a1:170},
+            "ASG_CSG_backBuild7": {a1:171,a2:135,a3:48,a4:248,a5:120,a6:120},
+            "ASG_CSG_backBuild8": {a1:171,a2:155,a3:58,a4:252,a5:120,a6:120},
+            "BSG_backBuild9": {a1:211,a2:248,a3:142,a4:0},
+            "ASG_CSG_backBuild10": {a1:171,a2:136,a3:43,a4:187,a5:120,a6:120},
+            "ASG_CSG_backBuild11": {a1:138,a2:268,a3:171,a4:229,a5:120,a6:120},
+            "ASG_CSG_backBuild12": {a1:178,a2:276,a3:192,a4:128,a5:120,a6:120},
+            "ASG_CSG_backBuild13": {a1:174,a2:317,a3:231,a4:140,a5:120,a6:120}, // Deposit on 2nd stage
+            "ASG_CSG_backBuild14": {a1:174,a2:317,a3:231,a4:140,a5:150,a6:150}, // open fingers
+            "ASG_CSG_backBuild15": {a1:177,a2:259,a3:168,a4:129,a5:150,a6:150}, // Clear cans
+            "ASG_CSG_backBuild16": {a1:184,a2:210,a3:133,a4:146,a5:120,a6:120}, // Clear cans
+
         }
     }
 
@@ -97,11 +165,14 @@ module.exports = class Robot2020 extends Robot{
     async initArms(){
         
         // Set arms at default position
-        await this.setArmsPacked({armList:["CC", "AA"], wait: false});
+         await this.setArmsNamedPose({poseName:"preDefault", duration:1000});
+        await utils.sleep(1000);
+         await this.setArmsNamedPose({poseName:"default", duration:1000});
+        /*await this.setArmsPacked({armList:["CC", "AA"], wait: false});
         await this.setArmsPacked({armList:["C0", "A0"], wait: false});
         await this.setArmsPacked({armList:["C1", "A1"], wait: true});
         await this.setArmsPacked({armList:["C2", "A2"], wait: true});
-        await this.setArmsPacked({armList:["C3", "A3"], wait: true});
+        await this.setArmsPacked({armList:["C3", "A3"], wait: true});*/
         
         return true;
     }
@@ -163,6 +234,11 @@ module.exports = class Robot2020 extends Robot{
         return {
             functions:{
                 initArms:{},
+                setArmsNamedPose:{
+                    armRawList:{ legend:"Arms(Comma-separated)", type:"text"},
+                    poseName:{ legend:"Pose name", type:"text"},
+                    duration:{ type:"range", min:0, max:3000, value:500, step:50 },
+                },
                 setArmsPacked:{ },
                 setArmsPreRelease:{ },
                 setArmsRelease:{ },
@@ -200,9 +276,43 @@ module.exports = class Robot2020 extends Robot{
         if(armList.length == 0) return true;
         if(!("pose" in parameters)) return false;
         let targetPose = Object.assign(parameters.pose, parameters);
+        delete targetPose.pose;
         for(let targetArm of armList) {
             let pose = Object.assign({}, targetPose, {name: targetArm+"G"});
             if(this.modules.arm) await this.modules.arm.setPose(pose);
+        }
+        return true;
+    }
+
+    async setArmsNamedPose(parameters){
+        let armList = ["FF", "BB", "FS", "BS", "FC", "CF", "AF", "CS", "AS"]
+        if(!("poseName" in parameters)) return false;
+        if("armRawList" in parameters) armList = parameters.armRawList.split(",");
+        if("armList" in parameters) armList = parameters.armList;
+        if(armList.length == 0) return true;
+        console.log("setArmsNamedPose", parameters.poseName, armList);
+        for(let targetArm of armList) {
+            // Find named pose
+            let poseFound = null;
+            for(let poseName in this.poseList){
+                if(!poseName.endsWith("_"+parameters.poseName)) continue;
+                let armsCandidates = poseName.split("_");
+                armsCandidates.pop(); //remove pose name
+                let armName = targetArm;
+                if (armName.length==2) armName += "G";
+                if(armsCandidates.includes(armName)){
+                    poseFound = this.poseList[poseName];
+                    break;
+                }       
+            }
+            if(poseFound==null) continue;
+            let pose = Object.assign({ duration:300, wait:false }, poseFound);
+            if(this.variables["arm"+targetArm].value != ""){
+                //await this.setArmsStore({armList:[targetArm], duration: 300, wait:false });   
+            }
+            else {
+                await this.setArmsAt(Object.assign({}, {pose}, parameters, {armList:[targetArm]}));
+            }
         }
         return true;
     }
