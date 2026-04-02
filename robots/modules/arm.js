@@ -83,6 +83,9 @@ module.exports = class Arm {
                             angle:{ legend:"angle", type:"range", min:0, max:360, value:180, step:1 },
                             duration:{ type:"range", min:0, max:1000, value:0, step:1 }
                 },
+                setMaxTorqueServo: { name:{ legend:"name", type:"text" },
+                                     torque:{ legend:"torque", type:"range", min:0, max:1000, value:1000, step:1 }
+                },
                 setLed: {   brightness:{ legend:"brightness", type:"range", min:0, max:255, value:150, step:1 },
                             color:{ type:"range", min:0, max:255, value:0, step:1 }
                 },
@@ -107,6 +110,11 @@ module.exports = class Arm {
             payload: JSON.stringify(payload),
             qos: 0, retain: false
         });
+
+        if(utils.teleplotEnabled){
+            // Send localisation position
+            utils.sendTeleplotCube( "lidarLoc,map3D", this.position.x/1000, this.position.y/1000, 0.5, 0.04, 1.0, 0.04, 0, 0, 0, "red");
+        }
     }
 
     sendActuators(force=false){
@@ -154,7 +162,7 @@ module.exports = class Arm {
     }
 
     async setPose(params){
-        this.app.logger.log("set pose", params);
+        //this.app.logger.log("set pose", params);
         if(!("name" in params)) return "ERROR";
         if(!("duration" in params)) params.duration = 0;
         if(!("wait" in params)) params.wait = true;
@@ -264,7 +272,7 @@ module.exports = class Arm {
         let result = true;
         if(this.link){
             let response =  await this.link.sendMessage(this.address, msg);
-            this.app.logger.log("getServo", params.name, response);
+            //this.app.logger.log("getServo", params.name, response);
             if(!response) return false;
             let resArray = response.split(" ");
             if(resArray.length != 4) return false;
@@ -386,11 +394,11 @@ module.exports = class Arm {
             let posArray = response.split(" ");
             if(posArray.length == 4 && posArray[0]=="X"){
                 let newPosition = {x: parseInt(posArray[1]), y: parseInt(posArray[2]), angle: parseInt(posArray[3])/100, isNew: true};
-                if(this.position && this.position.x == newPosition.x && this.position.y == newPosition.y){
+                if(this.position && this.position.x == newPosition.x && this.position.y == newPosition.y && this.position.angle == newPosition.angle){
                     newPosition.isNew = false;
                 }
                 this.position = newPosition;
-                this.send();
+                this.send(true);
                 return this.position;
             }
             return response;

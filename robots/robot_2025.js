@@ -27,7 +27,7 @@ module.exports = class Robot2020 extends Robot{
     constructor(app) {
         super(app);
         this.name = "Robot Nesnes TDS"
-        this.radius = 120+10;//margin
+        this.radius = 120+20;//margin
         this.startPosition = {
             blue:{x:265,y:650,angle:0},
             yellow:{x:150,y:542,angle:0},
@@ -36,15 +36,14 @@ module.exports = class Robot2020 extends Robot{
         this.variables = {
             // value:{R|G|B|replica|artifact|''}, Side: 0=ready 1=flipped(not ready to drop) 
             // value: {"P"=plant|"PR"=resistante|"PF"=fragile|"M"=metal_pot|""}
-            armFF: { value: "", label: "CCG" },  
-            armBB: { value: "", label: "AAG" },  
-            armFS: { value: "", label: "C0G" },
-            armBS: { value: "", label: "A0G" },
-            armFC: { value: "", label: "C1G" },
-            armCF: { value: "", label: "A1G" },
-            armAF: { value: "", label: "C2G" },
-            armCS: { value: "", label: "A2G" },
-            armAS: { value: "", label: "C3G" },
+            clampAFC: { value: "", label: "AFC" },  
+            clampFAC: { value: "", label: "FAC" },  
+            clampFCC: { value: "", label: "FCC" },  
+            clampCFC: { value: "", label: "CFC" },  
+            clampAS4: { value: "", label: "AS4" },  
+            clampAS5: { value: "", label: "FS5" },  
+            clampCS4: { value: "", label: "CS4" },  
+            clampCS5: { value: "", label: "CS5" }, 
             startZone: { value: "" },
             endReached: { value: 0, max: 1 },
             endZone: { value: "" },
@@ -56,6 +55,7 @@ module.exports = class Robot2020 extends Robot{
         this.slowdownDistance = this.collisionDistance+350;
         this.slowdownDistanceOffset = 300; // multiplied by speed in m/s and added to slowdownDistance
         this.slowDownSpeed = 0.35;
+        this.asyncTaskList = [];
         
         if(!this.app.parameters.simulate){
             this.modules.lidar = new Lidar(app)
@@ -67,72 +67,136 @@ module.exports = class Robot2020 extends Robot{
         this.poseList = {
             //##### DEFAULT ########
             // Side gripper
-            "ASG_CSG_preDefault": {a1:146,a2:275,a3:267,a4:177,a5:120,a6:120},
-            "ASG_CSG_default": {a1:216,a2:275,a3:272,a4:175,a5:120,a6:120},
+            "ASG_CSG_default1": {duration:1000, a1:146,a2:275,a3:267,a4:177,a5:120,a6:120},
+            "ASG_CSG_default2": {duration:1000, a1:216,a2:275,a3:272,a4:175,a5:120,a6:120},
             // Front gripper
-            "AFG_CFG_default": {a1:123,a2:26,a3:181,a4:120},
-            "FCG_default": {a1:115,a2:115},
+            "AFG_CFG_default2": {duration:1000, a1:123,a2:26,a3:181,a4:120},
+            "FCG_default2": {duration:1000, duration:1000, a1:115,a2:115},
             // Fourche
-            "FFG_default": {a1:105},
-            "BBG_default": {a1:127},
+            "FFG_default2": {duration:1000, a1:105},
+            "BBG_default2": {duration:1000, a1:127},
             // Suction
-            "BSG_default": {a1:270,a2:269,a3:269,a4:0},
-            "FSG_default": {a1:120,a2:210,a3:0},
+            "BSG_default2": {duration:1000, a1:180,a2:260,a3:180,a4:0},
+            "FSG_default2": {duration:1000, a1:120,a2:210,a3:0},
 
             //##### FRONT GRAB ########
-            "FFG_frontPreGrab": {a1:187},
-            "FCG_frontPreGrab": {a1:115,a2:115},
-            "FSG_frontPreGrab": {a1:150,a2:92,a3:0},
-            "AFG_CFG_frontPreGrab": {a1:122,a2:124,a3:128,a4:121},
-            "FFG_frontGrab": {a1:150},
-            "FSG_frontGrab": {a1:174,a2:88,a3:1},
-            "AFG_CFG_frontGrab": {a1:120,a2:121,a3:111,a4:99},
+            "FFG_frontPreGrab1": {duration:350, a1:187},
+            "FCG_frontPreGrab1": {duration:350, a1:93,a2:93},
+            "FSG_frontPreGrab1": {duration:350, a1:150,a2:92,a3:0},
+            "AFG_CFG_frontPreGrab1": {duration:350, a1:116,a2:111,a3:146,a4:120},
+            "FFG_frontGrab1": {duration:350, a1:150},
+            "FSG_frontGrab1": {duration:350, a1:174,a2:88,a3:1},
+            "FCG_frontGrab1": {duration:30, a1:120,a2:120},
+            "AFG_CFG_frontGrab1": {duration:350, a1:116,a2:111,a3:110,a4:100},
+            "FSG_frontGrab2": {duration:350, a1:179,a2:98,a3:1},
+            "AFG_CFG_frontGrab2": {duration:350, a1:116,a2:111,a3:120,a4:120},
+            "FSG_frontGrab3": {duration:100, a1:175,a2:91,a3:1},
+
+            //##### FRONT GRAB TIGHT ########
+            "AFG_CFG_frontPreGrabTight1": {duration:350, a1:116,a2:111,a3:113,a4:126},
+            "FFG_frontPreGrabTight1": {duration:350, a1:187},
+            "FCG_frontPreGrabTight1": {duration:350, a1:93,a2:93},
+            "FSG_frontPreGrabTight1": {duration:350, a1:150,a2:92,a3:0},
+            "AFG_CFG_frontGrabTight1": {duration:350, a1:116,a2:111,a3:126,a4:126},
+            "FSG_frontGrabTight2": {duration:350, a1:179,a2:98,a3:1},
+            "FSG_frontGrabTight3": {duration:100, a1:175,a2:91,a3:1},
+
+            //##### FRONT FREE ALL ########
+            "AFG_CFG_frontFreeAll1": {duration:600, a1:218,a2:157,a3:134,a4:150},
+            "AFG_CFG_frontFreeAll2": {duration:600, a1:116,a2:111,a3:146,a4:150},
+                "AFG_frontFreeAll3": {duration:350, a1:110,a2:102,a3:272,a4:150},
+                "CFG_frontFreeAll4": {duration:350, a1:110,a2:102,a3:272,a4:150},
+            "FFG_frontFreeAll4": {duration:350, a1:206},
+            "FSG_frontFreeAll4": {duration:350, a1:174,a2:88,a3:0},
+            "FCG_frontFreeAll4": {duration:350, a1:208,a2:208},
+
             //###### FRONT STORE ######
-            "AFG_CFG_frontPreStore1": {a1:134,a2:132,a3:274,a4:100},
-            "AFG_CFG_frontPreStore2": {a1:192,a2:110,a3:265,a4:100},
-            "AFG_CFG_frontPreStore3": {a1:290,a2:270,a3:250,a4:120},
-            "AFG_CFG_frontStore": {a1:290,a2:244,a3:144,a4:97},
+            "AFG_frontStore1": {duration:500, a1:93,a2:89,a3:274,a4:120},
+            "CFG_frontStore2": {duration:500, a1:93,a2:89,a3:274,a4:120},
+            "AFG_CFG_frontStore3": {duration:500, a1:97,a2:29,a3:216,a4:120},
+            "AFG_CFG_frontStore4": {duration:500, a1:153,a2:58,a3:182,a4:120},
+            "AFG_CFG_frontStore5": {duration:500, a1:194,a2:103,a3:158,a4:120},
+            "AFG_CFG_frontStore6": {duration:500, a1:268,a2:183,a3:118,a4:120},
+            "AFG_CFG_frontStore7": {duration:500, a1:279,a2:191,a3:88,a4:120},
+            //"AFG_CFG_frontStore5": {duration:500, a1:268,a2:173,a3:111,a4:120},
+            //"AFG_CFG_frontStore6": {duration:500, a1:278,a2:210,a3:113,a4:120},
+
             //###### FRONT BUILD ######
-            "FFG_frontBuild1": {a1:206}, // 1st stage planche released
-            "FCG_frontBuild1": {a1:208,a2:208},
-            "FSG_frontBuild1": {a1:174,a2:180,a3:1}, // 2nd stage planche vertical
-            "AFG_CFG_frontBuild2": {a1:295,a2:300,a3:147,a4:115}, // 2nd stage cans on 1st stage
-            "FSG_frontBuild3": {a1:174,a2:264,a3:1}, // Planche above cans 2nd stage
-            "FSG_frontBuild4": {a1:193,a2:278,a3:1}, // Compress 2nd stage
-            "AFG_CFG_frontBuild4": {a1:295,a2:300,a3:147,a4:162}, // 2nd stage cans release
-            "FSG_frontBuild5": {a1:201,a2:281,a3:0}, // Release planche 2nd stage
-            "AFG_CFG_frontBuild5": {a1:295,a2:300,a3:160,a4:140}, // 2nd stage cans cleared
+            "FFG_frontBuild1": {duration:500, a1:206}, // 1st stage planche released
+            "FCG_frontBuild1": {duration:500, a1:208,a2:208}, // Open 1st stage
+            "AFG_CFG_frontBuild1": {duration:200, a1:279,a2:197,a3:108,a4:120},
+            "FSG_frontBuild1": {duration:500, a1:150,a2:63,a3:1}, // 2nd stage planche high
+            "FSG_frontBuild2": {duration:500, a1:162,a2:160,a3:1}, // 2nd stage planche vertical
+            "FCG_frontBuild2": {duration:500, a1:208,a2:208}, // Make sure to open 1st stage
+            "AFG_CFG_frontBuild3": {duration:500, a1:295,a2:300,a3:147,a4:115}, // 2nd stage cans on 1st stage
+            "FSG_frontBuild4": {duration:500, a1:157,a2:243,a3:1}, // Planche above cans 2nd stage
+            "FSG_frontBuild5": {duration:200, a1:157,a2:243,a3:1}, // Pause above cans 2nd stage
+            "FSG_frontBuild6": {duration:500, a1:193,a2:278,a3:1}, // Compress 2nd stage
+            "AFG_CFG_frontBuild5": {duration:500, a1:295,a2:300,a3:147,a4:162}, // 2nd stage cans release
+            "FSG_frontBuild7": {duration:500, a1:201,a2:281,a3:0}, // Release planche 2nd stage
+            "AFG_CFG_frontBuild8": {duration:500, a1:295,a2:297,a3:160,a4:162}, // 2nd stage cans cleared
+            "FSG_frontBuild8": {duration:500, a1:201,a2:281,a3:0}, // Make sure release planche 2nd stage
+            "AFG_CFG_frontPostBuild1": {duration:750, a1:211,a2:165,a3:255,a4:96}, // 2nd stage cans cleared
+            "AFG_CFG_frontPostBuild2": {duration:500, a1:144,a2:65,a3:191,a4:134}, // 2nd stage cans cleared
 
             //##### BACK GRAB ########
-            "BBG_backPreGrab1": {a1:178},
-            "BSG_backPreGrab1": {a1:218,a2:262,a3:136,a4:0},
-            "ASG_CSG_backPreGrab1": {a1:166,a2:226,a3:297,a4:190,a5:120,a6:120},
-            "ASG_CSG_backPreGrab2": {a1:175,a2:160,a3:259,a4:165,a5:120,a6:120},
-            "ASG_CSG_backPreGrab3": {a1:156,a2:155,a3:248,a4:74,a5:120,a6:120},
-            "BBG_backGrab1": {a1:150},
-            "BSG_backGrab1": {a1:211,a2:248,a3:142,a4:1},
-            "ASG_CSG_backGrab2": {a1:151,a2:157,a3:242,a4:61,a5:120,a6:120},
+            "BBG_backPreGrab1": {duration:300, a1:178},
+            "BSG_backPreGrab1": {duration:300, a1:180,a2:156,a3:73,a4:0},
+            "ASG_CSG_backPreGrab2": {duration:400, a1:166,a2:226,a3:297,a4:190,a5:100,a6:120},
+            "ASG_CSG_backPreGrab3": {duration:400, a1:175,a2:160,a3:259,a4:165,a5:100,a6:120},
+            "ASG_CSG_backPreGrab4": {duration:400, a1:170,a2:149,a3:235,a4:92,a5:100,a6:120},
+            "BBG_backPreGrab4": {duration:500, a1:190},
+            "BBG_backGrab1": {duration:550, a1:150},
+            "BSG_backGrab1": {duration:500, a1:180,a2:191,a3:96,a4:1},
+            "BSG_backGrab2": {duration:500, a1:180,a2:192,a3:114,a4:1},
+            "ASG_CSG_backGrab2": {duration:500, a1:151,a2:157,a3:242,a4:61,a5:100,a6:120},
+            "BSG_backGrab3": {duration:300, a1:180,a2:179,a3:95,a4:1},
+
+            //##### BACK STORE ########
+            "BSG_backStore1": {duration:500, a1:180,a2:152,a3:79,a4:1},
+            "BBG_backStore1": {duration:500, a1:140},
+            "ASG_CSG_backStore1": {duration:500, a1:168,a2:140,a3:224,a4:90,a5:100,a6:120},
+            "ASG_CSG_backStore2": {duration:600, a1:168,a2:135,a3:208,a4:89,a5:100,a6:120},
+            "ASG_CSG_backStore3": {duration:350, a1:184,a2:138,a3:228,a4:198,a5:100,a6:120},
+            "ASG_CSG_backStore4": {duration:350, a1:169,a2:177,a3:290,a4:196,a5:100,a6:120},
+            //"BBG_backStore5": {duration:500, a1:183},
+            "BSG_backStore5": {duration:350, a1:180,a2:173,a3:89,a4:1},
+            "ASG_CSG_backStore6": {duration:750, a1:169,a2:278,a3:227,a4:199,a5:100,a6:120},
+            "ASG_CSG_backStore7": {duration:350, a1:224,a2:278,a3:209,a4:203,a5:100,a6:120},
 
             //##### BACK BUILD ########
-            "ASG_CSG_backBuild1": {a1:178,a2:168,a3:255,a4:208,a5:120,a6:120},
-            "ASG_CSG_backBuild2": {a1:167,a2:263,a3:299,a4:194,a5:120,a6:120},
-            "ASG_CSG_backBuild3": {a1:169,a2:263,a3:246,a4:194,a5:120,a6:120},
-            "ASG_CSG_backBuild4": {a1:202,a2:243,a3:150,a4:147,a5:120,a6:120},
-            "BSG_backBuild5": {a1:211,a2:248,a3:142,a4:1},
-            "ASG_CSG_backBuild6": {a1:177,a2:135,a3:48,a4:183,a5:120,a6:120},
-            "BBG_backBuild6": {a1:170},
-            "ASG_CSG_backBuild7": {a1:171,a2:135,a3:48,a4:248,a5:120,a6:120},
-            "ASG_CSG_backBuild8": {a1:171,a2:155,a3:58,a4:252,a5:120,a6:120},
-            "BSG_backBuild9": {a1:211,a2:248,a3:142,a4:0},
-            "ASG_CSG_backBuild10": {a1:171,a2:136,a3:43,a4:187,a5:120,a6:120},
-            "ASG_CSG_backBuild11": {a1:138,a2:268,a3:171,a4:229,a5:120,a6:120},
-            "ASG_CSG_backBuild12": {a1:178,a2:276,a3:192,a4:128,a5:120,a6:120},
-            "ASG_CSG_backBuild13": {a1:174,a2:317,a3:231,a4:140,a5:120,a6:120}, // Deposit on 2nd stage
-            "ASG_CSG_backBuild14": {a1:174,a2:317,a3:231,a4:140,a5:150,a6:150}, // open fingers
-            "ASG_CSG_backBuild15": {a1:177,a2:259,a3:168,a4:129,a5:150,a6:150}, // Clear cans
-            "ASG_CSG_backBuild16": {a1:184,a2:210,a3:133,a4:146,a5:120,a6:120}, // Clear cans
+            "BBG_backBuild1": {duration:250, a1:166},
+            "BSG_backBuild2": {duration:300, a1:180,a2:152,a3:72,a4:1},
+            "BSG_backBuild3": {duration:300, a1:180,a2:152,a3:189,a4:1},
+            "ASG_CSG_backBuild4": {duration:350, a1:155,a2:259,a3:159,a4:279,a5:100,a6:120},
+            "ASG_CSG_backBuild5": {duration:750, a1:128,a2:158,a3:60,a4:316,a5:100,a6:120},
+            "BSG_backBuild6": {duration:400, a1:180,a2:158,a3:272,a4:1},
+            "BSG_backBuild7": {duration:400, a1:180,a2:184,a3:293,a4:1},
+            "BSG_backBuild8": {duration:400, a1:180,a2:200,a3:301,a4:0},
+            "BSG_backBuild9": {duration:400, a1:180,a2:217,a3:300,a4:0},
+            "BBG_backBuild10": {duration:400, a1:179},
+            "ASG_CSG_backBuild11": {duration:250, a1:155,a2:259,a3:159,a4:279,a5:130,a6:150},
+            "ASG_CSG_backBuild11": {duration:500, a1:128,a2:158,a3:60,a4:316,a5:130,a6:150},
+
+            "ASG_CSG_backPostBuild1": {duration:500, a1:128,a2:158,a3:60,a4:316,a5:130,a6:150},
+            "ASG_CSG_backPostBuild2": {duration:500, a1:177,a2:257,a3:165,a4:243,a5:130,a6:150},
+
+            //##### BACK FREE ALL ########
+            "BBG_backFreeAll1": {duration:300, a1:127},
+            "ASG_CSG_backFreeAll1": {duration:500, a1:184,a2:149,a3:240,a4:188,a5:130,a6:150},
 
         }
+    }
+
+    addAsyncTask(task){
+        this.asyncTaskList.push(task);
+        return true;
+    }
+
+    async waitAsyncTasks(){
+        await Promise.all(this.asyncTaskList);
+        this.asyncTaskList.length = 0;
+        return true;
     }
 
     async init(){
@@ -163,17 +227,8 @@ module.exports = class Robot2020 extends Robot{
     }
 
     async initArms(){
-        
         // Set arms at default position
-         await this.setArmsNamedPose({poseName:"preDefault", duration:1000});
-        await utils.sleep(1000);
-         await this.setArmsNamedPose({poseName:"default", duration:1000});
-        /*await this.setArmsPacked({armList:["CC", "AA"], wait: false});
-        await this.setArmsPacked({armList:["C0", "A0"], wait: false});
-        await this.setArmsPacked({armList:["C1", "A1"], wait: true});
-        await this.setArmsPacked({armList:["C2", "A2"], wait: true});
-        await this.setArmsPacked({armList:["C3", "A3"], wait: true});*/
-        
+        await this.playPoseSequence({posePrefix:"default"});
         return true;
     }
 
@@ -197,17 +252,9 @@ module.exports = class Robot2020 extends Robot{
         
         /*if(this.variables.endReached){
             this.app.logger.log("Adding end zone point");
-            if(this.name == "Robot Nesnes TDS") this.addScore(8);
-            else this.addScore(7);
+            if(this.name == "Robot Nesnes TDS") await this.addScore(8);
+            else await this.addScore(7);
         }*/
-        
-        /*if(this.modules.arm) await this.modules.arm.setServo({ name: "ABB", angle: 170, duration: 400, wait:false});
-        if(this.modules.arm) await this.modules.arm.setServo({ name: "ABA", angle: 170, duration: 400, wait:false});
-        if(this.modules.arm) await this.modules.arm.setServo({ name: "ACA", angle: 170, duration: 400, wait:false});
-        if(this.modules.arm) await this.modules.arm.setServo({ name: "ACC", angle: 170, duration: 400, wait:false});
-        if(this.modules.arm) await this.modules.arm.setServo({ name: "BCB", angle: 170, duration: 400, wait:false});
-        if(this.modules.arm) await this.modules.arm.setServo({ name: "BCC", angle: 170, duration: 400, wait:false});
-        */
         
         /*while (!this.app.intelligence.stopExecution)
         {
@@ -219,45 +266,37 @@ module.exports = class Robot2020 extends Robot{
         }*/
         
         if(this.modules.arm) await this.modules.arm.setLed({ brightness: 0, color: 0});
-        
-        
-        //if(this.modules.arm) await this.modules.arm.setPose({ name: "ACG", a1:330, a2:150, a3:150, a4:150 });
-        //if(this.modules.arm) await this.modules.arm.setPose({ name: "ABG", a1:330, a2:150, a3:150, a4:150 });
-        //if(this.modules.arm) await this.modules.arm.setPose({ name: "BCG", a1:330, a2:150, a3:150, a4:150 });
-        /*if(this.modules.arm) await this.modules.arm.setMotor({ name: "ACM", value:0 });
-        if(this.modules.arm) await this.modules.arm.setPump({ name: "ACP", value:0 });
-        if(this.modules.arm) await this.modules.arm.setPump({ name: "ABP", value:0 });
-        if(this.modules.arm) await this.modules.arm.setPump({ name: "BCP", value:0 });*/
+        if(this.modules.arm) await this.modules.arm.setServo({ name: "FFP", angle: 0, duration: 0, wait:false});
+        if(this.modules.arm) await this.modules.arm.setServo({ name: "BBP", angle: 0, duration: 0, wait:false});
     }
 
     getDescription(){
         return {
             functions:{
                 initArms:{},
+                playPoseSequence:{
+                    armRawList:{ legend:"Arms(Comma-separated)", type:"text"},
+                    posePrefix:{ legend:"Pose prefix", type:"text"}
+                },
                 setArmsNamedPose:{
                     armRawList:{ legend:"Arms(Comma-separated)", type:"text"},
                     poseName:{ legend:"Pose name", type:"text"},
                     duration:{ type:"range", min:0, max:3000, value:500, step:50 },
                 },
-                setArmsPacked:{ },
-                setArmsPreRelease:{ },
-                setArmsRelease:{ },
-                setArmsPreGrab:{ },
-                setArmsGrab:{
-                    liftOffset:{ legend:"lift offset", type:"number", min:-50, max:350, value:0 }
+                checkHasElements:{
+                    clamp:{ legend:"Clamp", type:"text" },
+                    value:{ legend:"Set clamp variable to", type:"text" },
                 },
-                setArmsPrepareFlag:{},
-                setArmsLowerFlag:{},
-                setArmsReleaseFlag:{},
                 draw:{},
                 dance2023: {},
                 testSetPosition: {},
                 findLocalisation: {},
                 testOrientation:{ speed:{ type:"range", min:0, max:3.0, value:0.4, step:0.1 }},
                 testDistance:{
-                    distance:{ legend:"distance (mm)", type:"number", min:-1000, max:1000, value:150 },
-                    speed:{ type:"range", min:0, max:3.0, value:0.4, step:0.1 },
-                    accelDist:{ type:"range", min:0, max:3.0, value:0.8, step:0.1 }
+                    distance:{ legend:"distance (mm)", type:"number", min:-5000, max:5000, value:150 },
+                    speed:{ type:"range", min:0, max:10.0, value:0.4, step:0.1 },
+                    accelDist:{ type:"range", min:0, max:10.0, value:0.8, step:0.1 },
+                    accelAngle:{ type:"range", min:0, max:360, value:50, step:1 }
                     
                 },
                 testAngle:{
@@ -287,10 +326,13 @@ module.exports = class Robot2020 extends Robot{
     async setArmsNamedPose(parameters){
         let armList = ["FF", "BB", "FS", "BS", "FC", "CF", "AF", "CS", "AS"]
         if(!("poseName" in parameters)) return false;
-        if("armRawList" in parameters) armList = parameters.armRawList.split(",");
+        if("armRawList" in parameters && parameters.armRawList !="") armList = parameters.armRawList.split(",");
         if("armList" in parameters) armList = parameters.armList;
         if(armList.length == 0) return true;
-        console.log("setArmsNamedPose", parameters.poseName, armList);
+        //console.log("setArmsNamedPose", parameters.poseName, armList);
+        let maxDuration = 0;
+        let shouldWait = false;
+        if("wait" in parameters) shouldWait = parameters.wait;
         for(let targetArm of armList) {
             // Find named pose
             let poseFound = null;
@@ -307,132 +349,167 @@ module.exports = class Robot2020 extends Robot{
             }
             if(poseFound==null) continue;
             let pose = Object.assign({ duration:300, wait:false }, poseFound);
-            if(this.variables["arm"+targetArm].value != ""){
-                //await this.setArmsStore({armList:[targetArm], duration: 300, wait:false });   
+            maxDuration = Math.max(maxDuration, pose.duration);
+            await this.setArmsAt(Object.assign({}, {pose}, parameters, {wait: false}, {armList:[targetArm]}));
+        }
+        if(shouldWait){
+            //console.log(parameters.poseName, "sleep for", maxDuration);
+            await utils.sleep(maxDuration);
+        }
+
+        return true;
+    }
+    
+    async playPoseSequence(parameters){
+        let poseNames = [];
+        if("poseNames" in parameters) poseNames = parameters.poseNames;
+        if("posePrefix" in parameters){
+            poseNames = [];
+            for(let i=1;i<50;i++){
+                let name = parameters.posePrefix + i;
+                let found = false;
+                for(let pose in this.poseList){
+                    if(pose.endsWith("_"+name)){
+                        found = true;
+                        poseNames.push(name);
+                        break;
+                    }
+                }
+                if(!found) break;
             }
-            else {
-                await this.setArmsAt(Object.assign({}, {pose}, parameters, {armList:[targetArm]}));
+        }
+        if(poseNames.length == 0) return false;
+        for(let poseName of poseNames) {
+            let result = await this.setArmsNamedPose(Object.assign({}, {poseName}, parameters, {wait:true}));
+            if(!result) return false;
+        }
+        return true;
+    }
+
+
+    
+    async checkHasElements(parameters){
+        let armList = []
+        if(!("clamp" in parameters)) return false;
+        if(!("value" in parameters)) return false;
+        let varName = "clamp"+parameters.clamp;
+        if(!(varName in this.variables)) return false;
+        let targetOpenPosition = 170;
+        // Simulation
+        if(!this.modules.arm){
+            this.variables[varName].value = parameters.value;
+            return true;
+        }
+        // Save clamp angle
+        let initialAngle = await this.modules.arm.getServo({ name: parameters.clamp });
+        // Limit torque
+        await this.modules.arm.setMaxTorqueServo({ name: parameters.clamp, torque: 150 });
+        // Move to open position
+        await this.modules.arm.setServo({ name: parameters.clamp, angle: targetOpenPosition, duration: 300, wait:false});
+        await utils.sleep(500);
+        // Check error
+        let openAngle = await this.modules.arm.getServo({ name: parameters.clamp });
+        let diff = Math.abs(initialAngle.position - openAngle.position);
+        let hasElement = (diff <= 10);
+        // Reset target position
+        await this.modules.arm.setServo({ name: parameters.clamp, angle: initialAngle.position, duration: 50, wait:false});
+        await utils.sleep(100);
+        // Restore torque
+        await this.modules.arm.setMaxTorqueServo({ name: parameters.clamp, torque: 1000 });
+        await this.modules.arm.setServo({ name: parameters.clamp, angle: initialAngle.position, duration: 0, wait:false});
+        
+        // Store result
+        this.app.logger.log("checkHasElements", parameters.clamp, hasElement, "(", diff,") was", initialAngle.position, " moved to ", openAngle.position);
+        if(hasElement) {
+            this.variables[varName].value = parameters.value;
+            return true;
+        }
+        return false;
+    }
+
+    async selectMapComponent(parameters){
+        this.app.logger.log(this.app.intelligence.currentTime, "selectMapComponent params", parameters);
+        
+        let target = {
+            component: null,
+            access: null,
+            distance: null,
+            distanceWithMalus: null
+        }
+        // List elements
+        let teamColor = parameters.color||this.team;
+        let opposit = "blue";
+        if (this.team=="blue") opposit = "yellow";
+        let allowOponentReserved = parameters.reserved || false;
+        if(parameters.opposit) teamColor=opposit;
+        let componentList = []
+        //this.app.logger.log("team color", teamColor);
+        if(parameters.componentName) {
+            componentList.push(this.app.map.getComponentByName(parameters.componentName));
+        }
+        else {
+            let componentTypes = parameters.componentTypes || [];
+            for(let type of componentTypes) {
+                componentList.push(...this.app.map.getComponentList(type));
             }
         }
-        return true;
-    }
-    
-    async setArmsPacked(parameters){
-        let armList = ["CC","C0","C1", "C2", "C3", "AA", "A0", "A1", "A2", "A3"]
-        if("armList" in parameters) armList = parameters.armList;
-        if(armList.length == 0) return true;
-        console.log("setArmsPacked", armList);
-        for(let targetArm of armList) {
-            let pose = { duration:300, wait:false };
-            if (targetArm == "CC" || targetArm == "AA") { pose.a1 = 10; }
-            if (targetArm == "C0" || targetArm == "A0") { pose.a1 = 90; pose.a2 = 180; pose.a3 = 150; }
-            if (targetArm == "C1" || targetArm == "A1") { pose.a1 = 50; pose.a2 = 70; pose.a3 = 150; }
-            if (targetArm == "C2" || targetArm == "A2") { pose.a1 = 270; pose.a2 = 65; pose.a3 = 150; }
-            if (targetArm == "C3" || targetArm == "A3") { pose.a1 = 270; pose.a2 = 125; pose.a3 = 90; pose.a4 = 150; }
-            if(this.variables["arm"+targetArm].value != ""){
-                //await this.setArmsStore({armList:[targetArm], duration: 300, wait:false });   
+        //this.app.logger.log("componentList ", componentList)
+        // Indentify closest component and access point
+        let accessTag = "" || parameters.accessTag;
+        let minLength = 99999999999;
+        for(let component of componentList){
+            let accessList = []
+            let distMalus = 0;
+            let maxItemCount = component.maxItemCount || parameters.maxItemCount || 0;
+            if("opposit" in parameters && parameters.opposit && component.team == this.team) continue;
+            if("reserved" in component && component.reserved && component.team != teamColor && !allowOponentReserved) continue;
+            if("oppositRatio" in parameters && component.team != this.team) distMalus += parameters.oppositRatio;
+            if("attempts" in component && "attemptRatio" in parameters) distMalus += parameters.attemptRatio * component.attempts;
+            if("itemCount" in component && "itemCountRatio" in parameters) distMalus += parameters.itemCountRatio * component.itemCount;
+            if("itemCount" in component && maxItemCount>0 && component.itemCount>=maxItemCount) continue;
+            if("isAccessible" in component && !component.isAccessible(this.app, component)) continue;
+            if(component.access && parameters.access!==false) accessList.push(component.access);
+            if(component.otherAccess && parameters.otherAccess!==false) accessList.push(...component.otherAccess);
+            if(component.endAccess && parameters.endAccess) accessList.push(...component.endAccess);
+            if(accessList.length == 0) continue;
+            for(let access of accessList){
+                if(accessTag && !access.tags.includes(accessTag)) continue;
+                let accessMalus = 0;
+                if("historyRatio" in parameters) {
+                        // Where opponent went
+                    let historyValue = this.app.map.getHistoryAt(access.x, access.y).value
+                    accessMalus += parameters.historyRatio * historyValue;
+                }
+                //else {
+                let path = this.app.map.findPath(this.x, this.y, access.x, access.y);
+                    
+                if(path.length<2) continue;
+                if(!this.isMovementPossible(path[1][0], path[1][1])) continue;
+                let pathLength = this.app.map.getPathLength(path);
+                let pathLenghtWithMalus = pathLength + distMalus + accessMalus;
+
+                //this.app.logger.log("Test target ", component.name, pathLength, distMalus, accessMalus);
+
+                if((pathLenghtWithMalus)<minLength/* && pathLength > 50*/){
+                    minLength = pathLenghtWithMalus;
+                    target.distanceWithMalus = pathLenghtWithMalus;
+                    target.distance = pathLength;
+                    target.access = access;
+                    target.component = component;
+                }
             }
-            else {
-                await this.setArmsAt(Object.assign({}, {pose}, parameters, {armList:[targetArm]}));
-            }
         }
-        return true;
-    }
-    
-    async setArmsPreGrab(parameters){
-        //let armList = ["CC","C0","C1", "C2", "C3", "AA", "A0", "A1", "A2", "A3"]
-        let armList = ["CC","C0","C1", "AA", "A0", "A1"]
-        if("armList" in parameters) armList = parameters.armList;
-        if(armList.length == 0) return true;
-        console.log("setArmsPreGrab", armList);
-        for(let targetArm of armList) {
-            let pose = { duration:300, wait:false };
-            if (targetArm == "CC" || targetArm == "AA") { pose.a1 = 45; }
-            if (targetArm == "C0" || targetArm == "A0") { pose.a1 = 40; pose.a2 = 95; pose.a3 = 190; }
-            if (targetArm == "C1" || targetArm == "A1") { pose.a1 = 5; pose.a2 = 130; pose.a3 = 140; }
-            if (targetArm == "C2" || targetArm == "A2") { pose.a1 = 5; pose.a2 = 110; pose.a3 = 140; }
-            if (targetArm == "C3" || targetArm == "A3") { pose.a1 = 5; pose.a2 = 120; pose.a3 = 125; pose.a4 = 140; }
-            await this.setArmsAt(Object.assign({}, {pose}, parameters, {armList:[targetArm]}));
+
+        //this.app.logger.log("FoundTarget ", target)
+        if(!target.component){
+            this.app.logger.log("  -> Target component not found ");
+            return target
         }
-        return true;
-    }
-    
-    async setArmsGrab(parameters){
-        //let armList = ["CC","C0","C1", "C2", "C3", "AA", "A0", "A1", "A2", "A3"]
-        let armList = ["CC","C0","C1", "AA", "A0", "A1"]
-        if("armList" in parameters) armList = parameters.armList;
-        if(armList.length == 0) return true;
-        let liftOffset = 0;
-        if("liftOffset" in parameters) liftOffset = parameters.liftOffset;
-        console.log("setArmsGrab", armList);
-        for(let targetArm of armList) {
-            let pose = { duration:300, wait:false };
-            if (targetArm == "CC" || targetArm == "AA") { pose.a1 = 45; }
-            if (targetArm == "C0" || targetArm == "A0") { pose.a1 = 40+liftOffset; pose.a2 = 90; pose.a3 = 130; }
-            if (targetArm == "C1" || targetArm == "A1") { pose.a1 = 5+liftOffset; pose.a2 = 105; pose.a3 = 145; }
-            if (targetArm == "C2" || targetArm == "A2") { pose.a1 = 5+liftOffset; pose.a2 = 110; pose.a3 = 145; }
-            if (targetArm == "C3" || targetArm == "A3") { pose.a1 = 5+liftOffset; pose.a2 = 120; pose.a3 = 125; pose.a4 = 145; }
-            await this.setArmsAt(Object.assign({}, {pose}, parameters, {armList:[targetArm]}));
+        if(!target.access){
+            this.app.logger.log("  -> No access found for component "+target.component.name);
+            return target
         }
-        return true;
-    }
-    
-    async setArmsPreRelease(parameters){
-        //let armList = ["CC","C0","C1", "C2", "C3", "AA", "A0", "A1", "A2", "A3"]
-        let armList = ["CC","C0","C1", "AA", "A0", "A1"]
-        if("armList" in parameters) armList = parameters.armList;
-        if(armList.length == 0) return true;
-        console.log("setArmsPreRelease", armList);
-        for(let targetArm of armList) {
-            let pose = { duration:300, wait:false };
-            if (targetArm == "CC" || targetArm == "AA") { pose.a1 = 60; }
-            if (targetArm == "C0" || targetArm == "A0") { pose.a1 = 50; pose.a2 = 95; pose.a3 = 190; }
-            if (targetArm == "C1" || targetArm == "A1") { pose.a1 = 5; pose.a2 = 130; pose.a3 = 125; }
-            if (targetArm == "C2" || targetArm == "A2") { pose.a1 = 5; pose.a2 = 110; pose.a3 = 125; }
-            if (targetArm == "C3" || targetArm == "A3") { pose.a1 = 5; pose.a2 = 120; pose.a3 = 125; pose.a4 = 125; }
-            await this.setArmsAt(Object.assign({}, {pose}, parameters, {armList:[targetArm]}));
-        }
-        return true;
-    }
-    
-    async setArmsRelease(parameters){
-        //let armList = ["CC","C0","C1", "C2", "C3", "AA", "A0", "A1", "A2", "A3"]
-        let armList = ["CC","C0","C1", "AA", "A0", "A1"]
-        if("armList" in parameters) armList = parameters.armList;
-        if(armList.length == 0) return true;
-        console.log("setArmsRelease", armList);
-        for(let targetArm of armList) {
-            let pose = { duration:0, wait:false };
-            if (targetArm == "CC" || targetArm == "AA") { pose.a1 = 10; }
-            if (targetArm == "C0" || targetArm == "A0") { pose.a1 = 50; pose.a2 = 95; pose.a3 = 190; }
-            if (targetArm == "C1" || targetArm == "A1") { pose.a1 = 5; pose.a2 = 130; pose.a3 = 190; }
-            if (targetArm == "C2" || targetArm == "A2") { pose.a1 = 5; pose.a2 = 110; pose.a3 = 190; }
-            if (targetArm == "C3" || targetArm == "A3") { pose.a1 = 5; pose.a2 = 120; pose.a3 = 125; pose.a4 = 190; }
-            await this.setArmsAt(Object.assign({}, {pose}, parameters, {armList:[targetArm]}));
-        }
-        return true;
-    }
-    
-    async setArmsPrepareFlag(parameters){
-        if (this.modules.arm) {
-            await this.modules.arm.setServo({name:"A3S", angle: 150});
-            await this.modules.arm.setServo({name:"A2S", angle: 110});
-        }
-        await utils.sleep(150);
-        await this.setArmsAt(Object.assign({}, {pose:{a1:190, a2:70, a3:160, duration:300, wait:false}}, parameters, {armList:["A1"]}));
-        return true;
-    }
-    
-    async setArmsLowerFlag(parameters){
-        await this.setArmsAt(Object.assign({}, {pose:{a1:50, a2:70, a3:160, duration:0, wait:false}}, parameters, {armList:["A1"]}));
-        return true;
-    }
-    
-    async setArmsReleaseFlag(parameters){
-        await this.setArmsAt(Object.assign({}, {pose:{a1:50, a2:80, a3:130, duration:0, wait:false}}, parameters, {armList:["A1"]}));
-        await utils.sleep(300);
-        await this.setArmsAt(Object.assign({}, {pose:{a1:50, a2:40, a3:190, duration:0, wait:false}}, parameters, {armList:["A1"]}));
-        return true;
+        return target;
     }
     
     async identifyStartZone(parameters){
@@ -461,32 +538,141 @@ module.exports = class Robot2020 extends Robot{
         this.disableColisions = true;
         result = await this.moveAtAngle({
             angle: this.angle,
-            distance:   150,
+            distance:   125,
             speed:      parameters.speed||this.app.goals.defaultSpeed,
-            nearDist:   10||parameters.nearDist||this.app.goals.defaultNearDist,
-            nearAngle:  3||parameters.nearAngle||this.app.goals.defaultNearAngle,
+            nearDist:   50||parameters.nearDist||this.app.goals.defaultNearDist,
+            nearAngle:  20||parameters.nearAngle||this.app.goals.defaultNearAngle,
             accelDist:  parameters.accelDist||this.app.goals.defaultAccel,
             preventLocalisation: true,
             preventPathFinding: true
         });
         this.disableColisions = false;
 
-        await this.setArmsLowerFlag({});
-        await this.setArmsReleaseFlag({});
+        await this.addScore(20);
 
         // Backward
         result = await this.moveAtAngle({
             angle: this.angle,
-            distance:   -300,
+            distance:   -100,
             speed:      parameters.speed||this.app.goals.defaultSpeed,
-            nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
+            nearDist:   50||parameters.nearDist||this.app.goals.defaultNearDist,
+            nearAngle:  20||parameters.nearAngle||this.app.goals.defaultNearAngle,
             accelDist:  parameters.accelDist||this.app.goals.defaultAccel,
             preventLocalisation: true,
-            preventPathFinding: true
+            preventPathFinding: true,
+            preventBreak: true
         });
         
         return result;
+    }
+
+    /*async goGrabElements(parameters){
+        let result = true;
+
+        return result;
+    }*/
+    
+    
+    async rushGrab(parameters){
+        let result = true;
+        
+        this.app.logger.log(this.app.intelligence.currentTime, "rushGrab params", parameters);
+        
+        // Find element
+        let target = await this.selectMapComponent({
+            componentTypes: parameters.componentTypes || ["element"],
+            accessTag : parameters.accessTag || "",
+            opposit: parameters.opposit || false
+        })
+        this.app.logger.log("selectedComponent", target);
+        if(!target.component || !target.access){
+            this.app.logger.log("selectedComponent failed", !target.component, !target.access );
+            return false;
+        }
+        this.app.logger.log("rush to Elements", target.component.name);
+        let side = "";
+        if("side" in parameters) side = parameters.side;
+        let clampLeft = "AFC", clampCenterLeft = "FAC", clampCenterRight="FCC", clampRight="CFC";
+        if(side == "back"){
+            clampLeft = "CS5"; clampCenterLeft = "CS4"; clampCenterRight="AS4"; clampRight="AS5";
+        }
+        // Increase attempt count
+        if(target.component.attempts)  target.component.attempts += 1;
+        else target.component.attempts = 1;
+        // Compute move speed and angle
+        let grabOrientation = target.access.angle;
+        let moveSpeed = parameters.speed||this.app.goals.defaultSpeed;
+        //if(target.distance>0 && target.distance < 600) moveSpeed *= 0.5;
+        if(side=="back") grabOrientation += 180;
+        this.app.logger.log(target.distance, moveSpeed, grabOrientation)
+           
+        // Move to target
+        result = await this.moveToPosition({
+            x:          target.access.x,
+            y:          target.access.y,
+            angle:      grabOrientation,
+            speed:      moveSpeed,
+            angleSpeed: parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
+            accelDist:  parameters.accelDist||this.app.goals.defaultAccel,
+            accelAngle:  parameters.accelAngle||this.app.goals.defaultAccelAngle,
+            nearDist:   50||parameters.nearDist||this.app.goals.defaultNearDist,
+            nearAngle:  7||parameters.nearAngle||this.app.goals.defaultNearAngle,
+            preventBreak: false
+        });
+        if(!result) return result;
+
+        //await this.waitAsyncTasks();
+        this.addAsyncTask(this.playPoseSequence({posePrefix: side+"PreGrab"}));
+        await this.waitAsyncTasks();
+
+        // Move forward
+        result = await this.moveAtAngle({
+            angle: target.access.angle,
+            distance: 230,
+            speed: 0.25||parameters.speed||this.app.goals.defaultSpeed,
+            angleSpeed: 20||parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
+            accelAngle: 20,
+            nearDist:   50,
+            nearAngle:  5,
+            preventLocalisation: false,
+            preventBreak: true
+        })
+        if(!result) return result;
+        this.addAsyncTask( this.playPoseSequence({posePrefix: side + "Grab"})); // async
+        
+        
+        // Check has elements
+        await this.waitAsyncTasks();
+        this.addAsyncTask(this.checkHasElements({clamp:clampLeft, value:"C"}));
+        this.addAsyncTask(this.checkHasElements({clamp:clampCenterLeft, value:"C"}));
+        this.addAsyncTask(this.checkHasElements({clamp:clampCenterRight, value:"C"}));
+        this.addAsyncTask(this.checkHasElements({clamp:clampRight, value:"C"}));
+        await this.waitAsyncTasks();
+        
+        let elemCount = 0;
+        if(this.variables["clamp"+clampCenterRight].value != "") elemCount++;
+        if(this.variables["clamp"+clampCenterLeft].value != "") elemCount++;
+        if(this.variables["clamp"+clampLeft].value != "") elemCount++;
+        if(this.variables["clamp"+clampRight].value != "") elemCount++;
+        if(elemCount == 1) {
+            // Release trash here
+            await this.setVariable({name:"clamp"+clampCenterLeft, value:""});
+            await this.setVariable({name:"clamp"+clampCenterRight, value:""});
+            await this.setVariable({name:"clamp"+clampLeft, value:""});
+            await this.setVariable({name:"clamp"+clampRight, value:""});
+            this.addAsyncTask( (async ()=>{
+                await this.playPoseSequence({posePrefix: side+"FreeAll"})
+                await utils.sleep(500);
+                if(side=="front") await this.playPoseSequence({posePrefix:"default", armList:["FF", "FS", "FC", "AF", "CF"]}); // async
+                if(side=="back") await this.playPoseSequence({posePrefix:"default", armList:["BB", "BS", "CS", "AS"]}); // async
+            })());
+        }
+        else {
+            this.addAsyncTask(this.playPoseSequence({posePrefix: side+"Store"}));
+        }
+        
+        this.removeFromMap({component:target.component});
+        return true;
     }
     
     
@@ -494,237 +680,251 @@ module.exports = class Robot2020 extends Robot{
         let result = true;
         
         this.app.logger.log(this.app.intelligence.currentTime, "goGrabElements params", parameters);
-        await this.setArmsPacked({});
         
         // Find arm
-        let armList = ["C1","A1","C2", "A2", "CC","AA", "C3", "A3"]
-        if("armList" in parameters) armList = parameters.armList;
-        if(armList.length == 0) return false;    
-        
-        let targetArm_CInside = "";
-        let targetArm_AInside = "";
-        let targetArm_COutside = "";
-        let targetArm_AOutside = "";
-        let targetAngleOffset = 0;
-        for(let targetArm of armList) {
-            if(this.variables["arm"+targetArm].value == ""){
-                if (targetArm_CInside=="" && targetArm.startsWith("C")) { targetArm_CInside=targetArm; continue; }
-                if (targetArm_AInside=="" && targetArm.startsWith("A")) { targetArm_AInside=targetArm; continue; }
-                if (targetArm_COutside=="" && targetArm.startsWith("C")) { targetArm_COutside=targetArm; continue; }
-                if (targetArm_AOutside=="" && targetArm.startsWith("A")) { targetArm_AOutside=targetArm; continue; }
-            }
+        let isFrontFree = this.variables["clampAFC"].value == ""
+                       && this.variables["clampFAC"].value == ""
+                       && this.variables["clampFCC"].value == ""
+                       && this.variables["clampCFC"].value == "";
+        let isBackFree = this.variables["clampAS4"].value == ""
+                       && this.variables["clampAS5"].value == ""
+                       && this.variables["clampCS4"].value == ""
+                       && this.variables["clampCS5"].value == "";
+        if(!isFrontFree && !isBackFree) return false;
+        let side = "";
+        if("side" in parameters) side = parameters.side;
+        if(side == "") {
+            if(isFrontFree) side = "front";
+            else if(isBackFree) side = "back";
         }
-        let targetArm_Planche = ["C0", "A0"];
-        /*if(this.variables["armC0"].value != "") {
-            if(this.variables["armA0"].value = "") { targetArm_Planche = "A0"; }
-            else {
-                this.app.logger.log(this.app.intelligence.currentTime, "No arm available for planche");
-                return false;
-            }
-        }*/
-        this.app.logger.log(this.app.intelligence.currentTime, "Inside", targetArm_CInside, targetArm_AInside, "Outside", targetArm_COutside, targetArm_AOutside, "Planche",targetArm_Planche );
+        this.app.logger.log("side", side, isFrontFree, isBackFree);
+        if(side == "") return false;
+        if(side == "front" && !isFrontFree) return false;
+        if(side == "back" && !isBackFree) return false;
+        
+        if(side=="back") return false;
 
-        if(targetArm_CInside == "" || targetArm_AInside == "") return false;
-        if(targetArm_COutside == "" || targetArm_AOutside == "") return false;
-        if(targetArm_Planche.length == 0) return false;
-        
-        
-        // List elements
-        let teamColor = parameters.color||this.team;
-        let opposit = "blue";
-        if (this.team=="blue") opposit = "yellow";
-        if(parameters.opposit) teamColor=opposit;
-        let elementList = []
-        this.app.logger.log("team color", teamColor);
-        if(parameters.zoneName) {
-            elementList.push(this.app.map.getComponentByName(parameters.zoneName));
+        let clampLeft = "AFC", clampCenterLeft = "FAC", clampCenterRight="FCC", clampRight="CFC";
+        if(side == "back"){
+            clampLeft = "CS5"; clampCenterLeft = "CS4"; clampCenterRight="AS4"; clampRight="AS5";
         }
-        else {
-            let elementTypes = ["element"];
-            if(parameters.elementTypes) {
-                elementTypes = parameters.elementTypes;
-                for(let type of elementTypes) {
-                    elementList.push(...this.app.map.getComponentList(type, teamColor));
-                }
-            }
-            else {
-                for(let type of elementTypes) {
-                    elementList.push(...this.app.map.getComponentList(type));
-                }
-            }
+
+        // Find element
+        let target = await this.selectMapComponent({
+            componentTypes: parameters.componentTypes || ["element","elementReserved","elementBuildBottom","elementPAMI","elementTight"],
+            historyRatio: -20,
+            attemptRatio: 2800,
+            oppositRatio: 2800,
+            accessTag : parameters.accessTag || "",
+            opposit: parameters.opposit || false
+        })
+        this.app.logger.log("selectedComponent", target);
+        if(!target.component || !target.access){
+            this.app.logger.log("selectedComponent failed", !target.component, !target.access );
+            return false;
         }
-        this.app.logger.log("elementList ", elementList)
-        // Indentify closest element and access point
-        let accessTag = "" || parameters.accessTag;
-        let targetElement = null;
-        let targetAccess = null
-        let minLength = 99999999999;
-        let targetDist = 0;
-        for(let element of elementList){
-            let accessList = []
-            let distMalus = 0;
-            if(element.attempts) distMalus = 2800*element.attempts;
-            if(parameters.opposit) {
-                // Aim for zone where ennemy went
-                let historyX = element.access.x;
-                let historyY = element.access.y;
-                let historyValue = this.app.map.getHistoryAt(historyX, historyY).value
-                distMalus -= 20 * historyValue;
-                this.app.logger.log("HISTORY of", element.name, "is", historyValue, "at", historyX, historyY, "stolen", element.alreadyStolen); 
-                if(element.alreadyStolen) continue;
-            }
-            if(element.access) accessList.push(element.access);
-            if(element.otherAccess) accessList.push(...element.otherAccess);
-            if(accessList.length == 0) continue;
-            for(let access of accessList){
-                if(accessTag){
-                   if(access.tags && access.tags.includes(accessTag)){
-                        minLength = utils.getDistance(this.x, this.y, access.x, access.y);//dist
-                        targetAccess = access;
-                        targetElement = element;
-                        break;
-                   } 
-                }
-                else {
-                    let path = this.app.map.findPath(this.x, this.y, access.x, access.y);
-                    
-                    if(path.length<2) continue;
-                    if(!this.isMovementPossible(path[1][0], path[1][1])) continue;
-                    let pathLength = this.app.map.getPathLength(path);
-                    if((pathLength+distMalus)<minLength/* && pathLength > 50*/){
-                        minLength = pathLength+distMalus;
-                        targetDist = pathLength;
-                        targetAccess = access;
-                        targetElement = element;
-                    }
-                }
-            }
-        }
-        
-        if(targetElement === null){
-            this.app.logger.log("  -> Target element not found ");
-            return false
-        }
-        if(targetAccess === null){
-            this.app.logger.log("  -> No access found for component "+targetElement.name);
-            return false
-        }
-        
-        if(targetElement.attempts)  targetElement.attempts += 1;
-        else targetElement.attempts = 1;
-        
-        this.app.logger.log("goGrabElements", targetElement.name);
-        let grabOrientation = targetAccess.angle + targetAngleOffset;
-        
-        // Compute move speed
+        this.app.logger.log("goGrabElements", target.component.name);
+        // Increase attempt count
+        if(target.component.attempts)  target.component.attempts += 1;
+        else target.component.attempts = 1;
+        // Compute move speed and angle
+        let grabOrientation = target.access.angle;
         let moveSpeed = parameters.speed||this.app.goals.defaultSpeed;
-        if(targetDist>0 && targetDist < 600) moveSpeed *= 0.5;
-        this.app.logger.log({targetDist},{moveSpeed},{grabOrientation})
-        
-            
-        {
-            
-            // Move to target
-            result = await this.moveToPosition({
-                x:          targetAccess.x,
-                y:          targetAccess.y,
-                angle:      grabOrientation,
-                speed:      moveSpeed,
+        if(target.distance>0 && target.distance < 600) moveSpeed *= 0.5;
+        if(side=="back") grabOrientation += 180;
+        this.app.logger.log(target.distance, moveSpeed, grabOrientation)
+          
+        let isTight = ["elementReserved", "elementPAMI", "elementTight","elementBuildBottom"].includes(target.component.type);
+
+        let earlyDeploy = false;
+        if("earlyDeploy" in parameters) earlyDeploy = parameters.earlyDeploy;
+
+        await this.waitAsyncTasks();
+        this.addAsyncTask( (async ()=>{
+            await utils.sleep(500);
+            if(side=="front") await this.addAsyncTask(this.playPoseSequence({posePrefix:"frontPreGrabTight"})); // async
+            if(side=="back") await this.addAsyncTask(this.playPoseSequence({posePrefix:"backPreGrab"})); // async
+            if(!isTight && side=="front") await this.playPoseSequence({posePrefix: side+"PreGrab"}); // async
+        })());
+           
+        // Move to target
+        result = await this.moveToPosition({
+            x:          target.access.x,
+            y:          target.access.y,
+            angle:      grabOrientation,
+            speed:      moveSpeed,
+            angleSpeed: parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
+            accelDist:  parameters.accelDist||this.app.goals.defaultAccel,
+            accelAngle:  parameters.accelAngle||this.app.goals.defaultAccelAngle,
+            nearDist:   50||parameters.nearDist||this.app.goals.defaultNearDist,
+            nearAngle:  5||parameters.nearAngle||this.app.goals.defaultNearAngle,
+            preventBreak: false
+        });
+        if(!result) return result;
+
+        if(!earlyDeploy) await this.waitAsyncTasks();
+
+        if(!earlyDeploy){
+            // Check has elements
+            this.addAsyncTask(this.checkHasElements({clamp:clampLeft, value:"C"}));
+            this.addAsyncTask(this.checkHasElements({clamp:clampCenterLeft, value:"C"}));
+            this.addAsyncTask(this.checkHasElements({clamp:clampCenterRight, value:"C"}));
+            this.addAsyncTask(this.checkHasElements({clamp:clampRight, value:"C"}));
+            await this.waitAsyncTasks();
+        }
+        let isFaceFree = this.variables["clamp"+clampLeft].value == ""
+            && this.variables["clamp"+clampCenterLeft].value == ""
+            && this.variables["clamp"+clampCenterRight].value == ""
+            && this.variables["clamp"+clampRight].value == "";
+        if(!isFaceFree) {
+            //Go backward and turn arround
+            await this.moveAtAngle({
+                angle: target.access.angle,
+                endAngle: grabOrientation+180,
+                distance: -150,
+                speed: parameters.speed||this.app.goals.defaultSpeed,
                 angleSpeed: parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
-                accelDist:  parameters.accelDist||this.app.goals.defaultAccel,
-                accelAngle:  parameters.accelAngle||this.app.goals.defaultAccelAngle,
-                nearDist:   250||parameters.nearDist||this.app.goals.defaultNearDist,
-                nearAngle:  20||parameters.nearAngle||this.app.goals.defaultNearAngle,
-                preventBreak: true
+                nearDist:   50,
+                nearAngle:  10,
+                preventLocalisation: true,
+                preventBreak: false
             });
-            if(!result) return result;
-
-            // Refine end position
-            result = await this.moveCorrectPosition({
-                speed: (parameters.speed||this.app.goals.defaultSpeed)/2
+            // Free elements
+            await this.playPoseSequence({posePrefix: side+"FreeAll"}); // TODO BACK FREE ALL
+            // Move away from elements
+            await this.moveAtAngle({
+                angle: target.access.angle,
+                endAngle: grabOrientation,
+                distance: 100,
+                speed: parameters.speed||this.app.goals.defaultSpeed,
+                angleSpeed: parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
+                nearDist:   50,
+                nearAngle:  10,
+                preventLocalisation: true,
+                preventBreak: false
             });
+            // Restore target position for moveCorrectPosition
+            this.lastTarget.x = target.access.x;
+            this.lastTarget.y = target.access.y;
+            this.lastTarget.angle = grabOrientation;
+        }
 
-            await this.setArmsPreGrab({armList:targetArm_Planche, duration:200, wait:false});
-            await this.setArmsPreGrab({armList:[targetArm_CInside, targetArm_AInside], duration:200, wait:false});
-            await this.setArmsPreGrab({armList:[targetArm_COutside, targetArm_AOutside], duration:200, wait:false});
-            
-            // Move forward (no wait)
-            result = await this.moveAtAngle({
-                angle: targetAccess.angle,
-                distance: 250,
+
+        // Refine end position
+        result = await this.moveCorrectPosition({
+            speed: (parameters.speed||this.app.goals.defaultSpeed)/3
+        });
+
+        // Prepare arms async
+        /*if(!earlyDeploy){
+            if(side=="front") this.addAsyncTask(this.playPoseSequence({posePrefix:"frontPreGrabTight"})); // async
+            if(side=="back") this.addAsyncTask(this.playPoseSequence({posePrefix:"backPreGrab"})); // async
+        }*/
+        
+        await this.waitAsyncTasks();
+        if(!earlyDeploy){
+            if(!isTight && side=="front") await this.playPoseSequence({posePrefix: side+"PreGrab"}); // async
+        }
+
+        let isFacingOpponentZone = target.component.type=="elementBuildBottom";// && !target.component.name.toLowerCase().includes(this.team);
+        // Move forward
+        let forwardGrabDist = 230;
+         if(isFacingOpponentZone) forwardGrabDist = 150;
+        result = await this.moveAtAngle({
+            angle: target.access.angle,
+            distance: forwardGrabDist,
+            speed: 0.25||parameters.speed||this.app.goals.defaultSpeed,
+            angleSpeed: 20||parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
+            accelAngle: 150,
+            nearDist:   50,
+            nearAngle:  5,
+            preventLocalisation: false,
+            preventBreak: false
+        })
+        if(!result) return result;
+        await utils.sleep(300); // safety measure to make sure servos have arrived
+
+        if(!isFacingOpponentZone) {
+            // Move forward while grabbing
+            this.moveAtAngle({
+                angle: target.access.angle,
+                distance: 150,
                 speed: 0.25||parameters.speed||this.app.goals.defaultSpeed,
-                angleSpeed: 50||parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
+                angleSpeed: 20||parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
+                accelAngle: 150,
                 nearDist:   50,
                 nearAngle:  5,
                 preventLocalisation: true,
                 preventBreak: false
+            });
+            await utils.sleep(500);
+        }
+        if(isTight && side=="front") await this.playPoseSequence({posePrefix:"frontGrabTight"});
+        await this.playPoseSequence({posePrefix: side + "Grab"}); // async
+
+        let backwardDist = -100;
+        if(isTight){
+             backwardDist = -100;
+            // Move backward in tight space
+            await this.moveAtAngle({
+                angle: target.access.angle,
+                distance: backwardDist,
+                speed: 0.35||parameters.speed||this.app.goals.defaultSpeed,
+                angleSpeed: 50||parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
+                nearDist:   50,
+                nearAngle:  10,
+                preventLocalisation: true,
+                preventBreak: false
             })
-            if(!result) return result;
-
-            result = await this.grabElements({startDelay:0, armList:[targetArm_CInside, targetArm_AInside, targetArm_COutside, targetArm_AOutside, targetArm_Planche], startDelay: 0});
-            if(!result) return result;
         }
         
-        this.removeFromMap({component:targetElement});
-        
-        if(!result) return false;
-        
-        return true;
-    }
-    
-    async grabElements(parameters){
-        let armList = []
-        if("armList" in parameters) armList = parameters.armList;
-        this.app.logger.log("grabElements", armList);
-        if(armList.length == 0) return false;
-        
-        // Start delay
-        if("startDelay" in parameters) await utils.sleep(parameters.startDelay);
 
-        // Remove stress on arms
-        await this.setArmsPreRelease({});
-        await utils.sleep(300);
+        // Check has elements
+        this.addAsyncTask(this.checkHasElements({clamp:clampLeft, value:"C"}));
+        this.addAsyncTask(this.checkHasElements({clamp:clampCenterLeft, value:"C"}));
+        this.addAsyncTask(this.checkHasElements({clamp:clampCenterRight, value:"C"}));
+        this.addAsyncTask(this.checkHasElements({clamp:clampRight, value:"C"}));
+        await this.waitAsyncTasks();
         
-        // Check has element
-        /*let checkList = {}
-        for(let currArm of armList){
-            // Move arm to test point slowly
-            checkList[currArm] = {arm:currArm, checkAngle:150, clampName:""};
-            if(currArm=="CC" || currArm=="AA") {checkList[currArm].checkAngle = 20;  checkList[currArm].clampName = "AC"+currArm[0]; }
-            if(currArm=="C0" || currArm=="A0") {checkList[currArm].checkAngle = 130; checkList[currArm].clampName = currArm+"C"; }
-            if(currArm=="C1" || currArm=="A1") {checkList[currArm].checkAngle = 170; checkList[currArm].clampName = currArm+"C"; }
-            if(currArm=="C2" || currArm=="A2") {checkList[currArm].checkAngle = 170; checkList[currArm].clampName = currArm+"C"; }
-            if(currArm=="C3" || currArm=="A3") {checkList[currArm].checkAngle = 170; checkList[currArm].clampName = currArm+"C"; }
-            if(this.modules.arm){
-                await this.modules.arm.setServo({ name: checkList[currArm].clampName, angle: checkList[currArm].checkAngle, duration: 500, wait:false});
-            }
-        }
-        await utils.sleep(500);
-        // Check prehension
-        for(let checkArmName in checkList){
-            let checkArm = checkList[checkArmName];
-            let hasElement = true;
-            if(this.modules.arm){
-                let servo1 = await this.modules.arm.getServo({ name: checkArm.clampName });
-                let diff1 = Math.abs(servo1.position - checkArm.checkAngle);
-                hasElement = (diff1 >= 10);
-                this.app.logger.log("clamp", checkArm.clampName, "hasElement", hasElement, servo1, checkArm.checkAngle, diff1 )
-            }
-            if(hasElement) {
-                this.setVariable({name:"arm"+checkArm.arm, value:"E"});
-            }
+        /*let isSideCenterComplete = this.variables["clamp"+clampCenterRight].value != ""
+                                && this.variables["clamp"+clampRight].value != "";
+        if(isSideCenterComplete){
+            
         }*/
-        
-        for(let currArm of armList){
-            this.setVariable({name:"arm"+currArm, value:"E"});
+        let elemCount = 0;
+        if(this.variables["clamp"+clampCenterRight].value != "") elemCount++;
+        if(this.variables["clamp"+clampCenterLeft].value != "") elemCount++;
+        if(this.variables["clamp"+clampLeft].value != "") elemCount++;
+        if(this.variables["clamp"+clampRight].value != "") elemCount++;
+        if(elemCount == 1) {
+            // Release trash here
+            await this.setVariable({name:"clamp"+clampCenterLeft, value:""});
+            await this.setVariable({name:"clamp"+clampCenterRight, value:""});
+            await this.setVariable({name:"clamp"+clampLeft, value:""});
+            await this.setVariable({name:"clamp"+clampRight, value:""});
+            await this.playPoseSequence({posePrefix: side+"FreeAll"});
+            // Move backward to release elements
+            await this.moveAtAngle({
+                angle: grabOrientation,
+                distance: -100,
+                speed: 0.35||parameters.speed||this.app.goals.defaultSpeed,
+                angleSpeed: 50||parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
+                nearDist:   50,
+                nearAngle:  10,
+                preventLocalisation: true,
+                preventBreak: false
+            })
+            this.addAsyncTask( (async ()=>{
+                await utils.sleep(500);
+                if(side=="front") await this.playPoseSequence({posePrefix:"default", armList:["FF", "FS", "FC", "AF", "CF"]}); // async
+                if(side=="back") await this.playPoseSequence({posePrefix:"default", armList:["BB", "BS", "CS", "AS"]}); // async
+            })());
         }
-
-        await this.setArmsGrab({duration: 300, wait:false});
-        await utils.sleep(300);
-        
-        // Lift
-        await this.setArmsGrab({liftOffset: 10, duration: 300});
-
+        else {
+            this.addAsyncTask(this.playPoseSequence({posePrefix: side+"Store"}));
+        }
+    
+        this.removeFromMap({component:target.component});
         return true;
     }
     
@@ -732,106 +932,129 @@ module.exports = class Robot2020 extends Robot{
         let result = true;
         
         this.app.logger.log(this.app.intelligence.currentTime, "deposit in build zone");
+        let stageCount = 2;
+        if("stageCount" in parameters) stageCount = parameters.stageCount;
 
-        // List deposit sites
-        let teamColor = parameters.color||this.team;
-        let targetList = []
-        let targetTypes = ["buildMiddle", "buildBottom", "buildBottomSide", "buildBottomCenter"];
-        if(parameters.targetTypes) targetTypes = parameters.targetTypes;
-        for(let type of targetTypes) {
-            targetList.push(...this.app.map.getComponentList(type, teamColor));
+        // Find build zone
+        let target = await this.selectMapComponent({
+            componentTypes: parameters.componentTypes || ["buildMiddle", "buildBottom", "buildBottomSide", "buildBottomCenter"],
+            historyRatio: 0,
+            attemptRatio: 2600,
+            itemCountRatio: 0,
+            maxItemCount: 3
+        })
+        this.app.logger.log("selectedComponent", target);
+        if(!target.component || !target.access){
+            this.app.logger.log("selectedComponent failed", !target.component, !target.access );
+            return false;
         }
-        this.app.logger.log("targetList", targetList)
-        // Indentify closest deposit site
-        let targetElement = null;
-        let targetAccess = null
-        let minLength = 99999999999;
-        let targetDist = 0;
-        for(let elem of targetList){
-            let accessList = []
-            let distMalus = 0;
-            if(elem.elementCount) distMalus = 2600*elem.elementCount;
-            if(elem.elementCount && elem.maxElem && elem.elementCount>=elem.maxElem) continue;
-            if(elem.access) accessList.push(elem.access);
-            if(elem.otherAccess) accessList.push(...elem.otherAccess);
-            if(accessList.length == 0) continue;
-            for(let access of accessList){
-                let path = this.app.map.findPath(this.x, this.y, access.x, access.y);
-                if(path.length<2) continue;
-                if(!this.isMovementPossible(path[1][0], path[1][1])) continue;
-                let pathLength = this.app.map.getPathLength(path);
-                if(pathLength+distMalus<minLength/* && pathLength > 50*/){
-                    minLength = pathLength+distMalus;
-                    targetDist = pathLength;
-                    targetAccess = access;
-                    targetElement = elem;
-                }
-            }
+        this.app.logger.log("depositInBuildZone", target.component.name);
+
+        // Find side
+        let frontElemCount = 0;
+        if(this.variables["clampAFC"].value != "") frontElemCount++;
+        if(this.variables["clampFAC"].value != "") frontElemCount++;
+        if(this.variables["clampFCC"].value != "") frontElemCount++;
+        if(this.variables["clampCFC"].value != "") frontElemCount++;
+        let backElemCount = 0;
+        if(this.variables["clampAS4"].value != "") backElemCount++;
+        if(this.variables["clampAS5"].value != "") backElemCount++;
+        if(this.variables["clampCS4"].value != "") backElemCount++;
+        if(this.variables["clampCS5"].value != "") backElemCount++;
+        if(frontElemCount==0 && backElemCount==0) return false;
+        let side = "";
+        if("side" in parameters) side = parameters.side;
+        if(side == "") {
+            if(frontElemCount > backElemCount) side = "front";
+            else if(backElemCount) side = "back";
         }
-        
-        if(targetElement === null){
-            this.app.logger.log("  -> Target element not found ");
-            return false
+        this.app.logger.log("side", side, frontElemCount, backElemCount);
+        if(side == "") return false;
+        if(side == "front" && frontElemCount<=0) return false;
+        if(side == "back" && backElemCount<=0) return false;
+        let clampLeft = "AFC", clampCenterLeft = "FAC", clampCenterRight="FCC", clampRight="CFC";
+        if(side == "back"){
+            clampLeft = "CS5"; clampCenterLeft = "CS4"; clampCenterRight="AS4"; clampRight="AS5";
         }
-        if(targetAccess === null){
-            this.app.logger.log("  -> No access found for component "+targetElement.name);
-            return false
-        }
-        
+
         //Adapt speed to proximity
         let moveSpeed = parameters.speed||this.app.goals.defaultSpeed;
-        if(minLength < 800) moveSpeed *= 0.5;
+        let angleSpeed = parameters.angleSpeed||this.app.goals.defaultAngleSpeed;
+        if(target.distance < 800) {
+            moveSpeed *= 0.5;
+            angleSpeed *= 0.5;
+        }
 
         let targetAngleOffset = 0;
-        let grabOrientation = targetAccess.angle + targetAngleOffset;
+        if(side=="back") targetAngleOffset = 180;
+        let grabOrientation = target.access.angle + targetAngleOffset;
         result = await this.moveToPosition({
-            x:          targetAccess.x,
-            y:          targetAccess.y,
+            x:          target.access.x,
+            y:          target.access.y,
             angle:      grabOrientation,
             speed:      moveSpeed,
-            angleSpeed: parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
-            nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle
+            angleSpeed: angleSpeed,
+            nearDist:   250||parameters.nearDist||this.app.goals.defaultNearDist,
+            nearAngle:  10||parameters.nearAngle||this.app.goals.defaultNearAngle
         });
-        if(!result) return result;
+        if(!result){
+            // Increase attempt count
+            if(target.component.attempts)  target.component.attempts += 1;
+            else target.component.attempts = 1;
+            return result;
+        }
+
+        // Make sure elements are here
+        //this.addAsyncTask(this.checkHasElements({clamp:clampLeft, value:"C"}));
+        //this.addAsyncTask(this.checkHasElements({clamp:clampCenterLeft, value:"C"}));
+        //this.addAsyncTask(this.checkHasElements({clamp:clampCenterRight, value:"C"}));
+        //this.addAsyncTask(this.checkHasElements({clamp:clampRight, value:"C"}));
+       
         
         // Refine end position
         result = await this.moveCorrectPosition({
-            speed: (parameters.speed||this.app.goals.defaultSpeed)/2
+            speed: parameters.speed/2,
+            angleSpeed: parameters.angleSpeed/2
         });
-        
-        // Simple deposit
-        // Find arms with elements
-        let armList = ["C0","A0","C1","A1","C2", "A2", "CC","AA", "C3", "A3"]
-        if("armList" in parameters) armList = parameters.armList;
-        if(armList.length == 0) return false;    
-        
-        let armsWithElem = [];
-        for(let targetArm of armList) {
-            if(this.variables["arm"+targetArm].value != ""){
-                armsWithElem.push(targetArm);
-            }
+
+        await this.waitAsyncTasks(); // Wait for arms stored
+
+        // Find arm
+        let isBad1Stage = (
+                                this.variables["clamp"+clampCenterLeft].value != ""
+                                && this.variables["clamp"+clampRight].value != ""
+                                && (this.variables["clamp"+clampCenterRight].value == "" || this.variables["clamp"+clampLeft].value == "")
+                               )
+                            || (
+                                this.variables["clamp"+clampCenterRight].value != ""
+                                && this.variables["clamp"+clampLeft].value != ""
+                                && (this.variables["clamp"+clampCenterLeft].value == "" || this.variables["clamp"+clampRight].value == "")
+                               );
+        let is1Stage = this.variables["clamp"+clampCenterLeft].value != ""
+                         && this.variables["clamp"+clampCenterRight].value != "";
+        let is2Stage = is1Stage && this.variables["clamp"+clampLeft].value != ""
+                         && this.variables["clamp"+clampRight].value != "";
+        let isTrash = !is1Stage && !is2Stage && !isBad1Stage;
+        this.app.logger.log("Deposit clamp status", is1Stage, is2Stage, isTrash, isBad1Stage );
+
+        // Build
+        let hasBuilt = false;
+        if((!is1Stage && isBad1Stage) || isTrash){
+            // Open everything to free arms
+            this.addAsyncTask( this.playPoseSequence({posePrefix: side+"FreeAll"}));
         }
-        // Lower arms
-        /*for(let currArm of armsWithElem) {
-            let liftHeight = 180;
-            let liftName="";
-            if(currArm=="CC" || currArm=="AA") { continue; }
-            if(currArm=="C0" || currArm=="A0") { liftHeight = 45; liftName = currArm+"L"; }
-            if(currArm=="C1" || currArm=="A1") { liftHeight = 5; liftName = currArm+"L"; }
-            if(currArm=="C2" || currArm=="A2") { liftHeight = 5; liftName = currArm+"L"; }
-            if(currArm=="C3" || currArm=="A3") { liftHeight = 5; liftName = currArm+"L"; }
-            if(this.modules.arm){
-                await this.modules.arm.setServo({ name: liftName, angle: liftHeight, duration: 500, wait:false});
-            }
-        }*/
+        else {
+            await 
+            this.addAsyncTask( this.playPoseSequence({posePrefix: side+"Build"}));
+            hasBuilt = true;
+        }
 
         // Move forward
-        let forwardDist = 300;
-        if(targetElement.maxElem==1) forwardDist = 150
-        if(targetElement.elementCount) forwardDist-= 50 * targetElement.elementCount;
+        let forwardDist = 450;
+        if(target.component.itemCount) forwardDist -= 175 * target.component.itemCount;
+        if(target.component.maxItemCount==1) forwardDist = 150;
         result = await this.moveAtAngle({
-            angle: targetAccess.angle,
+            angle: target.access.angle,
             distance: forwardDist ,
             speed: 0.3||parameters.speed||this.app.goals.defaultSpeed,
             angleSpeed: 50||parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
@@ -840,34 +1063,41 @@ module.exports = class Robot2020 extends Robot{
             preventLocalisation: true
         });
         if(!result) return result;
-        
-        // Prepare release
-        await this.setArmsPreRelease({});
-        await utils.sleep(500);
+        await this.waitAsyncTasks();
 
-        // Release elements
-        await this.setArmsRelease({});
-        for(let currArm of armsWithElem) {
-            this.setVariable({name:"arm"+currArm, value:""});
-        }
+        await this.setVariable({name:"clamp"+clampLeft, value:""});
+        await this.setVariable({name:"clamp"+clampCenterLeft, value:""});
+        await this.setVariable({name:"clamp"+clampCenterRight, value:""});
+        await this.setVariable({name:"clamp"+clampRight, value:""});
 
-        if(targetElement.elementCount)  targetElement.elementCount += 1;
-        else targetElement.elementCount = 1;
+        if(target.component.itemCount) target.component.itemCount += 1;
+        else target.component.itemCount = 1;
 
-        this.addScore(4);
+        if(is1Stage || isBad1Stage) await this.addScore(4);
+        if(is2Stage) await this.addScore(8);
         
         // Backward
+        let backwardDist = -450;
+        if(target.component.type == "buildBottomSide") backwardDist = -300;
         await this.moveAtAngle({
-            angle: grabOrientation,
-            distance: -200,
+            angle: target.access.angle,
+            distance: backwardDist,
             speed: 0.5,
             angleSpeed: parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
             nearDist:   50,
             nearAngle:  5,
             preventLocalisation: true
         });
-        await this.setArmsPacked({armList:armsWithElem, wait: false});
-        
+
+
+        if(!hasBuilt){
+            await this.waitAsyncTasks();
+            this.addAsyncTask( (async ()=>{
+                //await this.playPoseSequence({posePrefix:"frontStore"});
+                if(side=="front") await this.playPoseSequence({posePrefix:"default", armList:["FF", "FS", "FC", "AF", "CF"]}); // async
+                if(side=="back") await this.playPoseSequence({posePrefix:"default", armList:["BB", "BS", "CS", "AS"]}); // async
+            })());
+        } 
         if(!result) return result;
         return result;
     }
@@ -882,7 +1112,7 @@ module.exports = class Robot2020 extends Robot{
     }
     
     async testOrientation(parameters){
-        this.setArmsPacked({});
+        //this.setArmsPacked({});
         this._updatePosition(1500, 1000, 0, true);
         this.lastTarget.x = this.x;
         this.lastTarget.y = this.y;
@@ -902,7 +1132,7 @@ module.exports = class Robot2020 extends Robot{
     }
     
     async testDistance(parameters){
-        this.setArmsPacked({});
+        //this.setArmsPacked({});
         this._updatePosition(1500, 1000, 0, true);
         this.lastTarget.x = this.x;
         this.lastTarget.y = this.y;
@@ -917,6 +1147,8 @@ module.exports = class Robot2020 extends Robot{
             nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
             nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
             accelDist:  parameters.accelDist||this.app.goals.defaultAccel,
+            deccelDist: parameters.accelDist||this.app.goals.defaultAccel,
+            accelAngle:  parameters.accelAngle||this.app.goals.defaultAccelAngle,
             preventLocalisation: true
         });
         
@@ -924,7 +1156,7 @@ module.exports = class Robot2020 extends Robot{
     }
     
     async testAngle(parameters){
-        this.setArmsPacked({});
+        //this.setArmsPacked({});
         this._updatePosition(1500, 1000, 0, true);
         this.lastTarget.x = this.x;
         this.lastTarget.y = this.y;
@@ -961,188 +1193,48 @@ module.exports = class Robot2020 extends Robot{
         return true;
     }
     
-    async returnToEndZone(parameters){
-        let result = true;
-        this.setVariable({name:"endReached", value:false});
-        
-        // List deposit sites
-        let teamColor = parameters.color||this.team;
-        let plateList = []
-        let platesTypes = ["plateProtected", "plateMiddleTop", "plateMiddleBottom", "plateBottomSide", "plateBottom"];
-        if(parameters.plateTypes) platesTypes = parameters.plateTypes;
-        for(let type of platesTypes) {
-            plateList.push(...this.app.map.getComponentList(type, teamColor));
-        }
-        // Identify if we're already in the good end zone
-        let actualEndZoneValue = 0;
-        let maxZoneValue = 0;
-        let maxZone = null;
-        for(let zone of plateList){
-            if(zone.name == this.variables.endZone.value){
-                if(zone.endZone) actualEndZoneValue = zone.endZone;
-            }
-            let zoneValue = 0;
-            if(zone.endZone) zoneValue = zone.endZone;
-            if(maxZoneValue<zoneValue){
-                maxZoneValue = zoneValue;
-                maxZone = zone;
-            }
-        }
-        if(actualEndZoneValue != maxZoneValue && !parameters.ignoreSelected){
-            plateList = [maxZone];
-        }
-        
-        // Indentify closest deposit site
-        let targetPlate = null;
-        let targetAccess = null
-        let minLength = 99999999999;
-        for(let plate of plateList){
-            if(plate.cakes) continue;
-            let accessList = []
-            if(plate.access) accessList.push(plate.access);
-            if(plate.otherAccess) accessList.push(...plate.otherAccess);
-            if(plate.endAccess) accessList = [...plate.endAccess];
-            if(accessList.length == 0) continue;
-            let isActualZone = this.variables.endZone.value == plate.name;
-            for(let access of accessList){
-                let path = this.app.map.findPath(this.x, this.y, access.x, access.y);
-                if(path.length<2) continue;
-                if(!this.isMovementPossible(path[1][0], path[1][1])) continue;
-                let pathLength = this.app.map.getPathLength(path);
-                if (pathLength<minLength && !isActualZone && pathLength > 50){
-                    minLength = pathLength;
-                    targetAccess = access;
-                    targetPlate = plate;
-                }
-            }
-        }
-        
-        if(targetPlate === null){
-            this.app.logger.log("  -> Target plate not found ");
-            return false
-        }
-        if(targetAccess === null){
-            this.app.logger.log("  -> No access found for component "+targetPlate.name);
-            return false
-        }
-        
-        // Send new end zone info
-        if(parameters.ignoreSelected || maxZoneValue==0){
-            this.updateMapComponent({component: targetPlate, diff:{endZone: maxZoneValue+1}});
-        }
-        this.setVariable({name:"endZone", value:targetPlate.name});
-        
-        // Lower arms before deposit
-        await this.setArmToLayer({name:"ACG", layer:0, open:false, transport: true});
-        await this.setArmToLayer({name:"ABG", layer:0, open:false, transport: true});
-        await this.setArmToLayer({name:"BCG", layer:0, open:false, transport: true});
-        
-        // Move to plate
-        this.app.logger.log("  -> Moving to end zone "+targetPlate.name);
-        result = await this.moveToPosition({
-            x:          targetAccess.x,
-            y:          targetAccess.y,
-            angle:      targetAccess.angle,
-            speed:      parameters.speed||this.app.goals.defaultSpeed,
-            angleSpeed: parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
-            nearDist:   200,
-            nearAngle:  20
-        });
-        if(!result) return result;
-        
-        let collisionDistanceBackup = this.collisionDistance;
-        this.collisionDistance = this.radius+50;
-        result = await this.moveCorrectPosition({
-            speed: parameters.speed||this.app.goals.defaultSpeed
-        });
-        if(!result){
-            this.collisionDistance = collisionDistanceBackup;
-            return result;
-        }
-        
-        // Move forward
-        result = await this.moveAtAngle({
-            angle: targetAccess.angle,
-            distance: 75,
-            speed:      parameters.speed||this.app.goals.defaultSpeed,
-            nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
-            preventLocalisation: true
-        });
-        this.collisionDistance = collisionDistanceBackup;
-        if(!result) return result;
-        this.setVariable({name:"endReached", value:true});
-        return result;
-    }
-    
     async returnToSpecificEndZone(parameters){
         let result = true;
         
         this.app.logger.log(this.app.intelligence.currentTime, "return to specific end zone", parameters)
         
         //Remove every element on the map
-        let plantList = this.app.map.getComponentList(["element"]);
-        for(let plant of plantList){
-            this.app.logger.log("remove before end zone", plant.name);
-            this.removeFromMap({component: plant});
+        let elementList = this.app.map.getComponentList(["element"]);
+        for(let elem of elementList){
+            this.app.logger.log("remove before end zone", elem.name);
+            this.removeFromMap({component: elem});
         }
         
         //await this.armFreePlants({});
-        
-        // List deposit sites
-        let teamColor = parameters.color||this.team;
-        let zoneList = []
-        let zonesTypes = ["buildReserved"];
-        if(parameters.zoneTypes) zonesTypes = parameters.zoneTypes;
-        for(let type of zonesTypes) {
-            zoneList.push(...this.app.map.getComponentList(type, teamColor));
+
+        // Find end zone
+        let target = await this.selectMapComponent({
+            componentTypes: parameters.componentTypes || ["buildReserved"],
+            historyRatio: 0,
+            attemptRatio: 2600,
+            access: false,
+            otherAccess: false,
+            endAccess: true
+        })
+        this.app.logger.log("selectedComponent", target);
+        if(!target.component || !target.access){
+            this.app.logger.log("selectedComponent failed", !target.component, !target.access );
+            return false;
         }
-        
-        
-        // Indentify closest zone
-        let targetZone = null;
-        let targetAccess = null
-        let minLength = 99999999999;
-        for(let zone of zoneList){
-            if(zone.name == this.variables.startZone.value) continue;
-            //if(zone.cakes) continue;
-            let accessList = []
-            if(zone.access) accessList.push(zone.access);
-            if(zone.otherAccess) accessList.push(...zone.otherAccess);
-            if(zone.endAccess) accessList = [...zone.endAccess];
-            if(accessList.length == 0) continue;
-            for(let access of accessList){
-                let path = this.app.map.findPath(this.x, this.y, access.x, access.y);
-                if(path.length<2) continue;
-                if(!this.isMovementPossible(path[1][0], path[1][1])) continue;
-                let pathLength = this.app.map.getPathLength(path);
-                if (pathLength<minLength && pathLength > 50){
-                    minLength = pathLength;
-                    targetAccess = access;
-                    targetZone = zone;
-                }
-            }
-        }
-        
-        if(targetZone === null){
-            this.app.logger.log("  -> Target zone not found ");
-            return false
-        }
-        if(targetAccess === null){
-            this.app.logger.log("  -> No access found for component "+targetZone.name);
-            return false
-        }
-        
-        
+        this.app.logger.log("returnToSpecificEndZone", target.component.name);
+        // Increase attempt count
+        if(target.component.attempts)  target.component.attempts += 1;
+        else target.component.attempts = 1;
+
         // Move to zone
-        this.app.logger.log("  -> Moving to end zone "+targetZone.name);
         result = await this.moveToPosition({
-            x:          targetAccess.x,
-            y:          targetAccess.y,
-            angle:      targetAccess.angle,
+            x:          target.access.x,
+            y:          target.access.y,
+            angle:      target.access.angle,
             speed:      parameters.speed||this.app.goals.defaultSpeed,
+            angleSpeed: parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
             accelDist:  parameters.accelDist||this.defaultAccel,
-            deccelDist:  2*(parameters.accelDist||this.defaultAccel),
+            deccelDist: parameters.accelDist||this.defaultAccel,
             nearDist:   200,
             nearAngle:  20
         });
@@ -1158,29 +1250,38 @@ module.exports = class Robot2020 extends Robot{
             return result;
         }
 
-        await this.setArmsPreGrab({armList:["C0", "A0"], duration:200, wait:false});
+        // Wait for PAMI timing
+        while(this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-4000){ //ms 
+            await utils.sleep(200);
+        }
         
-        // Move forward
+        // Move to end zone access, not endAccess
+        result = await this.moveToPosition({
+            x:          target.component.access.x,
+            y:          target.component.access.y,
+            angle:      target.component.access.angle,
+            speed:      parameters.speed||this.app.goals.defaultSpeed,
+            angleSpeed: parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
+            accelDist:  parameters.accelDist||this.defaultAccel,
+            deccelDist:  parameters.accelDist||this.defaultAccel,
+            nearDist:   200,
+            nearAngle:  20
+        });
+        this.collisionDistance = collisionDistanceBackup;
+        if(!result) return result;
+        await this.setVariable({name:"endReached", value:true});
+        this.app.logger.log("Adding end zone point");
+        await this.addScore(10);
+        
+        // Move along zone access, not along endAccess
         result = await this.moveAtAngle({
-            angle: targetAccess.angle,
-            distance: 100,
+            angle: target.component.access.angle,
+            distance: 200,
             speed:      parameters.speed||this.app.goals.defaultSpeed,
             nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
             nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
             preventLocalisation: true
         });
-        this.collisionDistance = collisionDistanceBackup;
-        if(!result) return result;
-        this.setVariable({name:"endReached", value:true});
-        
-        /*result = await this.moveAtAngle({
-            angle: targetAccess.angle,
-            distance: -200,
-            speed:      parameters.speed||this.app.goals.defaultSpeed,
-            nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
-            nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
-            preventLocalisation: true
-        });*/
         
         // Wait for other robot to reach zone
         /*while(this.app.intelligence.currentTime <= this.app.intelligence.matchDuration-200){ //ms            
@@ -1194,18 +1295,16 @@ module.exports = class Robot2020 extends Robot{
                 if(distance < 800){
                     // add score
                     this.app.logger.log("Adding 15 point for end zone with friend");
-                    this.addScore(15);
+                    await this.addScore(15);
                     break;
                 }
             }
             await utils.sleep(200);
         }*/
-        this.app.logger.log("Adding end zone point");
-        this.addScore(10);
         
         
         //this.app.logger.log("Adding funny action point");
-        //this.addScore(5);
+        //await this.addScore(5);
                     
         return result;
     }
@@ -1222,7 +1321,7 @@ module.exports = class Robot2020 extends Robot{
         result = await this.moveToComponent({ component: endingArea, speed: 0.4 });
         if(!result) return result;
         
-        this.addScore(20);
+        await this.addScore(20);
         return true;
     }*/
     async dance2023(){

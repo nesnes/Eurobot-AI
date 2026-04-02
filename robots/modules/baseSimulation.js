@@ -85,6 +85,7 @@ module.exports = class Base {
     }
 
     async moveXY(params){
+        this.moveBreak = false;
         this.moveCount++;
         this.moveStatus = "run";
         let move = async (params) => {

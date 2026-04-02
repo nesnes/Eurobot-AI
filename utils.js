@@ -58,20 +58,32 @@ exports.rotateLine = function(x1,y1,x2,y2, angle){
 
 var utils_dgram = require('dgram')
 var utils_udp_client = utils_dgram.createSocket('udp4');
+//var utils_teleplot_adr = "192.168.254.101";
+var utils_teleplot_adr = "192.168.0.26";
+
+exports.teleplotEnabled = true;
 
 exports.sendTeleplot = function(name, value, unit="_", flags="g"){
-    let packet = name+":"+value+"§"+unit+"|"+flags;
-    utils_udp_client.send(packet, 47269, "192.168.254.100");
+    let packet = name+":"+(new Date()).getTime()+":"+value+"§"+unit+"|"+flags;
+    utils_udp_client.send(packet, 47269, utils_teleplot_adr);
 }
 
-exports.sendTeleplot3D = function(name, array2D){
+exports.sendTeleplotCube = function(name, x,y,z, width,height,depth, roll,pitch,yaw, color){
+    let packet = "3D|"+name+":"+(new Date()).getTime()+":S:cube:C:"+color
+        +":P:"+x+":"+y+":"+z
+        +":R:"+roll+":"+pitch+":"+yaw
+        +":W:"+width+":H:"+height+":D:"+depth;
+    utils_udp_client.send(packet, 47269, utils_teleplot_adr);
+}
+
+exports.sendTeleplot3DSensor = function(name, array2D){
     let i = 0;
     let log = ""
     let y=0,x=0;
     for(let row of array2D){
         for(let val of row){
             let packet = "3D|"+(""+x+"_"+y)+","+name+":S:cube:P:"+x+":"+y+":"+(val/10)+":W:1:D:1:H:0.1";
-            utils_udp_client.send(packet, 47269, "192.168.254.100");
+            utils_udp_client.send(packet, 47269, utils_teleplot_adr);
             x++;
         }
         y++;

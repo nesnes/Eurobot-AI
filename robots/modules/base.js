@@ -102,7 +102,11 @@ module.exports = class Base {
             if(!response) return false;
             let posArray = response.split(" ");
             if(posArray.length == 6 && ["run","near","end"].includes(posArray[0])){
-                return {status: posArray[0], x: parseInt(posArray[1]), y: parseInt(posArray[2]), angle: parseInt(posArray[3]), speed: parseInt(posArray[4])/100, pathIndex: parseInt(posArray[5])}
+                response = {status: posArray[0], x: parseInt(posArray[1]), y: parseInt(posArray[2]), angle: parseInt(posArray[3]), speed: parseInt(posArray[4])/100, pathIndex: parseInt(posArray[5])}
+                if(utils.teleplotEnabled){
+                    // Send localisation position
+                    utils.sendTeleplotCube( "baseLoc,map3D", response.x/1000, response.y/1000, 0.5, 0.04, 1.0, 0.04, 0, 0, 0, "violet");
+                }
             }
             return response;
         }

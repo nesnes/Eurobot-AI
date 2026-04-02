@@ -11,6 +11,7 @@ module.exports = class Intelligence {
                                       // minus 10 senconds for PAMI avoidance
         this.hasBeenRun = false;
         this.stopExecution = true;
+        this.lastSend = 0;
     }
 
     async init(){
@@ -23,7 +24,7 @@ module.exports = class Intelligence {
             //Nothing
         }
         else{
-            this.matchDuration -= 10*1000;
+            //this.matchDuration -= 10*1000;
         }
         this.app.logger.log("Match duration: "+(this.matchDuration/1000)+"s");
 
@@ -75,7 +76,11 @@ module.exports = class Intelligence {
         }
     }
 
-    send(){
+    send(force=false){
+        let now = new Date().getTime();
+        if(!force && now - this.lastSend < 500) return;
+        this.lastSend = now;
+
         let payload = {
             currentTime: this.currentTime/1000,
             running: !this.stopExecution,
@@ -86,6 +91,10 @@ module.exports = class Intelligence {
             payload: JSON.stringify(payload),
             qos: 0, retain: false
         });
+
+        if(utils.teleplotEnabled){
+            utils.sendTeleplot("currentTime", this.currentTime/1000, "s");
+        }
     }
 
     async close(){
@@ -147,6 +156,7 @@ module.exports = class Intelligence {
                 //Run goal
                 if(goal.condition()){
                     goalFound = true;
+                    utils.sendTeleplot("Goal", goal.name, "_", "txt");
                     await this.runGoal(goal);
                     await utils.sleep(10);
                 }
@@ -160,6 +170,7 @@ module.exports = class Intelligence {
     async runGoal(goal){
         this.app.logger.log("Running"+goal.name);
         goal.status = "running"
+        utils.sendTeleplot("goal.status", goal.status, "_", "txt");
         let success = true;
         for(const action of goal.actions){
             if("team" in action && action.team != this.app.robot.team) continue;
@@ -167,6 +178,7 @@ module.exports = class Intelligence {
             if(!success) break;
         }
         goal.status = success?"done":"failed";
+        utils.sendTeleplot("goal.status", goal.status, "_", "txt");
         if(success) goal.executionCount--;
         else await utils.sleep(50); // avoid error burst on locked action list
         this.app.goals.send(); //Notify UI
@@ -187,6 +199,7 @@ module.exports = class Intelligence {
         //Run on robot
         action.status = "running"
         this.app.goals.send(); //Notify UI
+        utils.sendTeleplot("action", action.name, "_", "txt");
         let success = await this.app.robot.run(action);
         action.status = success?"done":"failed";
         this.app.logger.log(action.status);

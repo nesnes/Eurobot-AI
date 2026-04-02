@@ -140,6 +140,9 @@ module.exports = class Robot {
             this.team = preset.team;
         }
         this.send();
+        if(this.app.map){
+            this.app.map.sendGrid(this.app.map.createGrid());
+        }
     }
 
     async initMatch(){
@@ -166,34 +169,52 @@ module.exports = class Robot {
         //Other specific end actions should be defined in year-dedicated robot file
     }
 
-    send(force=false){
+    send(force=false, forceTeleplot=false){
         let now = new Date().getTime();
-        if(!force && now - this.lastSend < 500) return;
-        this.lastSend = now;
-        
-        let payload = {
-            name: this.name,
-            x: this.x,
-            y: this.y,
-            angle: this.angle,
-            score: this.score,
-            variables: this.variables,
-            team: this.team,
-            radius: this.radius,
-            speed: this.speed,
-            angleSpeed: this.angleSpeed,
-            movementAngle: this.movementAngle,
-            collisionAngle: this.collisionAngle,
-            collisionDistance: this.collisionDistance,
-            slowdownAngle: this.slowdownAngle,
-            slowdownDistance: this.slowdownDistance+(Math.abs(this.speed)*this.slowdownDistanceOffset),
-            slowdown: this.slowdown
+        let sendMQTT = force || now - this.lastSend > 500;
+        let sendTeleplot = sendMQTT || forceTeleplot;
+        if(sendMQTT){
+            this.lastSend = now;
+            let payload = {
+                name: this.name,
+                x: this.x,
+                y: this.y,
+                angle: this.angle,
+                score: this.score,
+                variables: this.variables,
+                team: this.team,
+                radius: this.radius,
+                speed: this.speed,
+                angleSpeed: this.angleSpeed,
+                movementAngle: this.movementAngle,
+                collisionAngle: this.collisionAngle,
+                collisionDistance: this.collisionDistance,
+                slowdownAngle: this.slowdownAngle,
+                slowdownDistance: this.slowdownDistance+(Math.abs(this.speed)*this.slowdownDistanceOffset),
+                slowdown: this.slowdown
+            }
+            this.app.mqttServer.publish({
+                topic: '/robot',
+                payload: JSON.stringify(payload),
+                qos: 0, retain: false
+            });
         }
-        this.app.mqttServer.publish({
-            topic: '/robot',
-            payload: JSON.stringify(payload),
-            qos: 0, retain: false
-        });
+
+        if(sendTeleplot && utils.teleplotEnabled){
+            utils.sendTeleplotCube(
+                "robot,map3D",
+                this.x/1000, this.y/1000, 0.215,
+                this.radius*2/1000, 0.43, this.radius*2.5/1000,
+                0, 0, -this.angle*(Math.PI/180), this.team || "red"
+            );
+            utils.sendTeleplot("robot.x,moveX", this.x, "mm");
+            utils.sendTeleplot("robot.y,moveY", this.y, "mm");
+            utils.sendTeleplot("robot.angle,moveAngle", this.angle, "deg");
+            for(let variable in this.variables){
+                utils.sendTeleplot(variable, this.variables[variable].value, "_", "txt");
+            }
+            utils.sendTeleplot("robot.score", this.score);
+        }
     }
 
     sendModules(){
@@ -365,7 +386,7 @@ module.exports = class Robot {
             let resetTarget = 1;
             if(parameters && ("resetTarget" in parameters) && !parameters.resetTarget) resetTarget = 0;
             if(this.modules.base) await this.modules.base.setPosition({x:this.x, y:this.y, angle:this.angle, resetTarget:resetTarget});
-            this.send();
+            this.send(true);
         }
         return true;
     }
@@ -431,7 +452,7 @@ module.exports = class Robot {
             y: this.lastTarget.y,
             angle: this.lastTarget.angle,
             speed: 0.2,
-            nearDist: 20,
+            nearDist: 40,
             nearAngle: 3,
             preventLocalisation: false,
             preventBreak: false
@@ -539,23 +560,8 @@ module.exports = class Robot {
             }
             if(distAngle < 5) angleSpeed = minAngleSpeed;
             
-            /*utils.sendTeleplot("speed", speed, "m/s");
-            utils.sendTeleplot("distToDecelerate", distToDecelerate, "mm");
-            utils.sendTeleplot("distToEnd", distToEnd, "mm");
-            
-            utils.sendTeleplot("angleSpeed", angleSpeed, "m/s");
-            utils.sendTeleplot("angleToDecelerate", angleToDecelerate, "mm");
-            utils.sendTeleplot("distAngle", distAngle, "mm");
-            utils.sendTeleplot("parameters.angle", parameters.angle, "deg");
-            utils.sendTeleplot("this.angle", this.angle, "deg");
-            
-            utils.sendTeleplot("timeDiff", timeDiff, "s");*/
-            
-            
             //console.log("distToEnd", distToEnd, "targetSpeed", speed, "measuredSpeed", this.speed, "distToDecelerate", distToDecelerate)
             //console.log("distAngle", distAngle, "targetSpeed", angleSpeed, "measuredSpeed", this.angleSpeed, "angleToDecelerate", angleToDecelerate)
-            
-            
             
             //if(speed < minSpeed) speed = minSpeed;
             
@@ -594,6 +600,21 @@ module.exports = class Robot {
                 break;
             }
 
+            utils.sendTeleplotCube( "move.target,map3D", targetX/1000, targetY/1000, 0.5, 0.04, 1.0, 0.04, 0, 0, 0, "blue");
+            utils.sendTeleplot("move.speed", speed, "m/s");
+            utils.sendTeleplot("move.target.x,moveX", targetX, "mm");
+            utils.sendTeleplot("move.target.y,moveY", targetY, "mm");
+            
+            utils.sendTeleplot("move.angleSpeed", angleSpeed, "deg/s");
+            utils.sendTeleplot("move.target.angle,moveAngle", targetAngle, "deg");
+            
+            utils.sendTeleplot("move.distAngle,distAngle", distAngle, "deg");
+            utils.sendTeleplot("move.nearAngle,distAngle", nearAngle, "deg");
+
+            utils.sendTeleplot("move.distToEnd,moveDist", distToEnd, "mm");
+            utils.sendTeleplot("move.nearDist,moveDist", nearDist, "mm");
+            this.send(false, true)
+
             if(this.modules.base){
                 success = success && !!await this.modules.base.moveXY({
                     x:targetX, y:targetY, angle:targetAngle,
@@ -607,11 +628,12 @@ module.exports = class Robot {
                 return true;
             }
             
-            /*console.log("shouldStop",
+            /*console.log("success", success, "shouldStop",
                 distToEnd <= nearDist,
                 distAngle <= nearAngle,
                 Math.abs(this.speed) <= minSpeed * 1.1,
-                Math.abs(this.angleSpeed) <= minAngleSpeed * 1.1 
+                Math.abs(this.angleSpeed) <= minAngleSpeed * 1.1 ,
+                " dist ", distToEnd, "<", nearDist, "   ang", distAngle,"<", nearAngle
             )*/
             if(distToEnd <= nearDist && distAngle <= nearAngle
                 && Math.abs(this.speed) <= minSpeed * 1.1 
@@ -735,6 +757,9 @@ module.exports = class Robot {
             y:y2,
             angle: endAngle,
             speed:parameters.speed,
+            accelDist:parameters.accelDist,
+            deccelDist:parameters.deccelDist,
+            accelAngle:parameters.accelAngle,
             angleSpeed: parameters.angleSpeed || undefined,
             preventPathFinding: true,
             nearDist: parameters.nearDist,

@@ -1,4 +1,5 @@
 'use strict';
+const utils = require("../utils")
 var PF = require('pathfinding');
 const Astar = require('./astar.js');
 
@@ -49,6 +50,22 @@ module.exports = class Map {
             payload: JSON.stringify(payload),
             qos: 0, retain: false
         });
+
+        if(utils.teleplotEnabled){
+            // Send map borders
+            //utils.sendTeleplotCube( "x1,map3D",  1, 0, 0,   0.1, 0.1, 0.1,   0, 0, 0, "red"  );
+            //utils.sendTeleplotCube( "y1,map3D",  0, 2, 0,   0.1, 0.1, 0.1,   0, 0, 0, "blue"  );
+            utils.sendTeleplotCube( "wallLeft,map3D",   0,                 this.height/1000/2, 0.035, 0.025,           0.07, this.height/1000,   0, 0, 0, "grey"  );
+            utils.sendTeleplotCube( "wallRight,map3D",  this.width/1000,   this.height/1000/2, 0.035, 0.025,           0.07, this.height/1000,   0, 0, 0, "grey"  );
+            utils.sendTeleplotCube( "wallTop,map3D",    this.width/1000/2, 0,                  0.035, this.width/1000, 0.07, 0.025,              0, 0, 0, "grey"  );
+            utils.sendTeleplotCube( "wallBottom,map3D", this.width/1000/2, this.height/1000,   0.035, this.width/1000, 0.07, 0.025,              0, 0, 0, "grey"  );
+            // Send components
+            for(const item of this.app.map.components){
+                if(item.shape && item.shape.type == "rectangle"){
+                    utils.sendTeleplotCube( item.name.replace(" ","_")+",map3D", (item.shape.x+item.shape.width/2)/1000, (item.shape.y+item.shape.height/2)/1000,   0, item.shape.width/1000, 0.01, item.shape.height/1000,              0, 0, 0, item.shape.color  );
+                }
+            }
+        }
     }
 
     getComponent(type, team){
@@ -151,10 +168,23 @@ module.exports = class Map {
         });
     }
 
+    getAvoidOffset(component){
+        let avoidOffset = 0;
+        if("avoidOffset" in component){
+            if(component.avoidOffset instanceof Function){
+                avoidOffset = component.avoidOffset(this.app, component);
+            }
+            else {
+                avoidOffset = component.avoidOffset;
+            }
+        }
+        return avoidOffset;
+    }
+
     isContainedIn(x, y, component, useRobotRadius=true){
         if(!component) return false;
         let robotRadius = useRobotRadius?this.app.robot.radius:0;
-        let avoidOffset = component.avoidOffset || 0;
+        let avoidOffset = this.getAvoidOffset(component);
         if(component.shape.type == "rectangle"){
             let fromX = component.shape.x-robotRadius - avoidOffset;
             let toX = component.shape.x+component.shape.width+robotRadius+Math.abs(avoidOffset)*2;
@@ -184,6 +214,7 @@ module.exports = class Map {
     createGrid(xFrom, yFrom, xTo, yTo){
         this._updateMap();
         //let grid = new PF.Grid(Math.ceil(this.width/this.pathResolution), Math.ceil(this.height/this.pathResolution));
+        // Initialize grid size
         let gridWidth = Math.ceil(this.width/this.pathResolution);
         let gridHeight = Math.ceil(this.height/this.pathResolution);
         let grid = [];
@@ -194,14 +225,19 @@ module.exports = class Map {
             }
         }
         let graph = new Astar.Graph(grid, {diagonal: true});
+        //Check is shaould incorporate start/end points
+        let handleStartEnd = xFrom!==undefined && yFrom!==undefined && xTo!==undefined && yTo!==undefined;
+        // Add items to grid
         for(const item of this.app.map.components){
             let offsetWeight = 0;
-            if(this.isContainedIn(xFrom, yFrom, item) || this.isContainedIn(xTo, yTo, item)){
-                //if(item.isSolid) return false;
-                offsetWeight = 2;
-                //continue;
+            if(handleStartEnd){
+                if(this.isContainedIn(xFrom, yFrom, item) || this.isContainedIn(xTo, yTo, item)){
+                    //if(item.isSolid) return false;
+                    offsetWeight = 2;
+                    //continue;
+                }
             }
-            let avoidOffset = item.avoidOffset || 0;
+            let avoidOffset = this.getAvoidOffset(item);
             if(item.shape.type == "rectangle"){
                 //Compute rectangle extended by the robot radius
                 let fromX = (item.shape.x-this.app.robot.radius - avoidOffset);
@@ -286,8 +322,10 @@ module.exports = class Map {
 
         //Free start and end cells      
         //console.log(graph.grid[30][30])  
-        graph.grid[Math.floor(xFrom/this.pathResolution)][Math.floor(yFrom/this.pathResolution)].weight = 1;
-        graph.grid[Math.floor(xTo/this.pathResolution)][Math.floor(yTo/this.pathResolution)].weight = 1;
+        if(handleStartEnd){
+            graph.grid[Math.floor(xFrom/this.pathResolution)][Math.floor(yFrom/this.pathResolution)].weight = 1;
+            graph.grid[Math.floor(xTo/this.pathResolution)][Math.floor(yTo/this.pathResolution)].weight = 1;
+        }
         return graph;
     }
 
@@ -389,7 +427,7 @@ module.exports = class Map {
     addToHistory(item) {
         let gridWidth = Math.ceil(this.width/this.pathResolution);
         let gridHeight = Math.ceil(this.height/this.pathResolution);
-        let avoidOffset = item.avoidOffset || 0;
+        let avoidOffset = this.getAvoidOffset(item);
         if(item.shape.type == "rectangle"){
             //Compute rectangle extended by the robot radius
             let fromX = (item.shape.x-this.app.robot.radius - avoidOffset);

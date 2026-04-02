@@ -1511,7 +1511,7 @@ module.exports = class Robot2020 extends Robot{
         telem = await this.modules.arm.getTelemeter({name:"A"});
         let telem2D = await this.modules.arm.telemeterTo2D(telem, 8, 3);
         this.app.logger.log("telemeter2D ", telem2D)
-        await utils.sendTeleplot3D("telemA", telem2D);
+        await utils.sendTeleplot3DSensor("telemA", telem2D);
         
         if(!telem) return false;
         
