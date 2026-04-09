@@ -2,7 +2,7 @@
 #define LIDAR_LOCALISATION_H
 
 #define LIDAR_LOCALISATION_MAX_MAP_SIZE 100
-#define LIDAR_LOCALISATION_MAX_POS_CANDIDATES 1500
+#define LIDAR_LOCALISATION_MAX_POS_CANDIDATES 10000
 #define LIDAR_LOCALISATION_MAX_POINT_CLOUD_SIZE 600
 
 struct LidarLocMeasure {
@@ -68,15 +68,19 @@ public:
     }
   }
 
-  LidarLocPosition generateRandomPosition(LidarLocPosition const& origin, float const xyRange, float const angleRange){
+  LidarLocPosition generateRandomPosition(LidarLocPosition const& origin, float const xyRange, float const angleRange, float minX=0, float maxX=3000, float minY = -2000, float maxY = 0){
     LidarLocPosition position;
-    position.x = origin.x + xyRange/2.f * (float)(random(-10000, 10000))/10000.f;
-    position.y = origin.y + xyRange/2.f * (float)(random(-10000, 10000))/10000.f;
-    position.angle = origin.angle + angleRange/2.f * (float)(random(-10000, 10000))/10000.f;
+    while(1){
+      position.x = origin.x + xyRange/2.f * (float)(random(-10000, 10000))/10000.f;
+      position.y = origin.y + xyRange/2.f * (float)(random(-10000, 10000))/10000.f;
+      position.angle = origin.angle + angleRange/2.f * (float)(random(-10000, 10000))/10000.f;
+      // if position is within range, break, else regenerate
+      if(minX < position.x && position.x < maxX && minY < position.y && position.y < maxY){ break; }
+    }
     return position;
   }
 
-  float matchPosition(LidarLocPosition const& targetPosition, uint16_t skipping=1){
+  float matchPosition(LidarLocPosition const& targetPosition, uint16_t skipping=1, float minMatchCount = 60){
     float score = 0;
     float meanDist = 0;
     float matchCount = 0;
@@ -104,12 +108,12 @@ public:
     return score;
   };
 
-  float evaluateCandidate(LidarLocPosition const& targetPosition, uint16_t skipping=1){
+  float evaluateCandidate(LidarLocPosition const& targetPosition, uint16_t skipping=1, float minMatchCount = 60){
     if(candidateIdx>=LIDAR_LOCALISATION_MAX_POS_CANDIDATES) return -1.f;
     candidates[candidateIdx].position.x = targetPosition.x;
     candidates[candidateIdx].position.y = targetPosition.y;
     candidates[candidateIdx].position.angle = targetPosition.angle;
-    float score = matchPosition(targetPosition, skipping);
+    float score = matchPosition(targetPosition, skipping, minMatchCount);
     candidates[candidateIdx].score = score;
     candidateIdx++;
     return score;    
@@ -126,11 +130,11 @@ public:
         bestIdx = i;
       }
     }
-    if(bestIdx<candidateIdx) return candidates[bestIdx];
+    if(maxScore>0) return candidates[bestIdx];
     return LidarLocPositionCandidate();
   };
 
-  uint16_t getCandidateCount(){ return candidateIdx; };
+  int32_t getCandidateCount(){ return candidateIdx; };
 
   void clearCandidates(){
     candidateIdx = 0;
@@ -146,7 +150,7 @@ public:
         Serial.print(String()+(lineMap[i].p1.x+dx)+":"+(lineMap[i].p1.y+dy)+";");
       }
     }
-    Serial.println(F("|xy"));
+    Serial.println(F("|xy,clr"));
 
     // Plot cloud
     Serial.print(F(">localisation.cloud,wloc:"));
@@ -157,14 +161,14 @@ public:
       float measureY = targetPosition.y - measure->distance * sin((measure->angle + targetPosition.angle) * PI / 180.f);
       Serial.print(String()+measureX+":"+measureY+";");
     }
-    Serial.println(F("|xy"));
+    Serial.println(F("|xy,clr"));
 
     // Plot candidates
     Serial.print(F(">localisation.candidates,wloc:"));
-    for(uint16_t i=0;i<candidateIdx;i++){
+    for(uint16_t i=0;i<candidateIdx;i+=skipping){
       Serial.print(String()+candidates[i].position.x+":"+candidates[i].position.y+";");
     }
-    Serial.println(F("|xy"));
+    Serial.println(F("|xy,clr"));
 
     // Plot position
     Serial.println(String()+">localisation.position,wloc:"+targetPosition.x+":"+targetPosition.y+"|xy");
@@ -176,7 +180,6 @@ private:
   uint16_t actualCloudIdx = 0;
   uint16_t mapSize=0;
   float maxMatchDist = 100;
-  float minMatchCount = 40;
   LidarLocPositionCandidate candidates[LIDAR_LOCALISATION_MAX_POS_CANDIDATES];
   uint16_t candidateIdx = 0;
 

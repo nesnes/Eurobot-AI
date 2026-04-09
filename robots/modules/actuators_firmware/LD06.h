@@ -97,7 +97,7 @@ public:
       float y = -getPoint(i)->distance * sin(getPoint(i)->angle * PI / 180.f);
       serialport.print(String()+x+":"+y+";");
     }
-    serialport.println(F("|xy"));
+    serialport.println(F("|xy,clr"));
   };
 
 private:

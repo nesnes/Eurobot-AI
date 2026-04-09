@@ -39,7 +39,7 @@ public:
   unsigned long m_lastAccelMicro = 0;
   int m_direction = 1; //1 or -1
   float m_wheelPerimeter = 100; //mm
-  float m_acceleration = 1.2;//m/s^2
+  float m_acceleration = 10.2;//m/s^2
   double m_currSpeed = 0;
   double m_currSpeedTicksPerSec = 0;
   double m_requestedSpeed = 0;

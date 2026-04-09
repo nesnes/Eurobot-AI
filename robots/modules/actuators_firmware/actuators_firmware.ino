@@ -33,8 +33,8 @@ Chrono updateNeopixel;
 
 // VL53L5CX
 #include <SparkFun_VL53L5CX_Library.h> // https://github.com/sparkfun/SparkFun_VL53L5CX_Arduino_Library
-SparkFun_VL53L5CX vl53_C;
-VL53L5CX_ResultsData vl53_C_data;
+//SparkFun_VL53L5CX vl53_C;
+//VL53L5CX_ResultsData vl53_C_data;
 SparkFun_VL53L5CX vl53_A;
 VL53L5CX_ResultsData vl53_A_data;
 
@@ -52,7 +52,7 @@ void setup() {
   neopixels.fill(neopixels.Color(0, 0, 255, 5), 0, NEOPIXEL_COUNT);
   neopixels.show();
   // C
-  Wire1.begin();
+  /*Wire1.begin();
   Wire1.setClock(1000000);
   bool vl53_C_ok = vl53_C.begin(0x29, Wire1);
   Wire1.setClock(400000);
@@ -61,7 +61,7 @@ void setup() {
   vl53_C.startRanging();
   if(vl53_C_ok){ neopixels.fill(neopixels.Color(255, 255, 0, 5), 0, NEOPIXEL_COUNT);  }
   else{ neopixels.fill(neopixels.Color(255, 0, 0, 5), 0, NEOPIXEL_COUNT); }
-  neopixels.show();
+  neopixels.show();*/
   // A
   Wire.begin();
   Wire.setClock(1000000);
@@ -70,7 +70,7 @@ void setup() {
   vl53_A.setResolution(8*8);
   vl53_A.setRangingFrequency(15);
   vl53_A.startRanging();
-  if(vl53_C_ok && vl53_A_ok){ neopixels.fill(neopixels.Color(0, 255, 0, 5), 0, NEOPIXEL_COUNT);  }
+  if(/*vl53_C_ok &&*/ vl53_A_ok){ neopixels.fill(neopixels.Color(0, 255, 0, 5), 0, NEOPIXEL_COUNT);  }
   else{ neopixels.fill(neopixels.Color(255, 0, 0, 5), 0, NEOPIXEL_COUNT); }
   neopixels.show();
 
@@ -86,10 +86,27 @@ void setup() {
   imu.setSrd(0); // 1000 / (1 + diviseur) Hz
 
   // Create rectangle map
-  loc.addLineToMap({{0,0}, {3000,0}});
-  loc.addLineToMap({{3000,0}, {3000,-2000}});
-  loc.addLineToMap({{3000,-2000}, {0,-2000}});
-  loc.addLineToMap({{0,-2000}, {0,0}});
+  //loc.addLineToMap({{0,0}, {3000,0}}); // top border
+  //loc.addLineToMap({{3000,0}, {3000,-2000}});
+  //loc.addLineToMap({{3000,-2000}, {0,-2000}});
+  //loc.addLineToMap({{0,-2000}, {0,0}});
+  
+  // Special 2025 map
+  // Top
+  loc.addLineToMap({{0,0}, {900,0}});
+  loc.addLineToMap({{2100,0}, {3000,0}});
+  // Side left
+  loc.addLineToMap({{0,-900},  {0,-1350}});
+  loc.addLineToMap({{0,-1800}, {0,-2000}});
+  // Side right
+  loc.addLineToMap({{3000,-900},  {3000,-1350}});
+  loc.addLineToMap({{3000,-1800}, {3000,-2000}});
+  // Bottom
+  loc.addLineToMap({{0,-2000}, {3000,-2000}});
+  //Scene sides
+  loc.addLineToMap({{1050,-350}, {1050,-450}}); // scene yellow vertical side
+  loc.addLineToMap({{1050,-450}, {1950,-450}}); // scene horizontal
+  loc.addLineToMap({{1950,-350}, {1950,-450}}); // scene blue vertical side
 }
 
 void loop() {
@@ -125,6 +142,11 @@ bool validateCandidate(LidarLocPositionCandidate const& candidate){
       && -120 > candidate.position.y && candidate.position.y > -2880;
 }
 
+uint16_t locPointCloudSkipping = 2; // will only match cloud every N points (to speed compuation, to match more candidates)
+float locMinMatchCount = 40;
+bool localisationLost = false;
+int32_t locLastCandidateCount = 0;
+int32_t locLostIterationCount = 0;
 void runLocalisation(bool isNewScan){
   // Update IMU yaw tracking
   unsigned long timeDiff = micros() - lastImuUpdate;
@@ -135,18 +157,30 @@ void runLocalisation(bool isNewScan){
   lastImuUpdate = micros();
   
   // Update Lidar tracking
-  uint16_t pointCloudSkipping = 2; // will only match cloud every N points (to speed compuation, to match more candidates)
+  float minMatchCount = 40;
   if(isNewScan){
+
+#ifdef LOCALISATION_DEBUG
+    Serial.println(String()+">imuYawOffset:"+imuYawOffset);
+#endif
     // Extract best position from last scan
     LidarLocPositionCandidate candidate = loc.getBestCandidate(validateCandidate);
-    if(!abortPositionMatch && candidate.score > 0){
+    bool hasEnoughCandidates = loc.getCandidateCount() > 100;
+    localisationLost = hasEnoughCandidates && candidate.score <= 0;
+    if(!abortPositionMatch && !localisationLost && hasEnoughCandidates){
       // Store new robot position
       robotPosition.x = candidate.position.x;
       robotPosition.y = candidate.position.y;
       robotPosition.angle = candidate.position.angle;
       robotPosition.angle += imuYawOffset;
       imuYawOffset = 0;
+      locLostIterationCount = 0;
     }
+    else if(localisationLost) {
+      robotPosition.angle += imuYawOffset;
+      imuYawOffset = 0;
+    }
+    if(localisationLost) locLostIterationCount++;
     if(abortPositionMatch) imuYawOffset = 0;
 #ifdef LOCALISATION_DEBUG
     Serial.println(String()+">robotPosition.x:"+robotPosition.x);
@@ -154,13 +188,15 @@ void runLocalisation(bool isNewScan){
     Serial.println(String()+">robotPosition.angle:"+robotPosition.angle);
     Serial.println(String()+">candidateScore:"+candidate.score);
     Serial.println(String()+">candidateCount:"+loc.getCandidateCount());
-    loc.teleplot(Serial, robotPosition, pointCloudSkipping);
+    Serial.println(String()+">lostIterationCount:"+locLostIterationCount);
+    loc.teleplot(Serial, robotPosition, locPointCloudSkipping);
 #endif
     loc.clearCandidates();
     // Push new cloud to localisation
     loc.clearCloud();
     for(uint16_t i=0;i<lidar.getPointCount();i++){
-      loc.addCloudPoint(lidar.getPoints()[i].distance, lidar.getPoints()[i].angle, robotPosition, 150);
+      float maxPointDistFromBorder = localisationLost ? 0 : 150; // if lost do not remove points
+      loc.addCloudPoint(lidar.getPoints()[i].distance, lidar.getPoints()[i].angle, robotPosition, maxPointDistFromBorder);
     }
     abortPositionMatch = false;
   }
@@ -169,37 +205,76 @@ void runLocalisation(bool isNewScan){
     LidarLocPosition testPosition;
     auto startTime = micros();
 
-    // Generate very close position
-    testPosition = loc.generateRandomPosition(robotPosition, 20, 5); //mm  and deg
-    loc.evaluateCandidate(testPosition, pointCloudSkipping);
-    
-    // Generate very close position
-    testPosition = loc.generateRandomPosition(robotPosition, 50, 10); //mm  and deg
-    loc.evaluateCandidate(testPosition, pointCloudSkipping);
-
-    // Generate close position
-    for(int i=0;i<2;i++){
-      testPosition = loc.generateRandomPosition(robotPosition, 150, 10); //mm  and deg
-      loc.evaluateCandidate(testPosition, pointCloudSkipping);
+    bool lostSearch = false;
+    if(localisationLost) lostSearch = loc.getBestCandidate(validateCandidate).score <= 0;
+    if(lostSearch){
+      locPointCloudSkipping = 4;
+      locMinMatchCount = 15;
+      // Wide search (keep angle "low" as gyro should be OK)
+      for(int i=0;i<30;i++){
+        testPosition.x = 1500;
+        testPosition.y = -1000;
+        testPosition.angle = robotPosition.angle;
+        testPosition = loc.generateRandomPosition(testPosition, 4000, min(360, 10 + 20 * locLostIterationCount)); //mm  and deg
+        loc.evaluateCandidate(testPosition, locPointCloudSkipping, locMinMatchCount);
+      }
     }
+    else {
+      locPointCloudSkipping = 2;
+      locMinMatchCount = 40;
 
-    // Generate far position
-    testPosition = loc.generateRandomPosition(robotPosition, 300, 10); //mm  and deg
-    loc.evaluateCandidate(testPosition, pointCloudSkipping);
+      // Generate very close position
+      //for(int i=0;i<2;i++){
+        testPosition = loc.generateRandomPosition(robotPosition, 20, 5); //mm  and deg
+        loc.evaluateCandidate(testPosition, locPointCloudSkipping, locMinMatchCount);
+      //}
+      
+      // Generate very close position
+      //for(int i=0;i<2;i++){
+        testPosition = loc.generateRandomPosition(robotPosition, 50, 10); //mm  and deg
+        loc.evaluateCandidate(testPosition, locPointCloudSkipping, locMinMatchCount);
+      //}
 
-    // Generate far position
-    testPosition = loc.generateRandomPosition(robotPosition, 500, 10); //mm  and deg
-    loc.evaluateCandidate(testPosition, pointCloudSkipping);
+      // Generate close position
+      //for(int i=0;i<2;i++){
+        testPosition = loc.generateRandomPosition(robotPosition, 150, 10); //mm  and deg
+        loc.evaluateCandidate(testPosition, locPointCloudSkipping, locMinMatchCount);
+      //}
+
+      // Generate far position
+      //for(int i=0;i<2;i++){
+        testPosition = loc.generateRandomPosition(robotPosition, 400, 15); //mm  and deg
+        loc.evaluateCandidate(testPosition, locPointCloudSkipping, locMinMatchCount);
+      //}
+
+      // Generate far position
+      //for(int i=0;i<2;i++){
+        testPosition = loc.generateRandomPosition(robotPosition, 800, 20); //mm  and deg
+        loc.evaluateCandidate(testPosition, locPointCloudSkipping, locMinMatchCount);
+      //}
+
+      // Punctually get best match and generate candidates close arround
+      if(abs(loc.getCandidateCount() - locLastCandidateCount) > 100){
+        locLastCandidateCount = loc.getCandidateCount();
+        LidarLocPositionCandidate bestCandidate = loc.getBestCandidate(validateCandidate);
+        if(bestCandidate.score > 0){
+          for(int i=0;i<5;i++){
+            testPosition = loc.generateRandomPosition(bestCandidate.position, 20, 2); //mm  and deg
+            loc.evaluateCandidate(testPosition, locPointCloudSkipping, locMinMatchCount); // Changing skipping here would generate unbalance score with other candidates (do not do)
+          }
+        }
+      }
+    }
     
     auto endTime = micros();
 #ifdef LOCALISATION_DEBUG
-    Serial.println(String()+">candidatesTimeUs:"+(endTime-startTime));
+    //Serial.println(String()+">candidatesTimeUs:"+(endTime-startTime));
 #endif
   }  
 }
 
 void runVL53(){
-  if (vl53_C.isDataReady() == true) {
+  /*if (vl53_C.isDataReady() == true) {
     if (vl53_C.getRangingData(&vl53_C_data)) { //Read distance data into array
        #ifdef VL53_DEBUG
           // Fix frame orientation
@@ -213,7 +288,7 @@ void runVL53(){
           }
        #endif
     }
-  }
+  }*/
   if (vl53_A.isDataReady() == true) {
     if (vl53_A.getRangingData(&vl53_A_data)) { //Read distance data into array
        #ifdef VL53_DEBUG
@@ -256,6 +331,22 @@ void executeOrder() {
       sscanf(comunication_InBuffer, "s %i %i %i", &id, &value, &duration);
       setActuator(id, value, duration);
     }
+    else if (strstr(comunication_InBuffer, "SE ")) { // set enable servo by name
+      sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
+      comunication_write();//async
+      char c[4]{'\0'};
+      int value = 0;
+      sscanf(comunication_InBuffer, "SE %c%c%c %i", &c[0], &c[1], &c[2], &value);
+      setEnableActuator(c, value);
+    }
+    else if (strstr(comunication_InBuffer, "ST ")) { // set servo max torque by name
+      sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
+      comunication_write();//async
+      char c[4]{'\0'};
+      int value = 0;
+      sscanf(comunication_InBuffer, "ST %c%c%c %i", &c[0], &c[1], &c[2], &value);
+      setTorqueActuator(c, value);
+    }
     else if (strstr(comunication_InBuffer, "Z ")) { //set servo group by name
       sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
       comunication_write();//async
@@ -282,6 +373,32 @@ void executeOrder() {
       }
       setActuatorGroup(id, values, t);
     }
+    else if (strstr(comunication_InBuffer, "ZE ")) { //set enable servo group by name
+      sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
+      comunication_write();//async
+      char c[4]{'\0'};
+      int v[ACTUATOR_MAX_ARRAY_SIZE];
+      int matches = sscanf(comunication_InBuffer, "ZE %c%c%c %i %i %i %i %i %i %i %i %i %i %i",  &c[0], &c[1], &c[2], &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]);
+      Vector<bool> values;
+      matches -= 3; // length of group name
+      for(int i=0;i<matches && i<ACTUATOR_MAX_ARRAY_SIZE;i++) {
+        values.push_back(v[i]);
+      }
+      setEnableActuatorGroup(c, values);
+    }
+    else if (strstr(comunication_InBuffer, "ZT ")) { //set servo group torque by name
+      sprintf(comunication_OutBuffer, "OK");//max 29 Bytes
+      comunication_write();//async
+      char c[4]{'\0'};
+      int v[ACTUATOR_MAX_ARRAY_SIZE];
+      int matches = sscanf(comunication_InBuffer, "ZT %c%c%c %i %i %i %i %i %i %i %i %i %i %i",  &c[0], &c[1], &c[2], &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]);
+      Vector<int> values;
+      matches -= 3; // length of group name
+      for(int i=0;i<matches && i<ACTUATOR_MAX_ARRAY_SIZE;i++) {
+        values.push_back(v[i]);
+      }
+      setTorqueActuatorGroup(c, values);
+    }
     else if (strstr(comunication_InBuffer, "G ")) { // get servo by name (position, load)
       char c[4]{'\0'};
       int value = 90, duration = 0;
@@ -289,6 +406,17 @@ void executeOrder() {
       int position = getActuator(c)->getPosition();
       int load = getActuator(c)->getLoad();
       sprintf(comunication_OutBuffer, "G %c%c%c %i %i", c[0], c[1], c[2], position, load);//max 29 Bytes
+      comunication_write();//async
+    }
+    else if (strstr(comunication_InBuffer, "groups")) { // list actuator groups, within servos, and their position "groups AAG:AA1=180:AA2=28:AA3=235 BBG:BB1=12:BB2=115"
+      int bufferIndex = sprintf(comunication_OutBuffer, "groups");
+      for (size_t i=0;i<actuatorGroups.size();i++) {
+        bufferIndex += sprintf(comunication_OutBuffer+bufferIndex, " %s", actuatorGroups.at(i)->name);
+        for (size_t j=0;j<actuatorGroups.at(i)->elements.size();j++) {
+          int position = actuatorGroups.at(i)->elements.at(j)->getPosition();
+          bufferIndex += sprintf(comunication_OutBuffer+bufferIndex, ":%s=%i", actuatorGroups.at(i)->elements.at(j)->name, position);
+        }
+      }
       comunication_write();//async
     }
     else if (strstr(comunication_InBuffer, "p ")) { //set neopixel color
@@ -322,7 +450,7 @@ void executeOrder() {
     else if (strstr(comunication_InBuffer, "T ")) { //get telemeter measure
       char sensorName = '\0';
       sscanf(comunication_InBuffer, "T %c", &sensorName);
-      if(sensorName == 'C') {
+      /*if(sensorName == 'C') {
         if (vl53_C.isDataReady() == true) { vl53_C.getRangingData(&vl53_C_data); }
         int bufferIndex = sprintf(comunication_OutBuffer, "T %c", sensorName);
         for (int y = 0 ; y <= 8 * (8 - 1) ; y += 8) {
@@ -330,7 +458,7 @@ void executeOrder() {
             bufferIndex += sprintf(comunication_OutBuffer+bufferIndex, " %i", vl53_C_data.distance_mm[x + y]);
           }
         }
-      }
+      }*/
       if(sensorName == 'A') {
         if (vl53_A.isDataReady() == true) { vl53_A.getRangingData(&vl53_A_data); }
         int bufferIndex = sprintf(comunication_OutBuffer, "T %c", sensorName);
