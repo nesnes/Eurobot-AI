@@ -14,6 +14,7 @@ module.exports = class Robotlink {
         this.buffer = "";
         this.inputMessages = [];
         this.useAddressing = false;
+        this.sending = false;
         if(process.platform=="linux") this.portList = ["/dev/ttyACM0","/dev/ttyACM1"/*,"/dev/ttyAMA0","/dev/ttyAMA1"*/]; //Raspberry/Linux
         if(process.platform=="darwin") this.portList = ["/dev/cu.usbmodem80144101"]; //Mac
         if(process.platform=="win32") this.portList = [""]; //Windows
@@ -88,6 +89,11 @@ module.exports = class Robotlink {
         if(this.useAddressing) msgOut += "s "+address+" ";
         msgOut += message+"\r\n";
         //console.log(msgOut)
+        // Wait for other msg to finish
+        while(this.sending){
+            await utils.sleep(5);
+        }
+        this.sending = true;
         this.serial.write(msgOut);
         //Wait for answer
         let sleep = 0.005;
@@ -101,11 +107,13 @@ module.exports = class Robotlink {
                 if(msg.startsWith(prefix) || !this.useAddressing){
                     this.inputMessages.splice(i,1);
                     let result = this.useAddressing ? msg.substring(prefix.length) : msg;
+                    this.sending = false;
                     if(result.includes("ERROR")) return false;
                     else return result;
                 }
             }
         }
+        this.sending = false;
         return false;
     }
 

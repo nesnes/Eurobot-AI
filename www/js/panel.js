@@ -1,7 +1,9 @@
 //UI objects
 var appParams = {
     simulate: false,
-    disableColisions: false
+    disableColisions: false,
+    modifier1: false,
+    PAMIOnTable: true
 }
 var map = {
     width: 0,

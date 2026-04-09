@@ -11,6 +11,8 @@ module.exports = class Arm {
         this.positionSupported = null;
         this.position = null;
         this.lastSendTime=0;
+        this.lastActuatorSendTime=0;
+        this.actuators = {};
         this.link = new Robotlink(app, "Actuators2023");
     }
     
@@ -27,25 +29,68 @@ module.exports = class Arm {
         }
         //this.send();
     }
+    
 
     getDescription(){
         return {
             functions:{
+                /*setPose6:{
+                    name:{ legend:"name", type:"text" },
+                    a1:{ legend:"first", type:"range", min:0, max:360, value:180, step:1 },
+                    a2:{ legend:"second", type:"range", min:0, max:360, value:180, step:1 },
+                    a3:{ legend:"third", type:"range", min:0, max:360, value:180, step:1 },
+                    a4:{ legend:"fourth", type:"range", min:0, max:360, value:180, step:1 },
+                    a5:{ legend:"fifth", type:"range", min:0, max:360, value:180, step:1 },
+                    a6:{ legend:"sixth", type:"range", min:0, max:360, value:180, step:1 },
+                    duration:{ type:"range", min:0, max:1000, value:300, step:1 }
+                },
+                setPose5:{
+                    name:{ legend:"name", type:"text" },
+                    a1:{ legend:"first", type:"range", min:0, max:360, value:180, step:1 },
+                    a2:{ legend:"second", type:"range", min:0, max:360, value:180, step:1 },
+                    a3:{ legend:"third", type:"range", min:0, max:360, value:180, step:1 },
+                    a4:{ legend:"fourth", type:"range", min:0, max:360, value:180, step:1 },
+                    a5:{ legend:"fifth", type:"range", min:0, max:360, value:180, step:1 },
+                    duration:{ type:"range", min:0, max:1000, value:360, step:1 }
+                },
                 setPose4:{
                     name:{ legend:"name", type:"text" },
-                    a1:{ legend:"lift", type:"range", min:0, max:360, value:40, step:1 },
-                    a2:{ legend:"distrib", type:"range", min:0, max:300, value:150, step:1 },
-                    a3:{ legend:"finger1", type:"range", min:0, max:300, value:150, step:1 },
-                    a4:{ legend:"finger2", type:"range", min:0, max:300, value:150, step:1 },
-                    duration:{ type:"range", min:0, max:1000, value:0, step:1 }
+                    a1:{ legend:"first", type:"range", min:0, max:360, value:180, step:1 },
+                    a2:{ legend:"second", type:"range", min:0, max:360, value:180, step:1 },
+                    a3:{ legend:"third", type:"range", min:0, max:360, value:180, step:1 },
+                    a4:{ legend:"fourth", type:"range", min:0, max:360, value:180, step:1 },
+                    duration:{ type:"range", min:0, max:1000, value:300, step:1 }
                 },
+                setPose3:{
+                    name:{ legend:"name", type:"text" },
+                    a1:{ legend:"first", type:"range", min:0, max:360, value:180, step:1 },
+                    a2:{ legend:"second", type:"range", min:0, max:360, value:180, step:1 },
+                    a3:{ legend:"third", type:"range", min:0, max:360, value:180, step:1 },
+                    duration:{ type:"range", min:0, max:1000, value:300, step:1 }
+                },
+                setPose2:{
+                    name:{ legend:"name", type:"text" },
+                    a1:{ legend:"first", type:"range", min:0, max:360, value:180, step:1 },
+                    a2:{ legend:"second", type:"range", min:0, max:360, value:180, step:1 },
+                    duration:{ type:"range", min:0, max:1000, value:300, step:1 }
+                },
+                setPose1:{
+                    name:{ legend:"name", type:"text" },
+                    a1:{ legend:"angle", type:"range", min:0, max:360, value:180, step:1 },
+                    duration:{ type:"range", min:0, max:1000, value:300, step:1 }
+                },*/
                 setServo: { name:{ legend:"name", type:"text" },
-                            angle:{ legend:"angle", type:"range", min:0, max:360, value:150, step:1 },
+                            angle:{ legend:"angle", type:"range", min:0, max:360, value:180, step:1 },
                             duration:{ type:"range", min:0, max:1000, value:0, step:1 }
+                },
+                setMaxTorqueServo: { name:{ legend:"name", type:"text" },
+                                     torque:{ legend:"torque", type:"range", min:0, max:1000, value:1000, step:1 }
                 },
                 setLed: {   brightness:{ legend:"brightness", type:"range", min:0, max:255, value:150, step:1 },
                             color:{ type:"range", min:0, max:255, value:0, step:1 }
                 },
+                getTelemeter:{ name:{ legend:"name", type:"text" } },
+                getServo:{ name:{ legend:"name", type:"text" } },
                 getPosition:{}
             }
         }
@@ -65,15 +110,59 @@ module.exports = class Arm {
             payload: JSON.stringify(payload),
             qos: 0, retain: false
         });
+
+        if(utils.teleplotEnabled){
+            // Send localisation position
+            utils.sendTeleplotCube( "lidarLoc,map3D", this.position.x/1000, this.position.y/1000, 0.5, 0.04, 1.0, 0.04, 0, 0, 0, "red");
+        }
+    }
+
+    sendActuators(force=false){
+        let now = new Date().getTime();
+        if(!force && now - this.lastActuatorSendTime < 250) return;//send max every 250ms
+        this.lastActuatorSendTime = now;
+        let payload = {
+            actuators: this.actuators
+        };
+        this.app.mqttServer.publish({
+            topic: '/actuators',
+            payload: JSON.stringify(payload),
+            qos: 0, retain: false
+        });
+    }
+    
+    async setPose6(params){
+        //this.app.logger.log("set pose6");
+        return this.setPose(params);
+    }
+    
+    async setPose5(params){
+        //this.app.logger.log("set pose5");
+        return this.setPose(params);
     }
     
     async setPose4(params){
         //this.app.logger.log("set pose4");
         return this.setPose(params);
     }
+    
+    async setPose3(params){
+        //this.app.logger.log("set pose3");
+        return this.setPose(params);
+    }
+    
+    async setPose2(params){
+        //this.app.logger.log("set pose2");
+        return this.setPose(params);
+    }
+    
+    async setPose1(params){
+        //this.app.logger.log("set pose1");
+        return this.setPose(params);
+    }
 
     async setPose(params){
-        //this.app.logger.log("set pose");
+        //this.app.logger.log("set pose", params);
         if(!("name" in params)) return "ERROR";
         if(!("duration" in params)) params.duration = 0;
         if(!("wait" in params)) params.wait = true;
@@ -88,7 +177,74 @@ module.exports = class Arm {
         if("a8" in params) msg += " "+parseInt(""+params.a8);
         if("a9" in params) msg += " "+parseInt(""+params.a9);
         if("a10" in params) msg += " "+parseInt(""+params.a10);
-        console.log("Arm pose", msg)
+        //console.log("Arm pose", msg)
+        let result = true;
+        if(this.link)
+            result = await this.link.sendMessage(this.address, msg);
+        if(params.wait) await utils.sleep(params.duration);
+        return result;
+    }
+
+    async setEnableGroup(params){
+        //this.app.logger.log("setEnableGroup", params);
+        if(!("name" in params)) return "ERROR";
+        let msg = "ZE "+params.name;
+        if("a1" in params) msg += " "+parseInt(""+params.a1);
+        if("a2" in params) msg += " "+parseInt(""+params.a2);
+        if("a3" in params) msg += " "+parseInt(""+params.a3);
+        if("a4" in params) msg += " "+parseInt(""+params.a4);
+        if("a5" in params) msg += " "+parseInt(""+params.a5);
+        if("a6" in params) msg += " "+parseInt(""+params.a6);
+        if("a7" in params) msg += " "+parseInt(""+params.a7);
+        if("a8" in params) msg += " "+parseInt(""+params.a8);
+        if("a9" in params) msg += " "+parseInt(""+params.a9);
+        if("a10" in params) msg += " "+parseInt(""+params.a10);
+        //console.log("Arm enable", msg)
+        let result = true;
+        if(this.link)
+            result = await this.link.sendMessage(this.address, msg);
+        if(params.wait) await utils.sleep(params.duration);
+        return result;
+    }
+
+    async setEnableServo(params){
+        //this.app.logger.log("servo set enable");
+        if(!("name" in params)) return "ERROR";
+        if(!("enable" in params)) return "ERROR";
+        let msg = "SE "+params.name+" "+params.enable;
+        let result = true;
+        if(this.link)
+            result =  await this.link.sendMessage(this.address, msg);
+        return result;
+    }
+
+    async setMaxTorqueServo(params){
+        //this.app.logger.log("servo set max torque");
+        if(!("name" in params)) return "ERROR";
+        if(!("torque" in params)) return "ERROR";
+        let msg = "ST "+params.name+" "+params.torque;
+        let result = true;
+        if(this.link)
+            result =  await this.link.sendMessage(this.address, msg);
+        return result;
+    }
+
+
+    async setMaxTorqueGroup(params){
+        //this.app.logger.log("setMaxTorqueGroup", params);
+        if(!("name" in params)) return "ERROR";
+        let msg = "ZT "+params.name;
+        if("a1" in params) msg += " "+parseInt(""+params.a1);
+        if("a2" in params) msg += " "+parseInt(""+params.a2);
+        if("a3" in params) msg += " "+parseInt(""+params.a3);
+        if("a4" in params) msg += " "+parseInt(""+params.a4);
+        if("a5" in params) msg += " "+parseInt(""+params.a5);
+        if("a6" in params) msg += " "+parseInt(""+params.a6);
+        if("a7" in params) msg += " "+parseInt(""+params.a7);
+        if("a8" in params) msg += " "+parseInt(""+params.a8);
+        if("a9" in params) msg += " "+parseInt(""+params.a9);
+        if("a10" in params) msg += " "+parseInt(""+params.a10);
+        //console.log("Arm max torque", msg)
         let result = true;
         if(this.link)
             result = await this.link.sendMessage(this.address, msg);
@@ -111,12 +267,12 @@ module.exports = class Arm {
     }
 
     async getServo(params){
-        //this.app.logger.log("servo get");
         if(!("name" in params)) return "ERROR";
         let msg = "G "+params.name;
         let result = true;
         if(this.link){
             let response =  await this.link.sendMessage(this.address, msg);
+            //this.app.logger.log("getServo", params.name, response);
             if(!response) return false;
             let resArray = response.split(" ");
             if(resArray.length != 4) return false;
@@ -128,6 +284,45 @@ module.exports = class Arm {
         }
         return result;
     }
+
+    async getTelemeter(params){
+        //this.app.logger.log("servo get");
+        if(!("name" in params)) return "ERROR";
+        let msg = "T "+params.name;
+        let result = {name: '', measures: []};
+        if(this.link){
+            let response =  await this.link.sendMessage(this.address, msg);
+            if(!response) return false;
+            let arr = response.split(" ");
+            if(arr.length<2) return false;
+            if(arr[1] != params.name) return false;
+            result.name = arr[1]
+            for(let i=2;i<arr.length;i++){
+                result.measures.push(parseFloat(arr[i]))
+            }
+        }
+        return result;
+    }
+    
+    async telemeterTo2D(telem, width, rotationCount){
+        let array2D = []
+        let currArray = []
+        let i = 0;
+        for(let dist of telem.measures){
+            currArray.push(dist);
+            if(i%width == width-1) {
+                array2D.push(currArray)
+                currArray = []
+            }
+            i++;   
+        }
+        
+        for(i=0; i<rotationCount;i++){
+            array2D = array2D[0].map((x,i) => array2D.map(row => row[i]).reverse());
+        }
+        
+        return array2D;
+    }
     
     async waitServo(params){
         //this.app.logger.log("servo get");
@@ -136,13 +331,13 @@ module.exports = class Arm {
         let timeout = params.timeout || 2500;//ms
         while(timeout>0){
             let current = await this.getServo({name:params.name});
-            console.log(params.name, params.position, current)
+            //console.log(params.name, params.position, current)
             if(current && current.position != undefined){
                 let precision = params.precision || 10;
                 if(Math.abs(current.position - params.position) < precision) return true;
             }
-            await utils.sleep(50);
-            timeout -= 50;
+            await utils.sleep(25);
+            timeout -= 25;
         }
         return false;
     }
@@ -176,7 +371,8 @@ module.exports = class Arm {
         if(this.positionSupported !== null) return this.positionSupported;
         if(this.link){
             let support = await this.link.sendMessage(this.address, "support pos");
-            if(support.includes("1")) result = true;
+            console.log("support", support)
+            if(support && support.includes("1")) result = true;
             this.positionSupported = result;
         }
         return result;
@@ -193,18 +389,46 @@ module.exports = class Arm {
     async getPosition(){
         if(this.link){
             let response = await this.link.sendMessage(this.address, "X");
+            //console.log("getPosition", response)
             if(!response) return false;
             let posArray = response.split(" ");
             if(posArray.length == 4 && posArray[0]=="X"){
                 let newPosition = {x: parseInt(posArray[1]), y: parseInt(posArray[2]), angle: parseInt(posArray[3])/100, isNew: true};
-                if(this.position && this.position.x == newPosition.x && this.position.y == newPosition.y){
+                if(this.position && this.position.x == newPosition.x && this.position.y == newPosition.y && this.position.angle == newPosition.angle){
                     newPosition.isNew = false;
                 }
                 this.position = newPosition;
-                this.send();
+                this.send(true);
                 return this.position;
             }
             return response;
+        }
+    }
+    
+    async getActuators(){
+        if(this.link){
+            let response = await this.link.sendMessage(this.address, "groups");
+            if(!response) return false;
+            let groupArray = response.split(" ");
+            if(groupArray.length > 1 && groupArray[0]=="groups"){
+                this.actuators = {};
+                for(let i=1;i<groupArray.length;i++){
+                    let actuatorArray = groupArray[i].split(":");
+                    if(actuatorArray.length < 2) continue;
+                    let groupName = actuatorArray[0];
+                    this.actuators[groupName] = {};
+                    for(let j=1;j<actuatorArray.length;j++){
+                        let valueArray = actuatorArray[j].split("=");
+                        if(valueArray.length != 2) continue;
+                        let actuatorName = valueArray[0];
+                        let actuatorValue = parseInt(valueArray[1]);
+                        this.actuators[groupName][actuatorName] = actuatorValue;
+                    }
+                }
+                this.sendActuators();
+                return this.actuators;
+            }
+            return false;
         }
     }
 

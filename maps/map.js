@@ -1,4 +1,5 @@
 'use strict';
+const utils = require("../utils")
 var PF = require('pathfinding');
 const Astar = require('./astar.js');
 
@@ -15,10 +16,22 @@ module.exports = class Map {
         this.pathResolution = 40;//mm
         this.lastSend = 0;
         this.lastGridSend = 0;
+        this.historyGrid = []
     }
 
     init(){
         this.send();
+        
+        // Create historyGrid
+        let gridWidth = Math.ceil(this.width/this.pathResolution);
+        let gridHeight = Math.ceil(this.height/this.pathResolution);
+        this.historyGrid = [];
+        for(let i=0;i<gridWidth;i++){
+            this.historyGrid.push([]);
+            for(let j=0;j<gridHeight;j++){
+                this.historyGrid[i].push({value:0});
+            }
+        }
     }
 
     send(force=false){
@@ -37,6 +50,22 @@ module.exports = class Map {
             payload: JSON.stringify(payload),
             qos: 0, retain: false
         });
+
+        if(utils.teleplotEnabled){
+            // Send map borders
+            //utils.sendTeleplotCube( "x1,map3D",  1, 0, 0,   0.1, 0.1, 0.1,   0, 0, 0, "red"  );
+            //utils.sendTeleplotCube( "y1,map3D",  0, 2, 0,   0.1, 0.1, 0.1,   0, 0, 0, "blue"  );
+            utils.sendTeleplotCube( "wallLeft,map3D",   0,                 this.height/1000/2, 0.035, 0.025,           0.07, this.height/1000,   0, 0, 0, "grey"  );
+            utils.sendTeleplotCube( "wallRight,map3D",  this.width/1000,   this.height/1000/2, 0.035, 0.025,           0.07, this.height/1000,   0, 0, 0, "grey"  );
+            utils.sendTeleplotCube( "wallTop,map3D",    this.width/1000/2, 0,                  0.035, this.width/1000, 0.07, 0.025,              0, 0, 0, "grey"  );
+            utils.sendTeleplotCube( "wallBottom,map3D", this.width/1000/2, this.height/1000,   0.035, this.width/1000, 0.07, 0.025,              0, 0, 0, "grey"  );
+            // Send components
+            for(const item of this.app.map.components){
+                if(item.shape && item.shape.type == "rectangle"){
+                    utils.sendTeleplotCube( item.name.replace(" ","_")+",map3D", (item.shape.x+item.shape.width/2)/1000, (item.shape.y+item.shape.height/2)/1000,   0, item.shape.width/1000, 0.01, item.shape.height/1000,              0, 0, 0, item.shape.color  );
+                }
+            }
+        }
     }
 
     getComponent(type, team){
@@ -50,10 +79,12 @@ module.exports = class Map {
         return component;
     }
 
-    getComponentList(type, team){
+    getComponentList(type, team="", allowNoTeam=true){
         let componentList = [];
         for(const item of this.app.map.components){
-            if(item.type == type && item.team == team){
+            if(   item.type == type
+              && (team=="" || item.team == team || (allowNoTeam && item.team==""))
+            ){
                 componentList.push(item);
             }
         }
@@ -137,11 +168,25 @@ module.exports = class Map {
         });
     }
 
+    getAvoidOffset(component){
+        let avoidOffset = 0;
+        if("avoidOffset" in component){
+            if(component.avoidOffset instanceof Function){
+                avoidOffset = component.avoidOffset(this.app, component);
+            }
+            else {
+                avoidOffset = component.avoidOffset;
+            }
+        }
+        return avoidOffset;
+    }
+
     isContainedIn(x, y, component, useRobotRadius=true){
+        if(!component) return false;
         let robotRadius = useRobotRadius?this.app.robot.radius:0;
-        let avoidOffset = component.avoidOffset || 0;
+        let avoidOffset = this.getAvoidOffset(component);
         if(component.shape.type == "rectangle"){
-            let fromX = component.shape.x-robotRadius + avoidOffset;
+            let fromX = component.shape.x-robotRadius - avoidOffset;
             let toX = component.shape.x+component.shape.width+robotRadius+Math.abs(avoidOffset)*2;
             let fromY = component.shape.y-robotRadius - avoidOffset;
             let toY = component.shape.y+component.shape.height+robotRadius+Math.abs(avoidOffset)*2;
@@ -169,6 +214,7 @@ module.exports = class Map {
     createGrid(xFrom, yFrom, xTo, yTo){
         this._updateMap();
         //let grid = new PF.Grid(Math.ceil(this.width/this.pathResolution), Math.ceil(this.height/this.pathResolution));
+        // Initialize grid size
         let gridWidth = Math.ceil(this.width/this.pathResolution);
         let gridHeight = Math.ceil(this.height/this.pathResolution);
         let grid = [];
@@ -179,14 +225,19 @@ module.exports = class Map {
             }
         }
         let graph = new Astar.Graph(grid, {diagonal: true});
+        //Check is shaould incorporate start/end points
+        let handleStartEnd = xFrom!==undefined && yFrom!==undefined && xTo!==undefined && yTo!==undefined;
+        // Add items to grid
         for(const item of this.app.map.components){
             let offsetWeight = 0;
-            if(this.isContainedIn(xFrom, yFrom, item) || this.isContainedIn(xTo, yTo, item)){
-                //if(item.isSolid) return false;
-                offsetWeight = 2;
-                //continue;
+            if(handleStartEnd){
+                if(this.isContainedIn(xFrom, yFrom, item) || this.isContainedIn(xTo, yTo, item)){
+                    //if(item.isSolid) return false;
+                    offsetWeight = 2;
+                    //continue;
+                }
             }
-            let avoidOffset = item.avoidOffset || 0;
+            let avoidOffset = this.getAvoidOffset(item);
             if(item.shape.type == "rectangle"){
                 //Compute rectangle extended by the robot radius
                 let fromX = (item.shape.x-this.app.robot.radius - avoidOffset);
@@ -271,13 +322,19 @@ module.exports = class Map {
 
         //Free start and end cells      
         //console.log(graph.grid[30][30])  
-        graph.grid[Math.floor(xFrom/this.pathResolution)][Math.floor(yFrom/this.pathResolution)].weight = 1;
-        graph.grid[Math.floor(xTo/this.pathResolution)][Math.floor(yTo/this.pathResolution)].weight = 1;
+        if(handleStartEnd){
+            graph.grid[Math.floor(xFrom/this.pathResolution)][Math.floor(yFrom/this.pathResolution)].weight = 1;
+            graph.grid[Math.floor(xTo/this.pathResolution)][Math.floor(yTo/this.pathResolution)].weight = 1;
+        }
         return graph;
     }
 
     findPath(xFrom, yFrom, xTo, yTo){
         //console.log("find path from", xFrom, yFrom, "to", xTo, yTo)
+        if(xFrom <= 1) xFrom = 1;
+        if(xFrom >= this.width) xFrom = this.width-1;
+        if(yFrom <= 1) yFrom = 1;
+        if(yFrom >= this.height) yFrom = this.height-1;
         let startTime = new Date().getTime();
         let graph = this.createGrid(xFrom, yFrom, xTo, yTo);
         if(!graph) return []
@@ -358,6 +415,74 @@ module.exports = class Map {
             pathLength += Math.sqrt(dx*dx + dy*dy);
         }
         return pathLength;
+    }
+    
+    getHistoryAt(x, y)
+    {
+        let histX = Math.floor(x/this.pathResolution);
+        let histY = Math.floor(y/this.pathResolution);
+        return this.historyGrid[histX][histY];
+    }
+    
+    addToHistory(item) {
+        let gridWidth = Math.ceil(this.width/this.pathResolution);
+        let gridHeight = Math.ceil(this.height/this.pathResolution);
+        let avoidOffset = this.getAvoidOffset(item);
+        if(item.shape.type == "rectangle"){
+            //Compute rectangle extended by the robot radius
+            let fromX = (item.shape.x-this.app.robot.radius - avoidOffset);
+            let fromY = (item.shape.y-this.app.robot.radius - avoidOffset);
+            let width = (item.shape.width+this.app.robot.radius*2 + avoidOffset*2);
+            let height = (item.shape.height+this.app.robot.radius*2 + avoidOffset*2);
+            let mapWidth = this.width;
+            let mapHeight = this.height;
+            
+            let toX = Math.max(0,Math.min(mapWidth,fromX+width))
+            let toY = Math.max(0,Math.min(mapHeight,fromY+height))
+            fromX = Math.max(0,Math.min(mapWidth,fromX))
+            fromY = Math.max(0,Math.min(mapHeight,fromY))
+
+            //Apply path resolution
+            fromX = Math.floor(fromX/this.pathResolution);
+            fromY = Math.floor(fromY/this.pathResolution);
+            toX = Math.ceil(toX/this.pathResolution)-1;
+            toY = Math.ceil(toY/this.pathResolution)-1;
+            
+            //Update grid
+            for(let y=fromY; y<=toY;y++){
+                for(let x=fromX; x<=toX;x++){
+                    if( y<0 || y>=gridHeight ||  x<0 || x>=gridWidth) continue;
+                    if(!this.isContainedIn(x*this.pathResolution+this.pathResolution/2,y*this.pathResolution+this.pathResolution/2, item)) continue;
+                    this.historyGrid[x][y].value += 1;
+                }
+            }
+        }
+        if(item.shape.type == "circle"){
+            //Compute rectangle ectended by the robot radius
+            let fromX = (item.shape.x-item.shape.radius-this.app.robot.radius - avoidOffset);
+            let fromY = (item.shape.y-item.shape.radius-this.app.robot.radius - avoidOffset);
+            let width = (item.shape.radius*2+this.app.robot.radius*2 + avoidOffset*2);
+            let height = (item.shape.radius*2+this.app.robot.radius*2 + avoidOffset*2);
+            let mapWidth = this.width;
+            let mapHeight = this.height;
+            fromX = Math.max(0,Math.min(mapWidth,fromX))
+            fromY = Math.max(0,Math.min(mapHeight,fromY))
+            if(fromX+width>mapWidth) width = mapWidth-fromX;
+            if(fromY+height>mapHeight) height = mapHeight-fromY;
+            //Apply path resolution
+            fromX = Math.floor(fromX/this.pathResolution);
+            fromY = Math.floor(fromY/this.pathResolution);
+            width = Math.ceil(width/this.pathResolution)-1;
+            height = Math.ceil(height/this.pathResolution)-1;
+            //Update grid
+            for(let y=fromY; y<=fromY+height;y++){
+                for(let x=fromX; x<=fromX+width;x++){
+                    if( y<0 || y>=gridHeight ||  x<0 || x>=gridWidth) continue;
+                    if(!this.isContainedIn(x*this.pathResolution+this.pathResolution/2,y*this.pathResolution+this.pathResolution/2, item)) continue;
+                    this.historyGrid[x][y].value += 1;
+                }
+            }
+        }
     }
 
 }

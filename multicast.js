@@ -38,7 +38,7 @@ module.exports = class Multicast {
           this.onMessage(msg, remote);
         })
         this.socket.on("listening", () => {
-          //this.socket.setBroadcast(true)
+          this.socket.setBroadcast(true)
           this.socket.setMulticastTTL(128)
           this.socket.addMembership(this.address)
           console.log('Multicast listening . . . ')
@@ -60,6 +60,7 @@ module.exports = class Multicast {
     onMessage(packet, remote){
         //Parse input message
         let msg = null;
+        if (packet.toString().startsWith("TIME")) return; // ignore time broadcast
         try{
             msg = JSON.parse(packet.toString());
         } catch(e){
@@ -131,6 +132,16 @@ module.exports = class Multicast {
         //console.log("Multicast send", data);
         try{
             this.socket.send(data, 0, data.length, this.port, this.address);
+        }catch(e){}
+        return true;
+    }
+    
+    udpBroadcastTime(parameters){
+        if(!this.socket) return false;
+        const data = "TIME"+parameters.time+"MS";
+        try{
+
+            this.socket.send(data, 0, data.length, this.port, "192.168.254.255");
         }catch(e){}
         return true;
     }

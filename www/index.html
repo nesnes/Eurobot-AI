@@ -65,7 +65,7 @@
                                         <line v-bind:x1="item.access.x" v-bind:y1="item.access.y" v-bind:x2="item.shape.x" v-bind:y2="item.shape.y" style="stroke-width:4;stroke:green;opacity: 0.9;" />
                                     </g>
                                     <g v-bind:transform="'translate('+item.access.x+' '+item.access.y+') rotate('+item.access.angle+')'">
-                                        <title>{{item.name}} - {{item.type}} - {{item.team}}</title>
+                                        <title>{{item.name}} - {{item.type}} - {{item.team}} - {{item.access.tags||""}}</title>
                                         <circle  v-bind:cx="0" v-bind:cy="0" r="25" style="fill: white;stroke-width:4;stroke:rgb(0,0,0);opacity: 0.9;" />
                                         <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="50" v-bind:y2="0" style="stroke-width:10;stroke:purple;opacity: 0.9;" />
                                     </g>
@@ -79,7 +79,7 @@
                                             <line v-bind:x1="access.x" v-bind:y1="access.y" v-bind:x2="item.shape.x" v-bind:y2="item.shape.y" style="stroke-width:4;stroke:green;opacity: 0.9;" />
                                         </g>
                                         <g v-bind:transform="'translate('+access.x+' '+access.y+') rotate('+access.angle+')'">
-                                            <title>{{item.name}} - {{item.type}} - {{item.team}}</title>
+                                            <title>{{item.name}} - {{item.type}} - {{item.team}} - {{access.tags||""}}</title>
                                             <circle  v-bind:cx="0" v-bind:cy="0" r="25" style="fill: grey;stroke-width:4;stroke:rgb(0,0,0);opacity: 0.9;" />
                                             <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="50" v-bind:y2="0" style="stroke-width:10;stroke:purple;opacity: 0.9;" />
                                         </g>
@@ -120,29 +120,29 @@
 
                             <!--Movement lidar cones-->
                             <template>
-                                <g v-bind:transform="'translate('+robot.x+' '+robot.y+') rotate('+(robot.movementAngle-robot.slowdownAngle/2)+')'">
+                                <g v-bind:transform="'translate('+robot.x+' '+robot.y+') rotate('+(robot.movementAngle-robot.slowdownAngle/2)+')'" style="transition: all 0.2s;">
                                     <path v-bind:d="'M 0 0 L '+robot.slowdownDistance+' 0 A '+robot.slowdownDistance+' '+robot.slowdownDistance+', 0, 0, 1, '+(robot.slowdownDistance*Math.cos(robot.slowdownAngle*(Math.PI/180)))+' '+(robot.slowdownDistance*Math.sin(robot.slowdownAngle*(Math.PI/180)))+' Z'" style="fill:rgb(0,127,0);stroke-width:10;stroke:rgb(0,127,0);opacity: 0.2;"/>
                                 </g>
-                                <g v-bind:transform="'translate('+robot.x+' '+robot.y+') rotate('+(robot.movementAngle-robot.collisionAngle/2)+')'">
+                                <g v-bind:transform="'translate('+robot.x+' '+robot.y+') rotate('+(robot.movementAngle-robot.collisionAngle/2)+')'" style="transition: all 0.2s;">
                                     <path v-bind:d="'M 0 0 L '+robot.collisionDistance+' 0 A '+robot.collisionDistance+' '+robot.collisionDistance+', 0, 0, 1, '+(robot.collisionDistance*Math.cos(robot.collisionAngle*(Math.PI/180)))+' '+(robot.collisionDistance*Math.sin(robot.collisionAngle*(Math.PI/180)))+' Z'" style="fill:rgb(127,0,0);stroke-width:10;stroke:rgb(127,0,0);opacity: 0.2;"/>
                                 </g>
                             </template>
 
                             <!--Robot-->
                             <template>
-                                <g v-bind:transform="'translate('+robot.x+' '+robot.y+') rotate('+robot.angle+')'">
+                                <g v-bind:transform="'translate('+robot.x+' '+robot.y+') rotate('+robot.angle+')'" style="transition: all 0.2s;">
                                     <title>{{robot.name}} x:{{robot.x}}  y:{{robot.y}} angle:{{robot.angle}}</title>
-                                    <circle  v-bind:cx="0" v-bind:cy="0" v-bind:r="robot.radius" style="fill:none;stroke-width:10;stroke:rgb(224, 224, 224);opacity: 0.9;" />
-                                    <line v-bind:x1="robot.radius*0.8" v-bind:y1="0" v-bind:x2="robot.radius*1.2" v-bind:y2="0" style="stroke-width:15;stroke:rgb(224, 224, 224);opacity: 0.9;" />
-                                    <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="Math.sin(30*0.0174533)*robot.radius" v-bind:y2="Math.cos(30*0.0174533)*robot.radius" style="stroke-width:15;stroke:rgb(224, 224, 224);opacity: 0.9;" />
-                                    <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="Math.sin(30*0.0174533)*robot.radius" v-bind:y2="-Math.cos(30*0.0174533)*robot.radius" style="stroke-width:15;stroke:rgb(224, 224, 224);opacity: 0.9;" />
-                                    <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="-robot.radius" v-bind:y2="0" style="stroke-width:15;stroke:rgb(224, 224, 224);opacity: 0.9;" />
+                                    <circle  v-bind:cx="0" v-bind:cy="0" v-bind:r="robot.radius" style="fill:none;stroke-width:40;stroke:rgb(22, 224, 22);opacity: 0.9;" />
+                                    <line v-bind:x1="robot.radius*0.6" v-bind:y1="0" v-bind:x2="robot.radius*1.4" v-bind:y2="0" style="stroke-width:40;stroke:rgb(22, 224, 22);opacity: 0.9;" />
+                                    <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="Math.sin(30*0.0174533)*robot.radius" v-bind:y2="Math.cos(30*0.0174533)*robot.radius" style="stroke-width:15;stroke:rgb(22, 224, 22);opacity: 0.9;" />
+                                    <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="Math.sin(30*0.0174533)*robot.radius" v-bind:y2="-Math.cos(30*0.0174533)*robot.radius" style="stroke-width:15;stroke:rgb(22, 224, 22);opacity: 0.9;" />
+                                    <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="-robot.radius" v-bind:y2="0" style="stroke-width:15;stroke:rgb(22, 224, 22);opacity: 0.9;" />
                                 </g>
                             </template>
 
                             <!--Lidar-->
                             <template v-if="lidar.measures != null">
-                                <g v-bind:transform="'translate('+robot.x+' '+robot.y+') rotate('+robot.angle+')'">
+                                <g v-bind:transform="'translate('+robot.x+' '+robot.y+') rotate('+robot.angle+')'" style="transition: all 0.2s;">
                                     <template v-for="measure in lidar.measures">
                                         <g v-bind:transform="'rotate('+measure.a+')'">
                                             <line v-bind:x1="0" v-bind:y1="0" v-bind:x2="measure.d" v-bind:y2="0" v-bind:style="lidarStyle(measure)" />
@@ -188,16 +188,24 @@
                         </div>
                         <div v-if="intelligence.currentTime==0 && communication.client.connected === true" class="col-md-4">
                             <div class="form-check">
-                                <input type="checkbox" class="form-check-input" id="cb-simulation" v-model="appParams.simulate">
+                                <input type="checkbox" class="form-check-input" id="cb-simulation" v-model="appParams.simulate" style="transform: scale(2);padding: 10px;">
                                 <label class="form-check-label" for="cb-simulation">Simulate</label>
                             </div>
                             <div class="form-check">
-                                <input type="checkbox" class="form-check-input" id="cb-collisions" v-model="appParams.disableColisions">
+                                <input type="checkbox" class="form-check-input" id="cb-collisions" v-model="appParams.disableColisions" style="transform: scale(2);padding: 10px;">
                                 <label class="form-check-label" for="cb-collisions">Disable collisions</label>
                             </div>
                             <div class="form-check">
-                                <input type="checkbox" class="form-check-input" id="cb-localisation" v-model="appParams.disableLocalisation">
+                                <input type="checkbox" class="form-check-input" id="cb-localisation" v-model="appParams.disableLocalisation" style="transform: scale(2);padding: 10px;">
                                 <label class="form-check-label" for="cb-localisation">Disable localisation</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="cb-modifier-1" v-model="appParams.modifier1" style="transform: scale(2);padding: 10px;">
+                                <label class="form-check-label" for="cb-modifier-1">Modifier 1(Opposit)</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="cb-pami" v-model="appParams.PAMIOnTable" style="transform: scale(2);padding: 10px;">
+                                <label class="form-check-label" for="cb-pami">PAMI on table</label>
                             </div>
                         </div>
                     </div>
@@ -238,7 +246,26 @@
                                     </div>
                                 </div>
                                 <!--Joystick-->
-                                <div id="joyDiv" style="width:200px;height:200px;margin-bottom:20px;"></div>
+                                <!--<div id="joyDiv" style="width:200px;height:200px;margin-bottom:20px;"></div>-->
+                                <!--Actuators-->
+                                <div class="card m-1" v-for="(group, groupName, groupIndex) in actuators.actuators" style="min-width: 18em;box-shadow: 0px 0px 10px 2px #ececec;">
+                                    <div class="card-header font-weight-bold p-1 pl-2 d-flex align-items-center justify-content-between">
+                                        <span class="w-100">{{groupName}}</span>
+                                        <button class="btn btn-info py-1 px-2 " style="font-size:12px" v-on:click="disableActuatorGroup(groupName)">Disable</button>
+                                        <button class="btn btn-info py-1 px-2 " style="font-size:12px" v-on:click="updateActuators()">Get</button>
+                                        <button class="btn btn-success py-1 px-2 " style="font-size:12px" v-on:click="setActuatorGroup(groupName)">Set</button>
+                                    </div>
+                                    <ul class="list-group list-group-flush">
+                                        <li class="list-group-item p-1 pl-2 d-flex align-items-center justify-content-between">
+                                            <span>Duration</span>
+                                            <input class="slider" type="range" min="0" value="1000" max="1000" v-bind:name="'duration-group-'+groupName" step="50">
+                                        </li>
+                                        <li v-for="(servoValue, servoName, servoIndex) in group" class="list-group-item p-1 pl-2 d-flex align-items-center justify-content-between">
+                                            <span> {{servoName}}:{{servoValue}}</span>
+                                            <input class="slider" type="range" min="0" max="360" v-model:value="group[servoName]" step="1">
+                                        </li>
+                                    </ul>
+                                </div>
                                 <!--Robot-->
                                 <div class="card m-1" style="min-width: 18em;box-shadow: 0px 0px 10px 2px #ececec; background-color:#d1d8e0;">
                                     <div class="card-header font-weight-bold p-1 pl-2 d-flex align-items-center justify-content-between">
