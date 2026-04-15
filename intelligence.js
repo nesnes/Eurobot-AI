@@ -4,6 +4,7 @@ const utils = require("./utils")
 module.exports = class Intelligence {
     constructor(app) {
         this.app = app;
+        this.runId = new Date().getTime();
         this.startTime = 0;
         this.matchStarted = false;
         this.currentTime = 0;
@@ -111,6 +112,7 @@ module.exports = class Intelligence {
     }
     
     startMatchTimer(){
+        this.runId =  new Date().getTime();
         this.startTime = new Date().getTime();
         this.currentTime = 0;
         this.send();

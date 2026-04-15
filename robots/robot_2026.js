@@ -325,7 +325,7 @@ module.exports = class Robot2020 extends Robot{
     }
 
     async setArmsNamedPose(parameters){
-        let armList = ["FF", "BB", "FS", "BS", "FC", "CF", "AF", "CS", "AS"]
+        let armList = ["FA", "FC"]
         if(!("poseName" in parameters)) return false;
         if("armRawList" in parameters && parameters.armRawList !="") armList = parameters.armRawList.split(",");
         if("armList" in parameters) armList = parameters.armList;

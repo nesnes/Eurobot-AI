@@ -22,7 +22,7 @@ module.exports = class CameraAI {
             3: {"name": "YELLOW", color: "yellow"},
         }
         
-        if(process.platform=="linux") this.port = "/dev/ttyUSB0";//"/dev/lidar"; //Raspberry/Linux
+        if(process.platform=="linux") this.port = "/dev/camAI"; //Raspberry/Linux
         if(process.platform=="darwin") this.port = "/dev/cu.usbmodem5AAF2684101"; //Mac
         if(process.platform=="win32") this.port = "COM5"; //Windows
     }
@@ -143,6 +143,11 @@ module.exports = class CameraAI {
                 this.lastFrame = detections;
                 this.lastDetections = detections;
                 this.sendImage()
+                // Save on disk
+                let fileName = `logs/${this.app.intelligence.runId}_img_${this.name}_${this.app.intelligence.currentTime}.jpg`;
+                require("fs").writeFile(fileName, jsonMsg.data.image, 'base64', function(err) {
+                    console.log("CameraAI failed to write image", err);
+                });
             }
         }
     }
