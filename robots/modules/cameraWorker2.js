@@ -142,7 +142,7 @@ async function sendImage(name, img){
             };
             let jpegImageData = jpeg.encode(raw_data, 90);
             //console.log(jpegImageData.data.toString('base64'));
-            sendMessage({type:"image", name:name, data:jpegImageData.data.toString('base64')});
+            sendMessage({type:"image", name:name, image:jpegImageData.data.toString('base64')});
         }catch(e)
         {
             console.log(e)

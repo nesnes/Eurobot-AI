@@ -30,7 +30,7 @@ module.exports = class Intelligence {
 
         //Load the map
         //let mapFile = './maps/map_lidar_test';
-        let mapFile = './maps/map_2025';
+        let mapFile = './maps/map_2026';
         delete require.cache[require.resolve(mapFile)]; //Delete require() cache
         const Map = require(mapFile);
         this.app.map = new Map(this.app);
@@ -39,7 +39,7 @@ module.exports = class Intelligence {
         
         //Create robot
         //let robotFile = './robots/robot_test_lidar';
-        let robotFile = './robots/robot_2025';
+        let robotFile = './robots/robot_2026';
         delete require.cache[require.resolve(robotFile)]; //Delete require() cache
         const Robot = require(robotFile);
         this.app.robot = new Robot(this.app);

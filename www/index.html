@@ -241,12 +241,24 @@
                                     <div class="d-flex flex-column">
                                         <div v-for="(img, index) in images.list" style="position:relative;flex:1">
                                             <span style="position:absolute;top:0;left:0;color:white;background-color: rgba(0,0,0,0.5);">{{img.name}}</span>
-                                            <img style="width:100%" v-bind:src="'data:image/jpeg;base64,'+img.data"/>
+                                            <img style="width:100%" v-bind:src="'data:image/jpeg;base64,'+img.image"/>
+                                            <!--Boxes-->
+                                            <template  v-if="img.boxes && img.resolution">
+                                                <template v-for="(box, boxIndex) in img.boxes">
+                                                    <div style="position:absolute;top:0;left:0;border: 2px solid pink;" v-bind:style="{ 
+                                                        top: (100/img.resolution.height*(box.y-box.height/2))+'%',
+                                                        left: (100/img.resolution.width*(box.x-box.width/2))+'%',
+                                                        width: (100/img.resolution.width*box.width)+'%',
+                                                        height: (100/img.resolution.height*box.height)+'%',
+                                                        'border-color': box.color
+                                                    }">
+                                                        <span style="font-size: 5px;">{{box.confidence}}</span>
+                                                    </div>
+                                                </template>
+                                            </template>
                                         </div>
                                     </div>
                                 </div>
-                                <!--Joystick-->
-                                <!--<div id="joyDiv" style="width:200px;height:200px;margin-bottom:20px;"></div>-->
                                 <!--Actuators-->
                                 <div class="card m-1" v-for="(group, groupName, groupIndex) in actuators.actuators" style="min-width: 18em;box-shadow: 0px 0px 10px 2px #ececec;">
                                     <div class="card-header font-weight-bold p-1 pl-2 d-flex align-items-center justify-content-between">

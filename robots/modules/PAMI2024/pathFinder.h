@@ -184,6 +184,24 @@ pathfinder_sample() {
   const uint8_t O = 10; // cost of an opponent zone
   const uint8_t U = 2  ; // cost of uncertain zone
   const uint8_t _ = 1  ; // cost of empty space
+  // 2026
+  uint8_t graph[PATHFINDER_MAP_SIZE] = { // width and height needs to match PATHFINDER_MAP_W and PATHFINDER_MAP_H
+    T,T,T,T,W,W,W,W,W,W,W,W,W,W,W,W,O,O,O,O,
+    T,T,T,T,W,W,W,W,W,W,W,W,W,W,W,W,O,O,O,O,
+    T,T,T,T,W,W,W,W,W,W,W,W,W,W,W,W,O,O,O,O,
+    U,_,_,_,_,_,T,T,T,_,_,T,T,T,_,_,_,_,_,U,
+    U,U,U,_,_,_,T,T,T,_,_,T,T,T,_,_,_,U,U,U,
+    U,U,U,_,_,_,_,_,_,_,_,_,_,_,_,_,_,U,U,U,
+    U,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,U,
+    T,T,_,_,T,T,T,U,U,T,T,U,U,T,T,T,_,_,T,T,
+    T,T,_,_,T,T,T,U,U,T,T,U,U,T,T,T,_,_,T,T,
+    U,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,U,
+    U,U,_,_,_,_,U,U,U,_,_,U,U,U,_,_,_,_,U,U,
+    U,U,_,T,T,T,U,U,U,T,T,U,U,U,T,T,T,_,U,U,
+    U,U,U,T,T,T,U,U,U,T,T,U,U,U,T,T,T,U,U,U
+  };
+  /*
+  // 2024
   uint8_t graph[PATHFINDER_MAP_SIZE] = { // width and height needs to match PATHFINDER_MAP_W and PATHFINDER_MAP_H
     T,T,T,T,T,T,T,T,T,T,O,O,O,O,O,O,O,O,O,O,
     T,T,T,_,_,_,_,_,_,_,_,_,_,_,_,_,_,O,O,O,
@@ -198,7 +216,7 @@ pathfinder_sample() {
     T,T,T,_,_,_,_,_,_,U,U,_,_,_,_,_,_,O,O,O,
     T,T,T,_,_,_,U,U,_,_,_,_,U,U,_,_,_,O,O,O,
     T,T,T,U,U,U,U,U,U,U,U,U,U,U,U,U,U,O,O,O
-  };
+  };*/
 
   // Find path
   int16_t foundPath[PATHFINDER_PATH_SIZE];

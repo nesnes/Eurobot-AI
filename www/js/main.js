@@ -84,6 +84,7 @@ communication.client.on("connect", function (){
 });
 
 communication.client.on("message", function (topic, payload) {
+    console.log("MQTT msg", topic, ""+payload)
     if(topic == "/map"){
         var newMap = JSON.parse(""+payload)
         Object.assign(map, newMap);
@@ -106,7 +107,11 @@ communication.client.on("message", function (topic, payload) {
     else if(topic == "/images"){
         let obj = JSON.parse(""+payload)
         let img = images.list.find(i=>i.name==obj.name)
-        if(img) img.data = obj.data
+        if(img){
+            img.image = obj.image;
+            img.boxes = obj.boxes;
+            img.resolution = obj.resolution;
+        }
         else images.list.push(obj)
     }
     else if(topic == "/intelligence"){

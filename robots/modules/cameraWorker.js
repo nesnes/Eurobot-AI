@@ -168,7 +168,7 @@ async function sendImage(name, img){
     if(!isMainThread){
         const smallImg = img.resizeToMax(100);
         const outBase64 =  cv.imencode('.jpg', smallImg).toString('base64');
-        sendMessage({type:"image", name:name, data:outBase64});
+        sendMessage({type:"image", name:name, image:outBase64});
     }
     else {
         //cv.imshow(name, img);

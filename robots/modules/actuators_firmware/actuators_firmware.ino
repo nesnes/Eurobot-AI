@@ -26,7 +26,7 @@ float imuYawOffset = 0;
 bool ledValue = true;
 Chrono updateLed;
 
-#include <Adafruit_NeoPixel.h>
+#include <Adafruit_NeoPixel.h> //https://github.com/adafruit/adafruit_neopixel
 #define NEOPIXEL_COUNT 24
 Adafruit_NeoPixel neopixels(NEOPIXEL_COUNT, 33, NEO_GRB + NEO_KHZ800);
 Chrono updateNeopixel;
