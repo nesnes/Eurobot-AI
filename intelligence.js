@@ -50,7 +50,7 @@ module.exports = class Intelligence {
         //Read the goals
         //let goalsFile='./goals/goals_homologation';
         //let goalsFile='./goals/goals_test';
-        let goalsFile='./goals/goals_2025';
+        let goalsFile='./goals/goals_2026';
         delete require.cache[require.resolve(goalsFile)]; //Delete require() cache
         const Goals = require(goalsFile);
         this.app.goals = new Goals(this.app);

@@ -14,6 +14,7 @@ module.exports = class CameraAI {
         this.message = "";
         this.lastFrame = null;
         this.lastDetections = null;
+        this.pendingDetections = null;
         this.frameBufferSize = 3; // Estimated size of cam frame buffer, request N frame before having the new one
         this.classes = {
             0: {"name": "TAG", color: "red"},
@@ -118,6 +119,7 @@ module.exports = class CameraAI {
         if (jsonMsg.name == "INVOKE") {
             if (jsonMsg.data && jsonMsg.data.boxes && jsonMsg.data.resolution && jsonMsg.data.image && jsonMsg.data.count == 3) {
                 let detections = {};
+                detections.resolution = { width: jsonMsg.data.resolution[0], height: jsonMsg.data.resolution[1] };
                 // Convert box format
                 let boxes = [];
                 for (let box of jsonMsg.data.boxes) {
@@ -129,7 +131,11 @@ module.exports = class CameraAI {
                         height: box[3],
                         confidence: box[4],
                         class: ""+box[5],
-                        color: "pink"
+                        color: "pink",
+                        xp : 100/detections.resolution.width * box[0],
+                        yp : 100/detections.resolution.height * box[1],
+                        wp : 100/detections.resolution.width * box[2],
+                        hp : 100/detections.resolution.height * box[3]
                     };
                     if (box[5] in this.classes) {
                         newBox.name = this.classes[box[5]].name;
@@ -139,9 +145,9 @@ module.exports = class CameraAI {
                 }
                 detections.boxes = boxes;
                 detections.image = jsonMsg.data.image;
-                detections.resolution = { width: jsonMsg.data.resolution[0], height: jsonMsg.data.resolution[1] };
                 this.lastFrame = detections;
                 this.lastDetections = detections;
+                if(this.pendingDetections) this.pendingDetections();
                 this.sendImage()
                 // Save on disk
                 let fileName = `logs/${this.app.intelligence.runId}_img_${this.name}_${this.app.intelligence.currentTime}.jpg`;
@@ -161,6 +167,12 @@ module.exports = class CameraAI {
     async getDetections(){
         if(this.serial) {
             this.serial.write(`AT+INVOKE=${this.frameBufferSize},0,0?\r\n`);
+            await new Promise(resolve=>{
+                this.pendingDetections = resolve;
+                setTimeout(resolve, 2000)
+            })
+            this.pendingDetections = null;
+            return this.lastDetections;
         }
     }
 }

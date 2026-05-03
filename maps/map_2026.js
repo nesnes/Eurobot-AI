@@ -109,7 +109,7 @@ module.exports = class Map2020 extends Map{
                 team: "yellow",
                 reserved: true,
                 shape: { type: "rectangle", x:0, y:0, width: 600,  height: 450, color: "yellow" },
-                access:{ x:475, y:700, angle:-120 },
+                access:{ x:350, y:650, angle:-100 },
                 endAccess: [{ x:900, y:800, angle:-90 }, { x:450, y:1200, angle:-90 }, { x:650, y:850, angle:-90 }],
                 avoidOffset: reservedZoneAvoidOffset,
                 startPosition: {x: 375, y: 225, angle: 90, team: "yellow"}
@@ -120,7 +120,7 @@ module.exports = class Map2020 extends Map{
                 team: "blue",
                 reserved: true,
                 shape: { type: "rectangle", x:2400, y:0, width: 600,  height: 450, color: "blue" },
-                access:{ x:2525, y:700, angle:-60 },
+                access:{ x:2650, y:650, angle:-80 },
                 endAccess: [{ x:2100, y:800, angle:-90 }, { x:2550, y:1200, angle:-90 }, { x:2300, y:850, angle:-90 }],
                 avoidOffset: reservedZoneAvoidOffset,
                 startPosition: {x: 2625, y: 225, angle: 90, team: "blue"}
@@ -131,7 +131,6 @@ module.exports = class Map2020 extends Map{
                 name: "Build TY",
                 type: "buildTop",
                 team: "",
-                reserved: true,
                 shape: { type: "rectangle", x:1150, y:450, width: 200,  height: 200, color: "green" },
                 access:{ x:1250, y:875, angle:-90 },
                 avoidOffset: buildZoneAvoidOffset
@@ -140,7 +139,6 @@ module.exports = class Map2020 extends Map{
                 name: "Build TB",
                 type: "buildTop",
                 team: "",
-                reserved: true,
                 shape: { type: "rectangle", x:1650, y:450, width: 200,  height: 200, color: "green" },
                 access:{ x:1750, y:875, angle:-90 },
                 avoidOffset: buildZoneAvoidOffset
@@ -151,7 +149,6 @@ module.exports = class Map2020 extends Map{
                 name: "Build MYY",
                 type: "buildMiddle",
                 team: "",
-                reserved: true,
                 shape: { type: "rectangle", x:0, y:1100, width: 200,  height: 200, color: "green" },
                 access:{ x:425, y:1200, angle:180 },
                 avoidOffset: buildZoneAvoidOffset
@@ -159,7 +156,6 @@ module.exports = class Map2020 extends Map{
                 name: "Build MY",
                 type: "buildMiddle",
                 team: "",
-                reserved: true,
                 shape: { type: "rectangle", x:700, y:1100, width: 200,  height: 200, color: "green" },
                 access:{ x:800, y:875, angle:90 },
                 avoidOffset: buildZoneAvoidOffset
@@ -167,7 +163,6 @@ module.exports = class Map2020 extends Map{
                 name: "Build M",
                 type: "buildMiddle",
                 team: "",
-                reserved: true,
                 shape: { type: "rectangle", x:1400, y:1100, width: 200,  height: 200, color: "green" },
                 access:{ x:1500, y:875, angle:90 },
                 avoidOffset: buildZoneAvoidOffset
@@ -175,7 +170,6 @@ module.exports = class Map2020 extends Map{
                 name: "Build MB",
                 type: "buildMiddle",
                 team: "",
-                reserved: true,
                 shape: { type: "rectangle", x:2100, y:1100, width: 200,  height: 200, color: "green" },
                 access:{ x:2200, y:875, angle:90 },
                 avoidOffset: buildZoneAvoidOffset
@@ -183,7 +177,6 @@ module.exports = class Map2020 extends Map{
                 name: "Build MBB",
                 type: "buildMiddle",
                 team: "",
-                reserved: true,
                 shape: { type: "rectangle", x:2800, y:1100, width: 200,  height: 200, color: "green" },
                 access:{ x:2576, y:1200, angle:0 },
                 avoidOffset: buildZoneAvoidOffset
@@ -194,7 +187,6 @@ module.exports = class Map2020 extends Map{
                 name: "Build BY",
                 type: "buildBottom",
                 team: "",
-                reserved: true,
                 shape: { type: "rectangle", x:600, y:1800, width: 200,  height: 200, color: "green" },
                 access:{ x:700, y:1575, angle:90 },
                 avoidOffset: buildZoneAvoidOffset
@@ -203,7 +195,6 @@ module.exports = class Map2020 extends Map{
                 name: "Build B",
                 type: "buildBottom",
                 team: "",
-                reserved: true,
                 shape: { type: "rectangle", x:1400, y:1800, width: 200,  height: 200, color: "green" },
                 access:{ x:1500, y:1575, angle:90 },
                 avoidOffset: buildZoneAvoidOffset
@@ -212,7 +203,6 @@ module.exports = class Map2020 extends Map{
                 name: "Build B",
                 type: "buildBottom",
                 team: "",
-                reserved: true,
                 shape: { type: "rectangle", x:2200, y:1800, width: 200,  height: 200, color: "green" },
                 access:{ x:2300, y:1575, angle:90 },
                 avoidOffset: buildZoneAvoidOffset
@@ -316,6 +306,23 @@ module.exports = class Map2020 extends Map{
                 shape: { type: "rectangle", x:1800, y:1750, width: 200,  height: 150, color: "blue" },
                 avoidOffset: elementOffset,
                 access:{ tags:["center"], x:1900, y:1500, angle:90 }
+            },
+
+
+            // Cursor
+            {
+                name: "Cursor Yellow",
+                type: "cursor",
+                team: "yellow",
+                shape: { type: "rectangle", x:150, y:2022, width: 100,  height: 50, color: "yellow" },
+                access:{ tags:["center"], x:475, y:1600, angle:90 }
+            },
+            {
+                name: "Cursor Blue",
+                type: "cursor",
+                team: "blue",
+                shape: { type: "rectangle", x:2750, y:2022, width: 100,  height: 50, color: "blue" },
+                access:{ tags:["center"], x:2525, y:1600, angle:90 }
             },
 
             

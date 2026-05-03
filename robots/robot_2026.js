@@ -39,18 +39,18 @@ module.exports = class Robot2020 extends Robot{
         this.variables = {
             // value:{R|G|B|replica|artifact|''}, Side: 0=ready 1=flipped(not ready to drop) 
             // value: {"P"=plant|"PR"=resistante|"PF"=fragile|"M"=metal_pot|""}
-            clampAFC: { value: "", label: "AFC" },  
-            clampFAC: { value: "", label: "FAC" },  
-            clampFCC: { value: "", label: "FCC" },  
-            clampCFC: { value: "", label: "CFC" },  
-            clampAS4: { value: "", label: "AS4" },  
-            clampAS5: { value: "", label: "FS5" },  
-            clampCS4: { value: "", label: "CS4" },  
-            clampCS5: { value: "", label: "CS5" }, 
+            armFAC: { value: "", label: "FAC" }, // Front A clamp 
+            armFCC: { value: "", label: "FAC" }, // Front C clamp
+            armLBC: { value: "", label: "LBC" }, // Left A clamp 
+            armLAC: { value: "", label: "LAC" }, // Left C clamp
+            armRBC: { value: "", label: "RBC" }, // Right A clamp 
+            armRCC: { value: "", label: "RCC" }, // Right C clamp
+
             startZone: { value: "" },
             endReached: { value: 0, max: 1 },
             endZone: { value: "" },
             startRushed: { value: 0, max: 1 },
+            cursorActivated: { value: 0, max: 1 },
         }
         this.collisionAngle = 90;
         this.collisionDistance = this.radius+300;//450;
@@ -70,114 +70,60 @@ module.exports = class Robot2020 extends Robot{
         }
         this.poseList = {
             //##### DEFAULT ########
-            "FAG_FCG_default1": {duration:1000, a1:0, a2:180, a3:180, a4:25, a5:180},
+            "FAG_FCG_default1": {duration:1000, a1:0, a2:195, a3:180, a4:25, a5:180},
 
-            //##### FRONT GRAB ########
-            "FFG_frontPreGrab1": {duration:350, a1:187},
-            "FCG_frontPreGrab1": {duration:350, a1:93,a2:93},
-            "FSG_frontPreGrab1": {duration:350, a1:150,a2:92,a3:0},
-            "AFG_CFG_frontPreGrab1": {duration:350, a1:116,a2:111,a3:146,a4:120},
-            "FFG_frontGrab1": {duration:350, a1:150},
-            "FSG_frontGrab1": {duration:350, a1:174,a2:88,a3:1},
-            "FCG_frontGrab1": {duration:30, a1:120,a2:120},
-            "AFG_CFG_frontGrab1": {duration:350, a1:116,a2:111,a3:110,a4:100},
-            "FSG_frontGrab2": {duration:350, a1:179,a2:98,a3:1},
-            "AFG_CFG_frontGrab2": {duration:350, a1:116,a2:111,a3:120,a4:120},
-            "FSG_frontGrab3": {duration:100, a1:175,a2:91,a3:1},
+            //##### Vision ########
+            "FAG_FCG_vision1": {duration:500, a1:0, a2:195, a3:300, a4:30, a5:180},
 
-            //##### FRONT GRAB TIGHT ########
-            "AFG_CFG_frontPreGrabTight1": {duration:350, a1:116,a2:111,a3:113,a4:126},
-            "FFG_frontPreGrabTight1": {duration:350, a1:187},
-            "FCG_frontPreGrabTight1": {duration:350, a1:93,a2:93},
-            "FSG_frontPreGrabTight1": {duration:350, a1:150,a2:92,a3:0},
-            "AFG_CFG_frontGrabTight1": {duration:350, a1:116,a2:111,a3:126,a4:126},
-            "FSG_frontGrabTight2": {duration:350, a1:179,a2:98,a3:1},
-            "FSG_frontGrabTight3": {duration:100, a1:175,a2:91,a3:1},
+            //##### PreGrab ########
+            "FAG_FCG_preGrab1": {duration:150, a1:0, a2:195, a3:240, a4:110, a5:180},
+            "FAG_FCG_preGrab2": {duration:150, a1:0, a2:40, a3:240, a4:110, a5:180},
 
-            //##### FRONT FREE ALL ########
-            "AFG_CFG_frontFreeAll1": {duration:600, a1:218,a2:157,a3:134,a4:150},
-            "AFG_CFG_frontFreeAll2": {duration:600, a1:116,a2:111,a3:146,a4:150},
-                "AFG_frontFreeAll3": {duration:350, a1:110,a2:102,a3:272,a4:150},
-                "CFG_frontFreeAll4": {duration:350, a1:110,a2:102,a3:272,a4:150},
-            "FFG_frontFreeAll4": {duration:350, a1:206},
-            "FSG_frontFreeAll4": {duration:350, a1:174,a2:88,a3:0},
-            "FCG_frontFreeAll4": {duration:350, a1:208,a2:208},
+            //##### Grab ########
+            "FAG_FCG_grabForward1": {duration:500, a1:0, a2:40, a3:190, a4:130, a5:180},
+            "FAG_FCG_grabForward2": {duration:300, a1:0, a2:40, a3:170, a4:125, a5:180},
 
-            //###### FRONT STORE ######
-            "AFG_frontStore1": {duration:500, a1:93,a2:89,a3:274,a4:120},
-            "CFG_frontStore2": {duration:500, a1:93,a2:89,a3:274,a4:120},
-            "AFG_CFG_frontStore3": {duration:500, a1:97,a2:29,a3:216,a4:120},
-            "AFG_CFG_frontStore4": {duration:500, a1:153,a2:58,a3:182,a4:120},
-            "AFG_CFG_frontStore5": {duration:500, a1:194,a2:103,a3:158,a4:120},
-            "AFG_CFG_frontStore6": {duration:500, a1:268,a2:183,a3:118,a4:120},
-            "AFG_CFG_frontStore7": {duration:500, a1:279,a2:191,a3:88,a4:120},
-            //"AFG_CFG_frontStore5": {duration:500, a1:268,a2:173,a3:111,a4:120},
-            //"AFG_CFG_frontStore6": {duration:500, a1:278,a2:210,a3:113,a4:120},
+            //##### Desposit ########
+            "FAG_FCG_depositForward1": {duration:500, a1:0, a2:40, a3:230, a4:65, a5:180},
+            "FAG_FCG_depositForward2": {duration:150, a1:0, a2:40, a3:230, a4:83, a5:180},
+            "FAG_FCG_depositForward3": {duration:150, a1:0, a2:195, a3:230, a4:83, a5:180},
 
-            //###### FRONT BUILD ######
-            "FFG_frontBuild1": {duration:500, a1:206}, // 1st stage planche released
-            "FCG_frontBuild1": {duration:500, a1:208,a2:208}, // Open 1st stage
-            "AFG_CFG_frontBuild1": {duration:200, a1:279,a2:197,a3:108,a4:120},
-            "FSG_frontBuild1": {duration:500, a1:150,a2:63,a3:1}, // 2nd stage planche high
-            "FSG_frontBuild2": {duration:500, a1:162,a2:160,a3:1}, // 2nd stage planche vertical
-            "FCG_frontBuild2": {duration:500, a1:208,a2:208}, // Make sure to open 1st stage
-            "AFG_CFG_frontBuild3": {duration:500, a1:295,a2:300,a3:147,a4:115}, // 2nd stage cans on 1st stage
-            "FSG_frontBuild4": {duration:500, a1:157,a2:243,a3:1}, // Planche above cans 2nd stage
-            "FSG_frontBuild5": {duration:200, a1:157,a2:243,a3:1}, // Pause above cans 2nd stage
-            "FSG_frontBuild6": {duration:500, a1:193,a2:278,a3:1}, // Compress 2nd stage
-            "AFG_CFG_frontBuild5": {duration:500, a1:295,a2:300,a3:147,a4:162}, // 2nd stage cans release
-            "FSG_frontBuild7": {duration:500, a1:201,a2:281,a3:0}, // Release planche 2nd stage
-            "AFG_CFG_frontBuild8": {duration:500, a1:295,a2:297,a3:160,a4:162}, // 2nd stage cans cleared
-            "FSG_frontBuild8": {duration:500, a1:201,a2:281,a3:0}, // Make sure release planche 2nd stage
-            "AFG_CFG_frontPostBuild1": {duration:750, a1:211,a2:165,a3:255,a4:96}, // 2nd stage cans cleared
-            "AFG_CFG_frontPostBuild2": {duration:500, a1:144,a2:65,a3:191,a4:134}, // 2nd stage cans cleared
+            //##### PreCursor ########
+            "FAG_FCG_preCursor1": {duration:500, a1:0, a2:320, a3:180, a4:40, a5:180},
+            "FAG_FCG_preCursor2": {duration:300, a1:0, a2:320, a3:180, a4:160, a5:180},
 
-            //##### BACK GRAB ########
-            "BBG_backPreGrab1": {duration:300, a1:178},
-            "BSG_backPreGrab1": {duration:300, a1:180,a2:156,a3:73,a4:0},
-            "ASG_CSG_backPreGrab2": {duration:400, a1:166,a2:226,a3:297,a4:190,a5:100,a6:120},
-            "ASG_CSG_backPreGrab3": {duration:400, a1:175,a2:160,a3:259,a4:165,a5:100,a6:120},
-            "ASG_CSG_backPreGrab4": {duration:400, a1:170,a2:149,a3:235,a4:92,a5:100,a6:120},
-            "BBG_backPreGrab4": {duration:500, a1:190},
-            "BBG_backGrab1": {duration:550, a1:150},
-            "BSG_backGrab1": {duration:500, a1:180,a2:191,a3:96,a4:1},
-            "BSG_backGrab2": {duration:500, a1:180,a2:192,a3:114,a4:1},
-            "ASG_CSG_backGrab2": {duration:500, a1:151,a2:157,a3:242,a4:61,a5:100,a6:120},
-            "BSG_backGrab3": {duration:300, a1:180,a2:179,a3:95,a4:1},
+            //##### GrabCursor ########
+            "FAG_FCG_grabCursor1": {duration:300, a1:0, a2:200, a3:180, a4:160, a5:180},
+            "FAG_FCG_grabCursor2": {duration:500, a1:0, a2:200, a3:110, a4:200, a5:180},
 
-            //##### BACK STORE ########
-            "BSG_backStore1": {duration:500, a1:180,a2:152,a3:79,a4:1},
-            "BBG_backStore1": {duration:500, a1:140},
-            "ASG_CSG_backStore1": {duration:500, a1:168,a2:140,a3:224,a4:90,a5:100,a6:120},
-            "ASG_CSG_backStore2": {duration:600, a1:168,a2:135,a3:208,a4:89,a5:100,a6:120},
-            "ASG_CSG_backStore3": {duration:350, a1:184,a2:138,a3:228,a4:198,a5:100,a6:120},
-            "ASG_CSG_backStore4": {duration:350, a1:169,a2:177,a3:290,a4:196,a5:100,a6:120},
-            //"BBG_backStore5": {duration:500, a1:183},
-            "BSG_backStore5": {duration:350, a1:180,a2:173,a3:89,a4:1},
-            "ASG_CSG_backStore6": {duration:750, a1:169,a2:278,a3:227,a4:199,a5:100,a6:120},
-            "ASG_CSG_backStore7": {duration:350, a1:224,a2:278,a3:209,a4:203,a5:100,a6:120},
+            //##### freeCursor ########
+            "FAG_FCG_freeCursor1": {duration:500, a1:0, a2:200, a3:180, a4:160, a5:180},
+            "FAG_FCG_freeCursor2": {duration:150, a1:0, a2:320, a3:180, a4:160, a5:180},
+            "FAG_FCG_freeCursor3": {duration:300, a1:0, a2:320, a3:180, a4:40, a5:180},
 
-            //##### BACK BUILD ########
-            "BBG_backBuild1": {duration:250, a1:166},
-            "BSG_backBuild2": {duration:300, a1:180,a2:152,a3:72,a4:1},
-            "BSG_backBuild3": {duration:300, a1:180,a2:152,a3:189,a4:1},
-            "ASG_CSG_backBuild4": {duration:350, a1:155,a2:259,a3:159,a4:279,a5:100,a6:120},
-            "ASG_CSG_backBuild5": {duration:750, a1:128,a2:158,a3:60,a4:316,a5:100,a6:120},
-            "BSG_backBuild6": {duration:400, a1:180,a2:158,a3:272,a4:1},
-            "BSG_backBuild7": {duration:400, a1:180,a2:184,a3:293,a4:1},
-            "BSG_backBuild8": {duration:400, a1:180,a2:200,a3:301,a4:0},
-            "BSG_backBuild9": {duration:400, a1:180,a2:217,a3:300,a4:0},
-            "BBG_backBuild10": {duration:400, a1:179},
-            "ASG_CSG_backBuild11": {duration:250, a1:155,a2:259,a3:159,a4:279,a5:130,a6:150},
-            "ASG_CSG_backBuild11": {duration:500, a1:128,a2:158,a3:60,a4:316,a5:130,a6:150},
+            //##### sideGrab ########
+            "FAG_FCG_sideGrab1": {duration:300, a1:1, a2:115, a3:205, a4:48, a5:235},
+            "FAG_FCG_sideGrab2": {duration:150, a1:1, a2:75, a3:205, a4:48, a5:235}, // ! same than bellow
+            "FAG_FCG_sideGrab3": {duration:300, a1:1, a2:75, a3:205, a4:48, a5:235}, // ! same than above
 
-            "ASG_CSG_backPostBuild1": {duration:500, a1:128,a2:158,a3:60,a4:316,a5:130,a6:150},
-            "ASG_CSG_backPostBuild2": {duration:500, a1:177,a2:257,a3:165,a4:243,a5:130,a6:150},
+            //##### sideLiftAndDrop ########
+            "FAG_FCG_sideLiftAndDrop1": {duration:200, a1:1, a2:250, a3:205, a4:48, a5:235}, 
+            "FAG_FCG_sideLiftAndDrop2": {duration:200, a1:1, a2:250, a3:120, a4:110, a5:165}, 
+            "FAG_FCG_sideLiftAndDrop3": {duration:150, a1:1, a2:160, a3:120, a4:110, a5:165}, // ! same than bellow
+            "FAG_FCG_sideLiftAndDrop4": {duration:300, a1:0, a2:160, a3:120, a4:110, a5:165}, // ! same than above
+            "FAG_FCG_sideLiftAndDrop5": {duration:150, a1:0, a2:250, a3:120, a4:110, a5:165}, // ! same than above (except height)
 
-            //##### BACK FREE ALL ########
-            "BBG_backFreeAll1": {duration:300, a1:127},
-            "ASG_CSG_backFreeAll1": {duration:500, a1:184,a2:149,a3:240,a4:188,a5:130,a6:150},
+            //##### middleGrab ########
+            "FAG_FCG_middleGrab1": {duration:300, a1:1, a2:115, a3:140, a4:70, a5:270},
+            "FAG_FCG_middleGrab2": {duration:150, a1:1, a2:75, a3:140, a4:70, a5:270}, // ! same than bellow
+            "FAG_FCG_middleGrab3": {duration:300, a1:1, a2:75, a3:140, a4:70, a5:270}, // ! same than above
 
+            //##### middleLiftAndDrop ########
+            "FAG_FCG_middleLiftAndDrop1": {duration:200, a1:1, a2:250, a3:140, a4:70, a5:270}, 
+            "FAG_FCG_middleLiftAndDrop2": {duration:200, a1:1, a2:250, a3:120, a4:110, a5:160}, 
+            "FAG_FCG_middleLiftAndDrop3": {duration:150, a1:1, a2:160, a3:120, a4:110, a5:160}, // ! same than bellow
+            "FAG_FCG_middleLiftAndDrop4": {duration:300, a1:0, a2:160, a3:120, a4:110, a5:160}, // ! same than above
+            "FAG_FCG_middleLiftAndDrop5": {duration:150, a1:0, a2:250, a3:120, a4:110, a5:160}, // ! same than above (except height)
         }
     }
 
@@ -566,13 +512,6 @@ module.exports = class Robot2020 extends Robot{
         
         return result;
     }
-
-    /*async goGrabElements(parameters){
-        let result = true;
-
-        return result;
-    }*/
-    
     
     async rushGrab(parameters){
         let result = true;
@@ -675,7 +614,170 @@ module.exports = class Robot2020 extends Robot{
         this.removeFromMap({component:target.component});
         return true;
     }
-    
+
+    async activateCursor(parameters){
+        let result = true;
+        
+        this.app.logger.log(this.app.intelligence.currentTime, "activateCursor params", parameters);
+        
+        // Find arm
+        let isFrontFree = this.variables["armFAC"].value == ""
+                       && this.variables["armFCC"].value == "";
+        let isLeftFree = false; /*this.variables["armLBC"].value == ""
+                       && this.variables["armLAC"].value == "";*/
+        let isRightFree = false;/*this.variables["armRBC"].value == ""
+                       && this.variables["armRCC"].value == "";*/
+        if(!isFrontFree && !isLeftFree && !isRightFree) return false;
+        let side = "";
+        if("side" in parameters) side = parameters.side;
+        if(side == "") {
+            if(isFrontFree) side = "front";
+            else if(isLeftFree) side = "left";
+            else if(isRightFree) side = "right";
+        }
+        this.app.logger.log("side", side, isFrontFree, isLeftFree, isRightFree);
+        if(side == "") return false;
+        if(side == "front" && !isFrontFree) return false;
+        if(side == "left" && !isLeftFree) return false;
+        if(side == "right" && !isRightFree) return false;
+
+        let armList = [];
+        if(side=="front") armList = ["FA", "FC"]; // async
+        if(side=="left")  armList = ["LB", "LA"]; // async
+        if(side=="right") armList = ["RB", "RC"]; // async
+        if(armList.length == 0) return false; 
+
+        // Find element
+        let target = await this.selectMapComponent({
+            componentTypes: parameters.componentTypes || ["cursor"],
+            historyRatio: -20,
+            attemptRatio: 2800,
+            oppositRatio: 2800,
+            accessTag : parameters.accessTag || "",
+            opposit: parameters.opposit || false
+        })
+        this.app.logger.log("selectedComponent", target);
+        if(!target.component || !target.access){
+            this.app.logger.log("selectedComponent failed", !target.component, !target.access );
+            return false;
+        }
+        this.app.logger.log("activateCursor", target.component.name);
+        // Increase attempt count
+        if(target.component.attempts)  target.component.attempts += 1;
+        else target.component.attempts = 1;
+        // Compute move speed and angle
+        let grabOrientation = target.access.angle;
+        let moveSpeed = parameters.speed||this.app.goals.defaultSpeed;
+        if(target.distance>0 && target.distance < 600) moveSpeed *= 0.5;
+        if(side=="left") grabOrientation -= 120;
+        if(side=="right") grabOrientation += 120;
+        this.app.logger.log(target.distance, moveSpeed, grabOrientation)
+        
+        await this.waitAsyncTasks();
+        this.addAsyncTask( (async ()=>{
+            await utils.sleep(500);
+            await this.addAsyncTask(this.playPoseSequence({posePrefix:"vision", armList})); // async
+        })());
+           
+        // Move to target
+        result = await this.moveToPosition({
+            x:          target.access.x,
+            y:          target.access.y,
+            angle:      grabOrientation,
+            speed:      moveSpeed,
+            angleSpeed: parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
+            accelDist:  parameters.accelDist||this.app.goals.defaultAccel,
+            accelAngle:  parameters.accelAngle||this.app.goals.defaultAccelAngle,
+            nearDist:   50||parameters.nearDist||this.app.goals.defaultNearDist,
+            nearAngle:  5||parameters.nearAngle||this.app.goals.defaultNearAngle,
+            preventBreak: false
+        });
+        if(!result) return result;
+        await this.waitAsyncTasks();
+
+        // Refine end position
+        result = await this.moveCorrectPosition({
+            speed: (parameters.speed||this.app.goals.defaultSpeed)/3
+        });
+
+        let cursorTargetX = 620;
+        if (this.team=="blue") cursorTargetX = 3000 - cursorTargetX;
+        let cursorTargetY = 1850;
+
+        let cursorX = 225;
+        if (this.team=="blue") cursorX = 3000 - cursorX;
+
+        // Move forward (preCursor)
+        await this.addAsyncTask(this.playPoseSequence({posePrefix:"preCursor", armList})); // async
+        result = await this.moveToPosition({
+            x:          target.access.x,
+            y:          cursorTargetY,
+            angle:      grabOrientation,
+            speed:      0.25,//moveSpeed,
+            angleSpeed: 50,//parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
+            accelDist:  parameters.accelDist||this.app.goals.defaultAccel,
+            accelAngle:  parameters.accelAngle||this.app.goals.defaultAccelAngle,
+            nearDist:   50||parameters.nearDist||this.app.goals.defaultNearDist,
+            nearAngle:  5||parameters.nearAngle||this.app.goals.defaultNearAngle,
+            preventBreak: false
+        });
+
+        // Move Sideway in front of cursor
+        result = await this.moveToPosition({
+            x:          cursorX,
+            y:          cursorTargetY,
+            angle:      grabOrientation,
+            speed:      0.25,//moveSpeed,
+            angleSpeed: 50,//parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
+            accelDist:  parameters.accelDist||this.app.goals.defaultAccel,
+            accelAngle:  parameters.accelAngle||this.app.goals.defaultAccelAngle,
+            nearDist:   50||parameters.nearDist||this.app.goals.defaultNearDist,
+            nearAngle:  5||parameters.nearAngle||this.app.goals.defaultNearAngle,
+            preventBreak: false
+        });
+
+        // Grab cursor
+        await this.playPoseSequence({posePrefix:"grabCursor", armList}); // async
+
+        // Move Sideway to cursor target
+        result = await this.moveToPosition({
+            x:          cursorTargetX,
+            y:          cursorTargetY,
+            angle:      grabOrientation,
+            speed:      0.25,//moveSpeed,
+            angleSpeed: 50,//parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
+            accelDist:  parameters.accelDist||this.app.goals.defaultAccel,
+            accelAngle:  parameters.accelAngle||this.app.goals.defaultAccelAngle,
+            nearDist:   50||parameters.nearDist||this.app.goals.defaultNearDist,
+            nearAngle:  5||parameters.nearAngle||this.app.goals.defaultNearAngle,
+            preventBreak: false
+        });
+
+        // Refine end position
+        result = await this.moveCorrectPosition({
+            speed: (parameters.speed||this.app.goals.defaultSpeed)/3
+        });
+
+        await this.playPoseSequence({posePrefix:"freeCursor", armList}); // async
+
+
+        let backwardDist = -100;
+        // Move backward 
+        await this.moveAtAngle({
+            angle: target.access.angle,
+            distance: backwardDist,
+            speed: 0.35||parameters.speed||this.app.goals.defaultSpeed,
+            angleSpeed: 50||parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
+            nearDist:   50,
+            nearAngle:  10,
+            preventLocalisation: true,
+            preventBreak: false
+        })
+
+        await this.setVariable({name:"cursorActivated", value:1});
+        this.removeFromMap({component:target.component});
+        return true;
+    }    
     
     async goGrabElements(parameters){
         let result = true;
@@ -683,36 +785,35 @@ module.exports = class Robot2020 extends Robot{
         this.app.logger.log(this.app.intelligence.currentTime, "goGrabElements params", parameters);
         
         // Find arm
-        let isFrontFree = this.variables["clampAFC"].value == ""
-                       && this.variables["clampFAC"].value == ""
-                       && this.variables["clampFCC"].value == ""
-                       && this.variables["clampCFC"].value == "";
-        let isBackFree = this.variables["clampAS4"].value == ""
-                       && this.variables["clampAS5"].value == ""
-                       && this.variables["clampCS4"].value == ""
-                       && this.variables["clampCS5"].value == "";
-        if(!isFrontFree && !isBackFree) return false;
+        let isFrontFree = this.variables["armFAC"].value == ""
+                       && this.variables["armFCC"].value == "";
+        let isLeftFree = false; /*this.variables["armLBC"].value == ""
+                       && this.variables["armLAC"].value == "";*/
+        let isRightFree = false;/*this.variables["armRBC"].value == ""
+                       && this.variables["armRCC"].value == "";*/
+        if(!isFrontFree && !isLeftFree && !isRightFree) return false;
         let side = "";
         if("side" in parameters) side = parameters.side;
         if(side == "") {
             if(isFrontFree) side = "front";
-            else if(isBackFree) side = "back";
+            else if(isLeftFree) side = "left";
+            else if(isRightFree) side = "right";
         }
-        this.app.logger.log("side", side, isFrontFree, isBackFree);
+        this.app.logger.log("side", side, isFrontFree, isLeftFree, isRightFree);
         if(side == "") return false;
         if(side == "front" && !isFrontFree) return false;
-        if(side == "back" && !isBackFree) return false;
-        
-        if(side=="back") return false;
+        if(side == "left" && !isLeftFree) return false;
+        if(side == "right" && !isRightFree) return false;
 
-        let clampLeft = "AFC", clampCenterLeft = "FAC", clampCenterRight="FCC", clampRight="CFC";
-        if(side == "back"){
-            clampLeft = "CS5"; clampCenterLeft = "CS4"; clampCenterRight="AS4"; clampRight="AS5";
-        }
+        let armList = [];
+        if(side=="front") armList = ["FA", "FC"]; // async
+        if(side=="left")  armList = ["LB", "LA"]; // async
+        if(side=="right") armList = ["RB", "RC"]; // async
+        if(armList.length == 0) return false; 
 
         // Find element
         let target = await this.selectMapComponent({
-            componentTypes: parameters.componentTypes || ["element","elementReserved","elementBuildBottom","elementPAMI","elementTight"],
+            componentTypes: parameters.componentTypes || ["element"],
             historyRatio: -20,
             attemptRatio: 2800,
             oppositRatio: 2800,
@@ -734,18 +835,11 @@ module.exports = class Robot2020 extends Robot{
         if(target.distance>0 && target.distance < 600) moveSpeed *= 0.5;
         if(side=="back") grabOrientation += 180;
         this.app.logger.log(target.distance, moveSpeed, grabOrientation)
-          
-        let isTight = ["elementReserved", "elementPAMI", "elementTight","elementBuildBottom"].includes(target.component.type);
-
-        let earlyDeploy = false;
-        if("earlyDeploy" in parameters) earlyDeploy = parameters.earlyDeploy;
-
+        
         await this.waitAsyncTasks();
         this.addAsyncTask( (async ()=>{
             await utils.sleep(500);
-            if(side=="front") await this.addAsyncTask(this.playPoseSequence({posePrefix:"frontPreGrabTight"})); // async
-            if(side=="back") await this.addAsyncTask(this.playPoseSequence({posePrefix:"backPreGrab"})); // async
-            if(!isTight && side=="front") await this.playPoseSequence({posePrefix: side+"PreGrab"}); // async
+            await this.addAsyncTask(this.playPoseSequence({posePrefix:"vision", armList})); // async
         })());
            
         // Move to target
@@ -763,74 +857,20 @@ module.exports = class Robot2020 extends Robot{
         });
         if(!result) return result;
 
-        if(!earlyDeploy) await this.waitAsyncTasks();
+        if(this.modules.cameraAIFront) await this.modules.cameraAIFront.getDetections(); // capture frame
 
-        if(!earlyDeploy){
-            // Check has elements
-            this.addAsyncTask(this.checkHasElements({clamp:clampLeft, value:"C"}));
-            this.addAsyncTask(this.checkHasElements({clamp:clampCenterLeft, value:"C"}));
-            this.addAsyncTask(this.checkHasElements({clamp:clampCenterRight, value:"C"}));
-            this.addAsyncTask(this.checkHasElements({clamp:clampRight, value:"C"}));
-            await this.waitAsyncTasks();
-        }
-        let isFaceFree = this.variables["clamp"+clampLeft].value == ""
-            && this.variables["clamp"+clampCenterLeft].value == ""
-            && this.variables["clamp"+clampCenterRight].value == ""
-            && this.variables["clamp"+clampRight].value == "";
-        if(!isFaceFree) {
-            //Go backward and turn arround
-            await this.moveAtAngle({
-                angle: target.access.angle,
-                endAngle: grabOrientation+180,
-                distance: -150,
-                speed: parameters.speed||this.app.goals.defaultSpeed,
-                angleSpeed: parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
-                nearDist:   50,
-                nearAngle:  10,
-                preventLocalisation: true,
-                preventBreak: false
-            });
-            // Free elements
-            await this.playPoseSequence({posePrefix: side+"FreeAll"}); // TODO BACK FREE ALL
-            // Move away from elements
-            await this.moveAtAngle({
-                angle: target.access.angle,
-                endAngle: grabOrientation,
-                distance: 100,
-                speed: parameters.speed||this.app.goals.defaultSpeed,
-                angleSpeed: parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
-                nearDist:   50,
-                nearAngle:  10,
-                preventLocalisation: true,
-                preventBreak: false
-            });
-            // Restore target position for moveCorrectPosition
-            this.lastTarget.x = target.access.x;
-            this.lastTarget.y = target.access.y;
-            this.lastTarget.angle = grabOrientation;
-        }
-
-
+        await this.waitAsyncTasks();
+        
         // Refine end position
         result = await this.moveCorrectPosition({
             speed: (parameters.speed||this.app.goals.defaultSpeed)/3
         });
 
-        // Prepare arms async
-        /*if(!earlyDeploy){
-            if(side=="front") this.addAsyncTask(this.playPoseSequence({posePrefix:"frontPreGrabTight"})); // async
-            if(side=="back") this.addAsyncTask(this.playPoseSequence({posePrefix:"backPreGrab"})); // async
-        }*/
-        
         await this.waitAsyncTasks();
-        if(!earlyDeploy){
-            if(!isTight && side=="front") await this.playPoseSequence({posePrefix: side+"PreGrab"}); // async
-        }
+        await this.playPoseSequence({posePrefix:"preGrab", armList}); // async
 
-        let isFacingOpponentZone = target.component.type=="elementBuildBottom";// && !target.component.name.toLowerCase().includes(this.team);
         // Move forward
-        let forwardGrabDist = 230;
-         if(isFacingOpponentZone) forwardGrabDist = 150;
+        let forwardGrabDist = 150;
         result = await this.moveAtAngle({
             angle: target.access.angle,
             distance: forwardGrabDist,
@@ -845,86 +885,45 @@ module.exports = class Robot2020 extends Robot{
         if(!result) return result;
         await utils.sleep(300); // safety measure to make sure servos have arrived
 
-        if(!isFacingOpponentZone) {
-            // Move forward while grabbing
-            this.moveAtAngle({
-                angle: target.access.angle,
-                distance: 150,
-                speed: 0.25||parameters.speed||this.app.goals.defaultSpeed,
-                angleSpeed: 20||parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
-                accelAngle: 150,
-                nearDist:   50,
-                nearAngle:  5,
-                preventLocalisation: true,
-                preventBreak: false
-            });
-            await utils.sleep(500);
+        // Move forward while grabbing
+        await this.addAsyncTask(this.playPoseSequence({posePrefix:"grabForward", armList})); // async
+        await this.moveAtAngle({
+            angle: target.access.angle,
+            distance: 150,
+            speed: 0.25||parameters.speed||this.app.goals.defaultSpeed,
+            angleSpeed: 20||parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
+            accelAngle: 150,
+            nearDist:   50,
+            nearAngle:  5,
+            preventLocalisation: true,
+            preventBreak: false
+        });
+        await this.waitAsyncTasks();
+
+        for (let armLabel of armList)
+        {
+            await this.setVariable({name:"arm"+armLabel+"C", value:"?"});
         }
-        if(isTight && side=="front") await this.playPoseSequence({posePrefix:"frontGrabTight"});
-        await this.playPoseSequence({posePrefix: side + "Grab"}); // async
 
         let backwardDist = -100;
-        if(isTight){
-             backwardDist = -100;
-            // Move backward in tight space
-            await this.moveAtAngle({
-                angle: target.access.angle,
-                distance: backwardDist,
-                speed: 0.35||parameters.speed||this.app.goals.defaultSpeed,
-                angleSpeed: 50||parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
-                nearDist:   50,
-                nearAngle:  10,
-                preventLocalisation: true,
-                preventBreak: false
-            })
-        }
-        
+        // Move backward 
+        await this.moveAtAngle({
+            angle: target.access.angle,
+            distance: backwardDist,
+            speed: 0.35||parameters.speed||this.app.goals.defaultSpeed,
+            angleSpeed: 50||parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
+            nearDist:   50,
+            nearAngle:  10,
+            preventLocalisation: true,
+            preventBreak: false
+        })
 
-        // Check has elements
-        this.addAsyncTask(this.checkHasElements({clamp:clampLeft, value:"C"}));
-        this.addAsyncTask(this.checkHasElements({clamp:clampCenterLeft, value:"C"}));
-        this.addAsyncTask(this.checkHasElements({clamp:clampCenterRight, value:"C"}));
-        this.addAsyncTask(this.checkHasElements({clamp:clampRight, value:"C"}));
-        await this.waitAsyncTasks();
+        if(this.modules.cameraAIFront) await this.modules.cameraAIFront.getDetections(); // capture frame
         
-        /*let isSideCenterComplete = this.variables["clamp"+clampCenterRight].value != ""
-                                && this.variables["clamp"+clampRight].value != "";
-        if(isSideCenterComplete){
-            
-        }*/
-        let elemCount = 0;
-        if(this.variables["clamp"+clampCenterRight].value != "") elemCount++;
-        if(this.variables["clamp"+clampCenterLeft].value != "") elemCount++;
-        if(this.variables["clamp"+clampLeft].value != "") elemCount++;
-        if(this.variables["clamp"+clampRight].value != "") elemCount++;
-        if(elemCount == 1) {
-            // Release trash here
-            await this.setVariable({name:"clamp"+clampCenterLeft, value:""});
-            await this.setVariable({name:"clamp"+clampCenterRight, value:""});
-            await this.setVariable({name:"clamp"+clampLeft, value:""});
-            await this.setVariable({name:"clamp"+clampRight, value:""});
-            await this.playPoseSequence({posePrefix: side+"FreeAll"});
-            // Move backward to release elements
-            await this.moveAtAngle({
-                angle: grabOrientation,
-                distance: -100,
-                speed: 0.35||parameters.speed||this.app.goals.defaultSpeed,
-                angleSpeed: 50||parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
-                nearDist:   50,
-                nearAngle:  10,
-                preventLocalisation: true,
-                preventBreak: false
-            })
-            this.addAsyncTask( (async ()=>{
-                await utils.sleep(500);
-                if(side=="front") await this.playPoseSequence({posePrefix:"default", armList:["FF", "FS", "FC", "AF", "CF"]}); // async
-                if(side=="back") await this.playPoseSequence({posePrefix:"default", armList:["BB", "BS", "CS", "AS"]}); // async
-            })());
-        }
-        else {
-            this.addAsyncTask(this.playPoseSequence({posePrefix: side+"Store"}));
-        }
-    
+        // Check has elements
+        //this.addAsyncTask(this.checkHasElements({clamp:clampLeft, value:"C"}));
+        //await this.waitAsyncTasks();
+        
         this.removeFromMap({component:target.component});
         return true;
     }
@@ -933,16 +932,14 @@ module.exports = class Robot2020 extends Robot{
         let result = true;
         
         this.app.logger.log(this.app.intelligence.currentTime, "deposit in build zone");
-        let stageCount = 2;
-        if("stageCount" in parameters) stageCount = parameters.stageCount;
 
         // Find build zone
         let target = await this.selectMapComponent({
-            componentTypes: parameters.componentTypes || ["buildMiddle", "buildBottom", "buildBottomSide", "buildBottomCenter"],
+            componentTypes: parameters.componentTypes || ["buildTop", "buildMiddle", "buildBottom"],
             historyRatio: 0,
             attemptRatio: 2600,
             itemCountRatio: 0,
-            maxItemCount: 3
+            maxItemCount: 1
         })
         this.app.logger.log("selectedComponent", target);
         if(!target.component || !target.access){
@@ -952,31 +949,31 @@ module.exports = class Robot2020 extends Robot{
         this.app.logger.log("depositInBuildZone", target.component.name);
 
         // Find side
-        let frontElemCount = 0;
-        if(this.variables["clampAFC"].value != "") frontElemCount++;
-        if(this.variables["clampFAC"].value != "") frontElemCount++;
-        if(this.variables["clampFCC"].value != "") frontElemCount++;
-        if(this.variables["clampCFC"].value != "") frontElemCount++;
-        let backElemCount = 0;
-        if(this.variables["clampAS4"].value != "") backElemCount++;
-        if(this.variables["clampAS5"].value != "") backElemCount++;
-        if(this.variables["clampCS4"].value != "") backElemCount++;
-        if(this.variables["clampCS5"].value != "") backElemCount++;
-        if(frontElemCount==0 && backElemCount==0) return false;
+        let isFrontFree = this.variables["armFAC"].value == ""
+                       && this.variables["armFCC"].value == "";
+        let isLeftFree = false; /*this.variables["armLBC"].value == ""
+                       && this.variables["armLAC"].value == "";*/
+        let isRightFree = false;/*this.variables["armRBC"].value == ""
+                       && this.variables["armRCC"].value == "";*/
+        if(isFrontFree && isLeftFree && isRightFree) return false;
         let side = "";
         if("side" in parameters) side = parameters.side;
         if(side == "") {
-            if(frontElemCount > backElemCount) side = "front";
-            else if(backElemCount) side = "back";
+            if(!isFrontFree) side = "front";
+            else if(!isLeftFree) side = "left";
+            else if(!isRightFree) side = "right";
         }
-        this.app.logger.log("side", side, frontElemCount, backElemCount);
+        this.app.logger.log("side", side, isFrontFree, isLeftFree, isRightFree);
         if(side == "") return false;
-        if(side == "front" && frontElemCount<=0) return false;
-        if(side == "back" && backElemCount<=0) return false;
-        let clampLeft = "AFC", clampCenterLeft = "FAC", clampCenterRight="FCC", clampRight="CFC";
-        if(side == "back"){
-            clampLeft = "CS5"; clampCenterLeft = "CS4"; clampCenterRight="AS4"; clampRight="AS5";
-        }
+        if(side == "front" && isFrontFree) return false;
+        if(side == "left" && isLeftFree) return false;
+        if(side == "right" && isRightFree) return false;
+
+        let armList = [];
+        if(side=="front") armList = ["FA", "FC"]; // async
+        if(side=="left")  armList = ["LB", "LA"]; // async
+        if(side=="right") armList = ["RC", "RB"]; // async
+        if(armList.length == 0) return false; 
 
         //Adapt speed to proximity
         let moveSpeed = parameters.speed||this.app.goals.defaultSpeed;
@@ -987,7 +984,8 @@ module.exports = class Robot2020 extends Robot{
         }
 
         let targetAngleOffset = 0;
-        if(side=="back") targetAngleOffset = 180;
+        if(side=="left") targetAngleOffset = -120;
+        if(side=="right") targetAngleOffset = 120;
         let grabOrientation = target.access.angle + targetAngleOffset;
         result = await this.moveToPosition({
             x:          target.access.x,
@@ -1020,40 +1018,8 @@ module.exports = class Robot2020 extends Robot{
 
         await this.waitAsyncTasks(); // Wait for arms stored
 
-        // Find arm
-        let isBad1Stage = (
-                                this.variables["clamp"+clampCenterLeft].value != ""
-                                && this.variables["clamp"+clampRight].value != ""
-                                && (this.variables["clamp"+clampCenterRight].value == "" || this.variables["clamp"+clampLeft].value == "")
-                               )
-                            || (
-                                this.variables["clamp"+clampCenterRight].value != ""
-                                && this.variables["clamp"+clampLeft].value != ""
-                                && (this.variables["clamp"+clampCenterLeft].value == "" || this.variables["clamp"+clampRight].value == "")
-                               );
-        let is1Stage = this.variables["clamp"+clampCenterLeft].value != ""
-                         && this.variables["clamp"+clampCenterRight].value != "";
-        let is2Stage = is1Stage && this.variables["clamp"+clampLeft].value != ""
-                         && this.variables["clamp"+clampRight].value != "";
-        let isTrash = !is1Stage && !is2Stage && !isBad1Stage;
-        this.app.logger.log("Deposit clamp status", is1Stage, is2Stage, isTrash, isBad1Stage );
-
-        // Build
-        let hasBuilt = false;
-        if((!is1Stage && isBad1Stage) || isTrash){
-            // Open everything to free arms
-            this.addAsyncTask( this.playPoseSequence({posePrefix: side+"FreeAll"}));
-        }
-        else {
-            await 
-            this.addAsyncTask( this.playPoseSequence({posePrefix: side+"Build"}));
-            hasBuilt = true;
-        }
-
         // Move forward
-        let forwardDist = 450;
-        if(target.component.itemCount) forwardDist -= 175 * target.component.itemCount;
-        if(target.component.maxItemCount==1) forwardDist = 150;
+        let forwardDist = 250;
         result = await this.moveAtAngle({
             angle: target.access.angle,
             distance: forwardDist ,
@@ -1064,42 +1030,93 @@ module.exports = class Robot2020 extends Robot{
             preventLocalisation: true
         });
         if(!result) return result;
-        await this.waitAsyncTasks();
 
-        await this.setVariable({name:"clamp"+clampLeft, value:""});
-        await this.setVariable({name:"clamp"+clampCenterLeft, value:""});
-        await this.setVariable({name:"clamp"+clampCenterRight, value:""});
-        await this.setVariable({name:"clamp"+clampRight, value:""});
-
+        await this.playPoseSequence({posePrefix:"depositForward", armList}); // async
+        for (let armLabel of armList)
+        {
+            await this.setVariable({name:"arm"+armLabel+"C", value:""});
+        }
+        
         if(target.component.itemCount) target.component.itemCount += 1;
         else target.component.itemCount = 1;
 
-        if(is1Stage || isBad1Stage) await this.addScore(4);
-        if(is2Stage) await this.addScore(8);
-        
-        // Backward
-        let backwardDist = -450;
-        if(target.component.type == "buildBottomSide") backwardDist = -300;
-        await this.moveAtAngle({
-            angle: target.access.angle,
-            distance: backwardDist,
-            speed: 0.5,
-            angleSpeed: parameters.angleSpeed||this.app.goals.defaultAngleSpeed,
-            nearDist:   50,
-            nearAngle:  5,
-            preventLocalisation: true
+        // Vacuum opposit element
+        let detections = null;
+        await this.playPoseSequence({posePrefix:"vision", armList}); // async
+        if(this.modules.cameraAIFront) detections = await this.modules.cameraAIFront.getDetections(); // capture frame
+        console.log("detections", detections)
+        /*if (detections && detections.boxes && detections.boxes.length)
+        {
+            let opposit = "blue";
+            if (this.team=="blue") opposit = "yellow";
+            // Find opposit color
+            for (let det of detections.boxes)
+            {
+                console.log("det", det);
+                if (det.class.toLowerCase() != opposit) continue;
+                if (det.wp < 15 || det.hp < 30) continue;
+                let isLL = 0 < det.xp && det.xp < 12.5;
+                let isL = 12.5 < det.xp && det.xp < 37.5;
+                let isR = 37.5 < det.xp && det.xp < 62.5;
+                let isRR = 62.5 < det.xp && det.xp < 87.5;
+                console.log("is", isLL, isL, isR, isRR);
+                if(!isLL && !isL && !isR && !isRR) continue;
+                if (isRR) {
+                    let grabArmList = [armList[1]]; // only right arm
+                    await this.playPoseSequence({posePrefix:"sideGrabDeposit", grabArmList}); // async
+                    break;
+                }
+                if (isR) {
+                    let grabArmList = [armList[1]]; // only right arm
+                    await this.playPoseSequence({posePrefix:"middleGrabDeposit", grabArmList}); // async
+                    break;
+                }
+            }
+        }*/
+        let isOdd = (Math.floor(Math.random() * 2) == 0);
+        if (isOdd){
+            let grabArmList = [armList[1]]; // only right arm
+            await this.playPoseSequence({posePrefix:"sideGrab", armList: grabArmList}); // async
+        }
+        else {
+            let grabArmList = [armList[1]]; // only right arm
+            await this.playPoseSequence({posePrefix:"middleGrab", armList: grabArmList}); // async
+        }
+
+        result = await this.moveAtAngle({
+            angle: this.angle,
+            distance:   -50,
+            speed:      parameters.speed||this.app.goals.defaultSpeed,
+            nearDist:   50||parameters.nearDist||this.app.goals.defaultNearDist,
+            nearAngle:  20||parameters.nearAngle||this.app.goals.defaultNearAngle,
+            accelDist:  parameters.accelDist||this.app.goals.defaultAccel,
+            preventLocalisation: true,
+            preventPathFinding: true,
+            preventBreak: true
+        });
+        if (isOdd){
+            let grabArmList = [armList[1]]; // only right arm
+            await this.playPoseSequence({posePrefix:"sideLiftAndDrop", armList: grabArmList}); // async
+        }
+        else {
+            let grabArmList = [armList[1]]; // only right arm
+            await this.playPoseSequence({posePrefix:"middleLiftAndDrop", armList: grabArmList}); // async
+        }
+
+        // Backward to exit deposit zone radius (and avoid bad pathfindings)
+        result = await this.moveAtAngle({
+            angle: this.angle,
+            distance:   -150,
+            speed:      parameters.speed||this.app.goals.defaultSpeed,
+            nearDist:   50||parameters.nearDist||this.app.goals.defaultNearDist,
+            nearAngle:  20||parameters.nearAngle||this.app.goals.defaultNearAngle,
+            accelDist:  parameters.accelDist||this.app.goals.defaultAccel,
+            preventLocalisation: true,
+            preventPathFinding: true,
+            preventBreak: true
         });
 
-
-        if(!hasBuilt){
-            await this.waitAsyncTasks();
-            this.addAsyncTask( (async ()=>{
-                //await this.playPoseSequence({posePrefix:"frontStore"});
-                if(side=="front") await this.playPoseSequence({posePrefix:"default", armList:["FF", "FS", "FC", "AF", "CF"]}); // async
-                if(side=="back") await this.playPoseSequence({posePrefix:"default", armList:["BB", "BS", "CS", "AS"]}); // async
-            })());
-        } 
-        if(!result) return result;
+        await this.waitAsyncTasks();
         return result;
     }
     
@@ -1210,7 +1227,7 @@ module.exports = class Robot2020 extends Robot{
 
         // Find end zone
         let target = await this.selectMapComponent({
-            componentTypes: parameters.componentTypes || ["buildReserved"],
+            componentTypes: parameters.componentTypes || ["startingZone"],
             historyRatio: 0,
             attemptRatio: 2600,
             access: false,
@@ -1226,6 +1243,9 @@ module.exports = class Robot2020 extends Robot{
         // Increase attempt count
         if(target.component.attempts)  target.component.attempts += 1;
         else target.component.attempts = 1;
+
+        // Release elements
+        this.playPoseSequence({posePrefix:"depositForward"}); // async
 
         // Move to zone
         result = await this.moveToPosition({
@@ -1277,7 +1297,7 @@ module.exports = class Robot2020 extends Robot{
         // Move along zone access, not along endAccess
         result = await this.moveAtAngle({
             angle: target.component.access.angle,
-            distance: 200,
+            distance: 400,
             speed:      parameters.speed||this.app.goals.defaultSpeed,
             nearDist:   parameters.nearDist||this.app.goals.defaultNearDist,
             nearAngle:  parameters.nearAngle||this.app.goals.defaultNearAngle,
