@@ -12,7 +12,7 @@
   "dependencies": {
     "pi-spi": "1.2.1",
     "onoff": "6.0.3",
-    "async": "3.1.0"
+    "async": "3.2.2"
   },
   "repository": {
     "type": "git",
